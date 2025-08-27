@@ -90,9 +90,9 @@ export default function DashboardPage() {
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-white transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } ${sidebarCollapsed ? "w-16" : "w-64"}`}
+                    className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-white transition-all duration-300 ease-in-out ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          } ${sidebarCollapsed ? "w-16" : "w-64"}`}
       >
         <div className="flex h-14 items-center border-b px-4">
           <Link href="/" className="flex items-center gap-2">
@@ -219,7 +219,7 @@ export default function DashboardPage() {
       </motion.aside>
 
       {/* Main Content */}
-      <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "lg:ml-0" : ""}`}>
+      <div className={`flex flex-1 flex-col transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"}`}>
         {/* Header */}
         <motion.header
           initial={{ y: -20, opacity: 0 }}
