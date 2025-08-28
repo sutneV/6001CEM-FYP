@@ -42,6 +42,11 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
 
+  // Don't render this layout for admin or shelter routes - they have their own layouts
+  if (pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/shelter')) {
+    return <>{children}</>
+  }
+
   const navigationItems = [
     { name: "Dashboard", icon: Home, href: "/dashboard" },
     { name: "My Applications", icon: ClipboardList, href: "/dashboard/applications" },
