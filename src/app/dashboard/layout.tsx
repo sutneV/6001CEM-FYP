@@ -52,6 +52,7 @@ export default function DashboardLayout({
 
   const navigationItems = [
     { name: "Dashboard", icon: Home, href: "/dashboard" },
+    { name: "Browse Pets", icon: PawPrint, href: "/dashboard/pets" },
     { name: "My Applications", icon: ClipboardList, href: "/dashboard/applications" },
     { name: "Favorites", icon: Heart, href: "/dashboard/favorites" },
     { name: "Messages", icon: MessageSquare, href: "/dashboard/messages", badge: "3" },
@@ -224,6 +225,7 @@ export default function DashboardLayout({
           <div className="flex-1">
             <h1 className="text-lg font-semibold">
               {pathname === "/dashboard" ? "Dashboard" : 
+               pathname === "/dashboard/pets" ? "Browse Pets" :
                pathname === "/dashboard/applications" ? "My Applications" :
                pathname === "/dashboard/favorites" ? "Favorites" :
                pathname === "/dashboard/messages" ? "Messages" :
