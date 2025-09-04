@@ -113,17 +113,21 @@ export default function AddPetPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 max-w-5xl">
-      <div className="flex items-center mb-6">
-        <Button variant="ghost" size="sm" className="mr-2" onClick={() => router.back()}>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Add New Pet</h1>
+          <p className="text-muted-foreground">Add a new pet to your shelter for adoption</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <h1 className="text-2xl font-bold">Add New Pet</h1>
       </div>
 
       {showSuccess ? (
-        <Alert className="bg-green-50 border-green-200 mb-6">
+        <Alert className="bg-green-50 border-green-200">
           <CheckCircle className="h-5 w-5 text-green-500" />
           <AlertTitle className="text-green-800">Success!</AlertTitle>
           <AlertDescription className="text-green-700">
@@ -132,7 +136,7 @@ export default function AddPetPage() {
         </Alert>
       ) : (
         <>
-          <Card className="mb-6">
+          <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Add Pet Information</CardTitle>
               <CardDescription>Fill out the details below to add a new pet for adoption</CardDescription>
@@ -148,9 +152,9 @@ export default function AddPetPage() {
             </CardHeader>
           </Card>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="space-y-6">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid grid-cols-4 mb-6">
+              <TabsList className="grid grid-cols-4">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
                 <TabsTrigger value="physical">Physical</TabsTrigger>
                 <TabsTrigger value="health">Health & Behavior</TabsTrigger>

@@ -3,13 +3,17 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 
 export default function AddPetLoading() {
   return (
-    <div className="container mx-auto py-6 max-w-5xl">
-      <div className="flex items-center mb-6">
-        <Skeleton className="h-9 w-16 mr-2" />
-        <Skeleton className="h-8 w-48" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Skeleton className="h-9 w-16" />
       </div>
 
-      <Card className="mb-6">
+      <Card>
         <CardHeader className="pb-4">
           <Skeleton className="h-6 w-48 mb-2" />
           <Skeleton className="h-4 w-72" />
@@ -25,8 +29,8 @@ export default function AddPetLoading() {
         </CardHeader>
       </Card>
 
-      <div className="w-full">
-        <div className="grid grid-cols-4 gap-2 mb-6">
+      <div className="w-full space-y-6">
+        <div className="grid grid-cols-4 gap-2">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
