@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/C:\\Users\\WG\\6001CEM-FYP/**)",
+      "Read(/C:\\Users\\WG\\6001CEM-FYP\\src\\app\\auth\\signin/**)",
+      "Read(/C:\\Users\\WG\\6001CEM-FYP\\src\\app\\auth\\register/**)",
+      "Read(/C:\\Users\\WG\\6001CEM-FYP\\src\\app\\dashboard/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

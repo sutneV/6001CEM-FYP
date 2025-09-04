@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react"
 import { motion } from "framer-motion"
+import { useAuth } from "@/contexts/AuthContext"
+import { loginUser, getRedirectPath } from "@/lib/auth-client"
 
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -23,6 +25,7 @@ export default function SignInPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const router = useRouter()
+  const { login } = useAuth()
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -49,22 +52,33 @@ export default function SignInPage() {
     if (!validateForm()) return
 
     setIsLoading(true)
+    setErrors({})
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // Store user session (demo purposes)
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
+    try {
+      // Authenticate user
+      const user = await loginUser({
         email: formData.email,
-        name: formData.email.split("@")[0],
-        signedIn: true,
-      }),
-    )
+        password: formData.password,
+      })
+
+      if (!user) {
+        setErrors({ general: 'Invalid email or password' })
+        setIsLoading(false)
+        return
+      }
+
+      // Login user
+      login(user)
+      
+      // Redirect based on role
+      const redirectPath = getRedirectPath(user.role)
+      router.push(redirectPath)
+    } catch (error) {
+      console.error('Login error:', error)
+      setErrors({ general: 'An unexpected error occurred. Please try again.' })
+    }
 
     setIsLoading(false)
-    router.push("/dashboard")
   }
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -83,6 +97,12 @@ export default function SignInPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errors.general && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                {errors.general}
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">

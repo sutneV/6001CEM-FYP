@@ -34,6 +34,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import AuthGuard from "@/components/auth/AuthGuard"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function ShelterLayout({
   children,
@@ -43,6 +45,7 @@ export default function ShelterLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
+  const { user, logout } = useAuth()
 
   const navigationItems = [
     { name: "Dashboard", icon: Home, href: "/dashboard/shelter" },
@@ -61,7 +64,8 @@ export default function ShelterLayout({
   ]
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <AuthGuard allowedRoles={['shelter']}>
+      <div className="flex min-h-screen bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -152,6 +156,7 @@ export default function ShelterLayout({
               ))}
               <motion.div whileHover={{ x: 5 }} whileTap={{ scale: 0.95 }}>
                 <button 
+                  onClick={logout}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-900 ${
                     sidebarCollapsed ? "justify-center" : ""
                   }`}
@@ -169,13 +174,13 @@ export default function ShelterLayout({
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
             <Avatar>
               <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Shelter" />
-              <AvatarFallback>SP</AvatarFallback>
+              <AvatarFallback>{user?.shelter?.name?.charAt(0) || user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</AvatarFallback>
             </Avatar>
             {!sidebarCollapsed && (
               <>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">SPCA Penang</span>
-                  <span className="text-xs text-gray-500">shelter@spca.org.my</span>
+                  <span className="text-sm font-medium">{user?.shelter?.name || `${user?.firstName} ${user?.lastName}`}</span>
+                  <span className="text-xs text-gray-500">{user?.email}</span>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -190,7 +195,7 @@ export default function ShelterLayout({
                     <DropdownMenuItem>Profile</DropdownMenuItem>
                     <DropdownMenuItem>Settings</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Log out</DropdownMenuItem>
+                    <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
@@ -255,5 +260,6 @@ export default function ShelterLayout({
         </main>
       </div>
     </div>
+    </AuthGuard>
   )
 } 

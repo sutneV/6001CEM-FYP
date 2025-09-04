@@ -10,8 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, Loader2, User, Mail, Phone, MapPin, Lock } from "lucide-react"
+import { Eye, EyeOff, Loader2, User, Mail, Phone, MapPin, Lock, Building2 } from "lucide-react"
 import { motion } from "framer-motion"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { useAuth } from "@/contexts/AuthContext"
+import { registerUser, getRedirectPath } from "@/lib/auth-client"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -25,10 +28,14 @@ export default function RegisterPage() {
     city: "",
     password: "",
     confirmPassword: "",
+    role: "adopter" as "adopter" | "shelter",
+    shelterName: "",
+    shelterDescription: "",
     agreeToTerms: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const router = useRouter()
+  const { login } = useAuth()
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -69,6 +76,12 @@ export default function RegisterPage() {
       newErrors.confirmPassword = "Passwords do not match"
     }
 
+    if (formData.role === "shelter") {
+      if (!formData.shelterName.trim()) {
+        newErrors.shelterName = "Shelter name is required"
+      }
+    }
+
     if (!formData.agreeToTerms) {
       newErrors.agreeToTerms = "You must agree to the terms and conditions"
     }
@@ -84,23 +97,38 @@ export default function RegisterPage() {
 
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Store user session (demo purposes)
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
+    try {
+      // Register user
+      const newUser = await registerUser({
         email: formData.email,
-        name: `${formData.firstName} ${formData.lastName}`,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         phone: formData.phone,
         city: formData.city,
-        signedIn: true,
-      }),
-    )
+        role: formData.role,
+        shelterName: formData.shelterName,
+        shelterDescription: formData.shelterDescription,
+      })
+
+      if (!newUser) {
+        setErrors({ general: 'Failed to create account. Email may already exist.' })
+        setIsLoading(false)
+        return
+      }
+
+      // Login user
+      login(newUser)
+      
+      // Redirect based on role
+      const redirectPath = getRedirectPath(newUser.role)
+      router.push(redirectPath)
+    } catch (error) {
+      console.error('Registration error:', error)
+      setErrors({ general: 'An unexpected error occurred. Please try again.' })
+    }
 
     setIsLoading(false)
-    router.push("/dashboard")
   }
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -119,6 +147,46 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errors.general && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                {errors.general}
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              <Label className="text-base font-medium">I am registering as</Label>
+              <RadioGroup
+                value={formData.role}
+                onValueChange={(value) => handleInputChange("role", value as "adopter" | "shelter")}
+                className="grid grid-cols-2 gap-4"
+              >
+                <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50">
+                  <RadioGroupItem value="adopter" id="adopter" />
+                  <Label htmlFor="adopter" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <User className="h-5 w-5 text-teal-600" />
+                      <div>
+                        <div className="font-medium">Pet Adopter</div>
+                        <div className="text-sm text-gray-500">Looking to adopt a pet</div>
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-gray-50">
+                  <RadioGroupItem value="shelter" id="shelter" />
+                  <Label htmlFor="shelter" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <Building2 className="h-5 w-5 text-teal-600" />
+                      <div>
+                        <div className="font-medium">Animal Shelter</div>
+                        <div className="text-sm text-gray-500">Managing pet adoptions</div>
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -199,6 +267,37 @@ export default function RegisterPage() {
                 {errors.city && <p className="text-sm text-red-500">{errors.city}</p>}
               </div>
             </div>
+
+            {formData.role === "shelter" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="shelterName">Shelter Name</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="shelterName"
+                      placeholder="Your shelter/organization name"
+                      className={`pl-10 ${errors.shelterName ? "border-red-500" : ""}`}
+                      value={formData.shelterName}
+                      onChange={(e) => handleInputChange("shelterName", e.target.value)}
+                    />
+                  </div>
+                  {errors.shelterName && <p className="text-sm text-red-500">{errors.shelterName}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="shelterDescription">Shelter Description (Optional)</Label>
+                  <textarea
+                    id="shelterDescription"
+                    placeholder="Brief description of your shelter or organization"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                    rows={3}
+                    value={formData.shelterDescription}
+                    onChange={(e) => handleInputChange("shelterDescription", e.target.value)}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

@@ -4,6 +4,7 @@ import type React from "react"
 import { PawPrint } from "lucide-react"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
+import GuestGuard from "@/components/auth/GuestGuard"
 
 // Blur Text Animation Component (React Bits style)
 const BlurText = ({ 
@@ -292,7 +293,11 @@ export default function AuthLayout({
 
       {/* Right side - Auth forms */}
       <div className="flex-1 lg:w-1/2 flex items-center justify-center min-h-screen p-8 bg-gray-50">
-        <div className="w-full max-w-md mx-auto">{children}</div>
+        <div className="w-full max-w-md mx-auto">
+          <GuestGuard>
+            {children}
+          </GuestGuard>
+        </div>
       </div>
     </div>
   )
