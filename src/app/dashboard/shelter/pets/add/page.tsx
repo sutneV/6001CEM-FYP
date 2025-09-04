@@ -100,8 +100,35 @@ export default function AddPetPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Import the pets service
+      const { petsService } = await import('@/lib/services/pets')
+      
+      // Prepare the data for submission
+      const petSubmissionData = {
+        name: petData.name,
+        type: petData.type as any,
+        breed: petData.breed || null,
+        age: petData.age as any,
+        gender: petData.gender as any,
+        size: petData.size as any,
+        weight: petData.weight ? parseInt(petData.weight) : null,
+        color: petData.color || null,
+        description: petData.description,
+        story: petData.story || null,
+        images: images,
+        vaccinated: petData.vaccinated,
+        neutered: petData.neutered,
+        microchipped: petData.microchipped,
+        houseTrained: petData.houseTrained,
+        goodWithKids: petData.goodWithKids,
+        goodWithDogs: petData.goodWithDogs,
+        goodWithCats: petData.goodWithCats,
+        specialNeeds: petData.specialNeeds,
+        specialNeedsDescription: petData.specialNeeds ? petData.specialNeedsDescription : null,
+      }
+
+      await petsService.createPet(petSubmissionData)
       setIsSubmitting(false)
       setShowSuccess(true)
 
@@ -109,7 +136,13 @@ export default function AddPetPage() {
       setTimeout(() => {
         router.push("/dashboard/shelter/pets")
       }, 2000)
-    }, 1500)
+    } catch (error) {
+      setIsSubmitting(false)
+      console.error('Error creating pet:', error)
+      // Import toast dynamically to show error
+      const { toast } = await import('sonner')
+      toast.error('Failed to create pet. Please try again.')
+    }
   }
 
   return (

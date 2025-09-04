@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
@@ -14,6 +14,10 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  AlertCircle,
+  Dog,
+  Cat,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -31,6 +35,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
+import { petsService, PetWithShelter } from "@/lib/services/pets"
 
 // Animation variants
 const fadeIn = {
@@ -53,109 +59,66 @@ const staggerContainer = {
 }
 
 
-// Mock data for available pets
-const availablePets = [
-  {
-    id: "buddy-123",
-    name: "Buddy",
-    type: "Dog",
-    breed: "Golden Retriever",
-    age: "2 years",
-    gender: "Male",
-    location: "George Town, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Buddy",
-    compatibility: "95%",
-  },
-  {
-    id: "whiskers-456",
-    name: "Whiskers",
-    type: "Cat",
-    breed: "Siamese",
-    age: "1 year",
-    gender: "Female",
-    location: "Batu Ferringhi, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Whiskers",
-    compatibility: "92%",
-  },
-  {
-    id: "max-789",
-    name: "Max",
-    type: "Dog",
-    breed: "Labrador Retriever",
-    age: "3 years",
-    gender: "Male",
-    location: "Tanjung Bungah, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Max",
-    compatibility: "88%",
-  },
-  {
-    id: "luna-101",
-    name: "Luna",
-    type: "Cat",
-    breed: "Ragdoll",
-    age: "2 years",
-    gender: "Female",
-    location: "George Town, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Luna",
-    compatibility: "85%",
-  },
-  {
-    id: "charlie-102",
-    name: "Charlie",
-    type: "Dog",
-    breed: "Beagle",
-    age: "1 year",
-    gender: "Male",
-    location: "Bayan Lepas, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Charlie",
-    compatibility: "82%",
-  },
-  {
-    id: "oliver-103",
-    name: "Oliver",
-    type: "Cat",
-    breed: "Maine Coon",
-    age: "4 years",
-    gender: "Male",
-    location: "Tanjung Tokong, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Oliver",
-    compatibility: "78%",
-  },
-  {
-    id: "daisy-104",
-    name: "Daisy",
-    type: "Dog",
-    breed: "Shih Tzu",
-    age: "5 years",
-    gender: "Female",
-    location: "Air Itam, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Daisy",
-    compatibility: "75%",
-  },
-  {
-    id: "milo-105",
-    name: "Milo",
-    type: "Dog",
-    breed: "Mixed Breed",
-    age: "2 years",
-    gender: "Male",
-    location: "Balik Pulau, Penang",
-    image: "/placeholder.svg?height=300&width=300&text=Milo",
-    compatibility: "72%",
-  },
-]
+// Compatibility calculation (mock for now)
+const calculateCompatibility = (pet: PetWithShelter) => {
+  // Simple compatibility calculation based on pet attributes
+  let score = 70; // Base score
+  if (pet.vaccinated) score += 5
+  if (pet.neutered) score += 5
+  if (pet.houseTrained) score += 10
+  if (pet.goodWithKids) score += 5
+  if (pet.goodWithDogs) score += 3
+  if (pet.goodWithCats) score += 2
+  return Math.min(score, 99) // Cap at 99%
+}
 
 export default function PetsPage() {
   const [favorites, setFavorites] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
+  const [pets, setPets] = useState<PetWithShelter[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedType, setSelectedType] = useState("all")
+
+  // Fetch pets on component mount
+  useEffect(() => {
+    fetchPets()
+  }, [])
+
+  const fetchPets = async () => {
+    try {
+      setLoading(true)
+      const data = await petsService.getAllPets({ status: 'available' })
+      setPets(data)
+    } catch (error) {
+      toast.error('Failed to fetch pets')
+      console.error('Error fetching pets:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const toggleFavorite = (id: string) => {
     if (favorites.includes(id)) {
       setFavorites(favorites.filter((favId) => favId !== id))
+      toast.success("Removed from favorites")
     } else {
       setFavorites([...favorites, id])
+      toast.success("Added to favorites")
     }
   }
+
+  // Filter pets based on search and type
+  const filteredPets = pets.filter((pet) => {
+    const matchesSearch = 
+      pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (pet.breed && pet.breed.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      pet.shelter.name.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesType = selectedType === "all" || pet.type.toLowerCase() === selectedType.toLowerCase()
+    
+    return matchesSearch && matchesType
+  })
 
   return (
     <div className="space-y-8">
@@ -164,6 +127,11 @@ export default function PetsPage() {
           <motion.div variants={fadeIn} className="space-y-2">
             <h1 className="text-3xl font-bold">Available Pets</h1>
             <p className="text-gray-500">Find your perfect companion from our available pets in Penang</p>
+            {!loading && (
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredPets.length} of {pets.length} pets • {favorites.length} favorited
+              </p>
+            )}
           </motion.div>
 
           {/* Search and Filters */}
@@ -171,10 +139,15 @@ export default function PetsPage() {
             <div className="flex flex-col gap-4 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input placeholder="Search by name, breed, or location" className="pl-9" />
+                <Input 
+                  placeholder="Search by name, breed, or shelter..." 
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
               <div className="flex gap-2">
-                <Select defaultValue="all">
+                <Select value={selectedType} onValueChange={setSelectedType}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Pet Type" />
                   </SelectTrigger>
@@ -182,6 +155,8 @@ export default function PetsPage() {
                     <SelectItem value="all">All Pets</SelectItem>
                     <SelectItem value="dog">Dogs</SelectItem>
                     <SelectItem value="cat">Cats</SelectItem>
+                    <SelectItem value="rabbit">Rabbits</SelectItem>
+                    <SelectItem value="bird">Birds</SelectItem>
                     <SelectItem value="other">Other Pets</SelectItem>
                   </SelectContent>
                 </Select>
@@ -298,63 +273,12 @@ export default function PetsPage() {
           </motion.div>
 
           {/* Pet Cards Grid */}
-          <motion.div variants={staggerContainer} className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {availablePets.map((pet) => (
-              <motion.div
-                key={pet.id}
-                whileHover={{ y: -10 }}
-                className="overflow-hidden rounded-lg border bg-white"
-              >
-                <div className="relative aspect-square">
-                  <Image src={pet.image || "/placeholder.svg"} alt={pet.name} fill className="object-cover" />
-                  <div className="absolute right-2 top-2 rounded-full bg-white/80 px-2 py-1 text-xs font-medium">
-                    {pet.compatibility} Match
-                  </div>
-                  <motion.button
-                    className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-gray-500 hover:text-red-500"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      toggleFavorite(pet.id)
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Heart className={`h-4 w-4 ${favorites.includes(pet.id) ? "fill-red-500 text-red-500" : ""}`} />
-                  </motion.button>
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">{pet.name}</h3>
-                    <Badge variant="outline" className="text-teal-700 border-teal-200 bg-teal-100">
-                      {pet.type}
-                    </Badge>
-                  </div>
-                  <div className="mt-2 text-sm text-gray-500">
-                    <p>
-                      {pet.breed} • {pet.age} • {pet.gender}
-                    </p>
-                    <div className="mt-1 flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>{pet.location}</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Link href={`/pets/${pet.id}`} className="flex-1">
-                      <Button variant="outline" className="w-full">
-                        View Profile
-                      </Button>
-                    </Link>
-                    <Link href={`/apply/${pet.id}`} className="flex-1">
-                      <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply Now</Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          {/* No Results Placeholder (hidden in this example) */}
-          <div className="hidden">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mb-4" />
+              <p className="text-muted-foreground">Loading pets...</p>
+            </div>
+          ) : filteredPets.length === 0 ? (
             <div className="flex h-60 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
                 <PawPrint className="h-6 w-6 text-gray-400" />
@@ -363,30 +287,116 @@ export default function PetsPage() {
               <p className="mt-2 text-sm text-gray-500">
                 Try adjusting your filters or search criteria to find more pets
               </p>
-              <Button variant="outline" className="mt-4">
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => {
+                  setSearchTerm("")
+                  setSelectedType("all")
+                }}
+              >
                 Reset Filters
               </Button>
             </div>
-          </div>
+          ) : (
+            <motion.div variants={staggerContainer} className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {filteredPets.map((pet) => {
+                const compatibility = calculateCompatibility(pet)
+                return (
+                  <motion.div
+                    key={pet.id}
+                    whileHover={{ y: -10 }}
+                    className="overflow-hidden rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="relative aspect-square">
+                      <Image 
+                        src={pet.images && pet.images.length > 0 ? pet.images[0] : `/placeholder.svg?height=300&width=300&text=${pet.name}`} 
+                        alt={pet.name} 
+                        fill 
+                        className="object-cover" 
+                      />
+                      <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium">
+                        {compatibility}% Match
+                      </div>
+                      <div className="absolute bottom-2 left-2">
+                        <Badge variant="outline" className="bg-white/90">
+                          {pet.type === 'dog' && <Dog className="h-3 w-3 mr-1" />}
+                          {pet.type === 'cat' && <Cat className="h-3 w-3 mr-1" />}
+                          <span className="capitalize">{pet.type}</span>
+                        </Badge>
+                      </div>
+                      <motion.button
+                        className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-500 hover:text-red-500"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          toggleFavorite(pet.id)
+                        }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <Heart className={`h-4 w-4 ${favorites.includes(pet.id) ? "fill-red-500 text-red-500" : ""}`} />
+                      </motion.button>
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">{pet.name}</h3>
+                        <Badge variant="secondary" className="capitalize">
+                          {pet.age}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 text-sm text-gray-500">
+                        <p>
+                          {pet.breed || 'Mixed breed'} • {pet.gender}
+                          {pet.size && ` • ${pet.size}`}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          <span>{pet.shelter.name}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                        {pet.description}
+                      </p>
+                      
+                      {/* Health & Behavior badges */}
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {pet.vaccinated && <Badge variant="outline" className="text-xs">Vaccinated</Badge>}
+                        {pet.neutered && <Badge variant="outline" className="text-xs">Spayed/Neutered</Badge>}
+                        {pet.houseTrained && <Badge variant="outline" className="text-xs">House Trained</Badge>}
+                        {pet.goodWithKids && <Badge variant="outline" className="text-xs">Good with Kids</Badge>}
+                      </div>
 
-          {/* Pagination */}
-          <motion.div variants={fadeIn} className="flex items-center justify-center gap-1">
-            <Button variant="outline" size="icon" disabled>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" className="bg-teal-50">
-              1
-            </Button>
-            <Button variant="outline" size="sm">
-              2
-            </Button>
-            <Button variant="outline" size="sm">
-              3
-            </Button>
-            <Button variant="outline" size="icon">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </motion.div>
+                      <div className="mt-4 flex gap-2">
+                        <Link href={`/pets/${pet.id}`} className="flex-1">
+                          <Button variant="outline" className="w-full">
+                            View Profile
+                          </Button>
+                        </Link>
+                        <Link href={`/apply/${pet.id}`} className="flex-1">
+                          <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply Now</Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )}
+
+          {/* Pagination - Hide for now, can be implemented later */}
+          {!loading && filteredPets.length > 0 && (
+            <motion.div variants={fadeIn} className="flex items-center justify-center gap-1">
+              <Button variant="outline" size="icon" disabled>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="bg-teal-50">
+                1
+              </Button>
+              <Button variant="outline" size="icon" disabled>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
     </div>
   )

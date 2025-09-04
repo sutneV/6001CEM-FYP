@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,84 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, Filter, Download, MoreHorizontal, Edit, Eye, Trash2 } from "lucide-react"
+import { Plus, Search, Filter, Download, MoreHorizontal, Edit, Eye, Trash2, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import Link from "next/link"
-
-// Mock data for shelter pets
-const shelterPets = [
-  {
-    id: "1",
-    name: "Buddy",
-    type: "Dog",
-    breed: "Golden Retriever",
-    age: "2 years",
-    gender: "Male",
-    status: "available",
-    dateAdded: "2024-01-15",
-    image: "/placeholder.svg?height=40&width=40",
-    description: "Friendly and energetic dog",
-  },
-  {
-    id: "2",
-    name: "Whiskers",
-    type: "Cat",
-    breed: "Persian",
-    age: "1 year",
-    gender: "Female",
-    status: "adopted",
-    dateAdded: "2024-01-10",
-    image: "/placeholder.svg?height=40&width=40",
-    description: "Calm and affectionate cat",
-  },
-  {
-    id: "3",
-    name: "Max",
-    type: "Dog",
-    breed: "German Shepherd",
-    age: "3 years",
-    gender: "Male",
-    status: "pending",
-    dateAdded: "2024-01-20",
-    image: "/placeholder.svg?height=40&width=40",
-    description: "Loyal and protective dog",
-  },
-  {
-    id: "4",
-    name: "Luna",
-    type: "Cat",
-    breed: "Siamese",
-    age: "6 months",
-    gender: "Female",
-    status: "available",
-    dateAdded: "2024-01-25",
-    image: "/placeholder.svg?height=40&width=40",
-    description: "Playful and curious kitten",
-  },
-  {
-    id: "5",
-    name: "Charlie",
-    type: "Dog",
-    breed: "Labrador",
-    age: "4 years",
-    gender: "Male",
-    status: "available",
-    dateAdded: "2024-01-12",
-    image: "/placeholder.svg?height=40&width=40",
-    description: "Gentle and family-friendly",
-  },
-  {
-    id: "6",
-    name: "Snowball",
-    type: "Rabbit",
-    breed: "Holland Lop",
-    age: "8 months",
-    gender: "Female",
-    status: "available",
-    dateAdded: "2024-01-18",
-    image: "/placeholder.svg?height=40&width=40",
-    description: "Soft and gentle rabbit",
-  },
-]
+import { petsService, PetWithShelter } from "@/lib/services/pets"
 
 const statusColors = {
   available: "bg-green-100 text-green-800",
@@ -100,11 +26,32 @@ export default function ShelterPetsPage() {
   const [typeFilter, setTypeFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedPets, setSelectedPets] = useState<string[]>([])
+  const [pets, setPets] = useState<PetWithShelter[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
-  const filteredPets = shelterPets.filter((pet) => {
+  // Fetch pets on component mount
+  useEffect(() => {
+    fetchPets()
+  }, [])
+
+  const fetchPets = async () => {
+    try {
+      setLoading(true)
+      const data = await petsService.getShelterPets()
+      setPets(data)
+    } catch (error) {
+      toast.error('Failed to fetch pets')
+      console.error('Error fetching pets:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredPets = pets.filter((pet) => {
     const matchesSearch =
       pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pet.breed.toLowerCase().includes(searchTerm.toLowerCase())
+      (pet.breed && pet.breed.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesType = typeFilter === "all" || pet.type.toLowerCase() === typeFilter.toLowerCase()
     const matchesStatus = statusFilter === "all" || pet.status === statusFilter
 
@@ -112,10 +59,10 @@ export default function ShelterPetsPage() {
   })
 
   const stats = {
-    total: shelterPets.length,
-    available: shelterPets.filter((p) => p.status === "available").length,
-    adopted: shelterPets.filter((p) => p.status === "adopted").length,
-    pending: shelterPets.filter((p) => p.status === "pending").length,
+    total: pets.length,
+    available: pets.filter((p) => p.status === "available").length,
+    adopted: pets.filter((p) => p.status === "adopted").length,
+    pending: pets.filter((p) => p.status === "pending").length,
   }
 
   const handleSelectAll = (checked: boolean) => {
@@ -131,6 +78,24 @@ export default function ShelterPetsPage() {
       setSelectedPets([...selectedPets, petId])
     } else {
       setSelectedPets(selectedPets.filter((id) => id !== petId))
+    }
+  }
+
+  const handleDeletePet = async (petId: string) => {
+    if (!confirm('Are you sure you want to delete this pet? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setDeleting(petId)
+      await petsService.deletePet(petId)
+      toast.success('Pet deleted successfully')
+      fetchPets() // Refresh the list
+    } catch (error) {
+      toast.error('Failed to delete pet')
+      console.error('Error deleting pet:', error)
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -285,65 +250,88 @@ export default function ShelterPetsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPets.map((pet) => (
-                  <TableRow key={pet.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedPets.includes(pet.id)}
-                        onCheckedChange={(checked) => handleSelectPet(pet.id, checked as boolean)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={pet.image || "/placeholder.svg"} alt={pet.name} />
-                          <AvatarFallback>{pet.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{pet.name}</div>
-                          <div className="text-sm text-muted-foreground">{pet.description}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{pet.type}</div>
-                        <div className="text-sm text-muted-foreground">{pet.breed}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{pet.age}</TableCell>
-                    <TableCell>{pet.gender}</TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[pet.status as keyof typeof statusColors]}>
-                        {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{new Date(pet.dateAdded).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Pet
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Pet
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                      <p className="text-muted-foreground mt-2">Loading pets...</p>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredPets.map((pet) => (
+                    <TableRow key={pet.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedPets.includes(pet.id)}
+                          onCheckedChange={(checked) => handleSelectPet(pet.id, checked as boolean)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage 
+                              src={pet.images && pet.images.length > 0 ? pet.images[0] : "/placeholder.svg"} 
+                              alt={pet.name} 
+                            />
+                            <AvatarFallback>{pet.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{pet.name}</div>
+                            <div className="text-sm text-muted-foreground">{pet.description}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium capitalize">{pet.type}</div>
+                          <div className="text-sm text-muted-foreground">{pet.breed || 'Mixed breed'}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="capitalize">{pet.age}</TableCell>
+                      <TableCell className="capitalize">{pet.gender}</TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[pet.status as keyof typeof statusColors]}>
+                          {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(pet.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0" 
+                              disabled={deleting === pet.id}
+                            >
+                              {deleting === pet.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Pet
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => handleDeletePet(pet.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Pet
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
