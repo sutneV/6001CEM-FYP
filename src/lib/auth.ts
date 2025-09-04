@@ -133,31 +133,8 @@ export async function authenticateUser(email: string, password: string): Promise
   }
 }
 
-export const ADMIN_CREDENTIALS = {
-  email: 'admin@pawsrescue.com',
-  password: 'admin123456',
-  firstName: 'Admin',
-  lastName: 'User',
-  role: 'admin' as const,
-}
-
-export async function authenticateAdmin(email: string, password: string): Promise<UserWithRole | null> {
-  if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-    return {
-      id: 'admin-hardcoded',
-      email: ADMIN_CREDENTIALS.email,
-      firstName: ADMIN_CREDENTIALS.firstName,
-      lastName: ADMIN_CREDENTIALS.lastName,
-      phone: null,
-      city: null,
-      role: 'admin',
-      isActive: 'true',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-  }
-  return null
-}
+// Admin credentials are now stored in the database
+// Use the same authenticateUser function for all users including admin
 
 export function getRedirectPath(role: string): string {
   switch (role) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateUser, authenticateAdmin } from '@/lib/auth'
+import { authenticateUser } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,13 +14,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Try admin authentication first
-    let user = await authenticateAdmin(email, password)
-    
-    // If not admin, try regular user authentication
-    if (!user) {
-      user = await authenticateUser(email, password)
-    }
+    // Authenticate user (including admin stored in database)
+    const user = await authenticateUser(email, password)
 
     if (!user) {
       return NextResponse.json(
