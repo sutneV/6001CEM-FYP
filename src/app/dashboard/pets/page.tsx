@@ -367,7 +367,7 @@ export default function PetsPage() {
                       </div>
 
                       <div className="mt-4 flex gap-2">
-                        <Link href={`/pets/${pet.id}`} className="flex-1">
+                        <Link href={`/dashboard/pets/${pet.id}`} className="flex-1">
                           <Button variant="outline" className="w-full">
                             View Profile
                           </Button>

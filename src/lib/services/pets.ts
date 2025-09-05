@@ -25,7 +25,8 @@ export class PetsService {
   private async handleResponse(response: Response) {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
-      throw new Error(error.error || 'Something went wrong')
+      console.error('API Error:', response.status, response.statusText, error)
+      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`)
     }
     return response.json()
   }
@@ -53,7 +54,7 @@ export class PetsService {
     return this.handleResponse(response)
   }
 
-  // Get specific pet
+  // Get specific pet (for shelter management)
   async getPet(id: string): Promise<Pet> {
     const response = await fetch(`/api/shelter/pets/${id}`, {
       headers: {
@@ -61,6 +62,12 @@ export class PetsService {
         ...this.getAuthHeaders()
       }
     })
+    return this.handleResponse(response)
+  }
+
+  // Get specific pet with shelter info (for public viewing)
+  async getPetById(id: string): Promise<PetWithShelter> {
+    const response = await fetch(`/api/pets/${id}`)
     return this.handleResponse(response)
   }
 
