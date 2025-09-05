@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, ArrowRight, CheckCircle, ImagePlus, Loader2, Save, X, Upload } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle, ImagePlus, Loader2, Save, X, Upload, Sparkles } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { imageUploadService } from "@/lib/utils/image-upload"
 import { toast } from "sonner"
@@ -29,6 +29,7 @@ export default function AddPetPage() {
   const [images, setImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreviews, setImagePreviews] = useState<{ url: string; isUploaded: boolean }[]>([])
+  const [isEnhancingStory, setIsEnhancingStory] = useState(false)
 
   // Form state
   const [petData, setPetData] = useState({
@@ -167,6 +168,51 @@ export default function AddPetPage() {
     }
     
     toast.success('Image removed')
+  }
+
+  const enhanceStoryWithAI = async () => {
+    if (!petData.story.trim()) {
+      toast.error('Please write a short story first before enhancing it with AI')
+      return
+    }
+
+    setIsEnhancingStory(true)
+    
+    try {
+      const response = await fetch('/api/enhance-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          petData: {
+            name: petData.name,
+            type: petData.type,
+            breed: petData.breed,
+            age: petData.age,
+            gender: petData.gender,
+            size: petData.size,
+            description: petData.description
+          },
+          originalStory: petData.story
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || 'Failed to enhance story')
+      }
+
+      const { enhancedStory } = await response.json()
+      
+      setPetData(prev => ({ ...prev, story: enhancedStory }))
+      toast.success('Story enhanced successfully!')
+    } catch (error) {
+      console.error('Error enhancing story:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to enhance story. Please try again.')
+    } finally {
+      setIsEnhancingStory(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -663,15 +709,40 @@ export default function AddPetPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="story">Pet's Story</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="story">Pet's Story</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={enhanceStoryWithAI}
+                          disabled={isEnhancingStory || !petData.story.trim()}
+                          className="text-xs"
+                        >
+                          {isEnhancingStory ? (
+                            <>
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              Enhancing...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-1 h-3 w-3" />
+                              Enhance with AI
+                            </>
+                          )}
+                        </Button>
+                      </div>
                       <Textarea
                         id="story"
                         name="story"
-                        placeholder="Share this pet's background, personality, and any special stories"
+                        placeholder="Share this pet's background, personality, and any special stories. Write a short story and click 'Enhance with AI' to make it more engaging!"
                         value={petData.story}
                         onChange={handleInputChange}
                         className="min-h-[150px]"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        💡 Tip: Write a brief story about the pet, then use AI to make it more engaging and heartwarming for potential adopters.
+                      </p>
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between">
