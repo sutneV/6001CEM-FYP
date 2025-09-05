@@ -15,8 +15,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, ArrowRight, CheckCircle, ImagePlus, Loader2, Save, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle, ImagePlus, Loader2, Save, X, Upload } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { imageUploadService } from "@/lib/utils/image-upload"
+import { toast } from "sonner"
 
 export default function AddPetPage() {
   const router = useRouter()
@@ -25,6 +27,8 @@ export default function AddPetPage() {
   const [formProgress, setFormProgress] = useState(25)
   const [showSuccess, setShowSuccess] = useState(false)
   const [images, setImages] = useState<string[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [imagePreviews, setImagePreviews] = useState<{ url: string; isUploaded: boolean }[]>([])
 
   // Form state
   const [petData, setPetData] = useState({
@@ -86,14 +90,83 @@ export default function AddPetPage() {
     }
   }
 
-  const handleImageUpload = () => {
-    // Simulate image upload with placeholder images
-    const newImage = `/placeholder.svg?height=300&width=300&text=Pet+Image+${images.length + 1}`
-    setImages((prev) => [...prev, newImage])
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    
+    if (files.length === 0) return
+
+    // Validate images
+    const validation = imageUploadService.validateImages(files)
+    if (!validation.valid) {
+      toast.error(validation.error!)
+      return
+    }
+
+    // Check total image count
+    if (imagePreviews.length + files.length > 5) {
+      toast.error('Maximum 5 images allowed')
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      // Create previews immediately for better UX
+      const newPreviews = await Promise.all(
+        files.map(async (file) => {
+          const previewUrl = await imageUploadService.createImagePreview(file)
+          return { url: previewUrl, isUploaded: false }
+        })
+      )
+      
+      setImagePreviews(prev => [...prev, ...newPreviews])
+
+      // Upload images to server
+      const uploadedUrls = await imageUploadService.uploadImages(files)
+      
+      // Update images state with uploaded URLs
+      setImages(prev => [...prev, ...uploadedUrls])
+      
+      // Update previews to mark as uploaded
+      setImagePreviews(prev => {
+        const updated = [...prev]
+        let uploadIndex = 0
+        for (let i = updated.length - newPreviews.length; i < updated.length; i++) {
+          if (!updated[i].isUploaded) {
+            updated[i] = { url: uploadedUrls[uploadIndex], isUploaded: true }
+            uploadIndex++
+          }
+        }
+        return updated
+      })
+
+      toast.success(`${files.length} image(s) uploaded successfully`)
+    } catch (error) {
+      console.error('Upload failed:', error)
+      toast.error('Failed to upload images. Please try again.')
+      
+      // Remove failed previews
+      setImagePreviews(prev => prev.slice(0, prev.length - files.length))
+    } finally {
+      setIsUploading(false)
+      // Clear the input
+      event.target.value = ''
+    }
   }
 
   const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index))
+    const preview = imagePreviews[index]
+    
+    // Remove from previews
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index))
+    
+    // If the image was uploaded, also remove from images array
+    if (preview?.isUploaded) {
+      const imageUrl = preview.url
+      setImages((prev) => prev.filter(url => url !== imageUrl))
+    }
+    
+    toast.success('Image removed')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -513,35 +586,64 @@ export default function AddPetPage() {
                     <div className="space-y-2">
                       <Label>Pet Photos</Label>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                        {images.map((image, index) => (
+                        {imagePreviews.map((preview, index) => (
                           <div key={index} className="relative rounded-md overflow-hidden border h-40">
                             <img
-                              src={image || "/placeholder.svg"}
+                              src={preview.url}
                               alt={`Pet image ${index + 1}`}
                               className="w-full h-full object-cover"
                             />
+                            {!preview.isUploaded && (
+                              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin text-white" />
+                              </div>
+                            )}
                             <Button
                               variant="destructive"
                               size="icon"
                               className="absolute top-2 right-2 h-6 w-6"
                               onClick={() => removeImage(index)}
+                              disabled={!preview.isUploaded}
                             >
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
                         ))}
 
-                        <div
-                          className="border border-dashed rounded-md flex flex-col items-center justify-center h-40 cursor-pointer hover:bg-muted/50 transition-colors"
-                          onClick={handleImageUpload}
-                        >
-                          <ImagePlus className="h-10 w-10 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">Click to add photo</p>
-                        </div>
+                        {imagePreviews.length < 5 && (
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handleImageUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                              disabled={isUploading}
+                            />
+                            <div className="border border-dashed rounded-md flex flex-col items-center justify-center h-40 hover:bg-muted/50 transition-colors">
+                              {isUploading ? (
+                                <>
+                                  <Loader2 className="h-10 w-10 text-muted-foreground mb-2 animate-spin" />
+                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                                  <p className="text-sm text-muted-foreground">Click to upload photos</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Upload up to 5 photos. First photo will be the main display image.
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-muted-foreground">
+                          Upload up to 5 photos (JPG, PNG, WEBP). Max 5MB each. First photo will be the main display image.
+                        </p>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          {imagePreviews.length}/5 photos
+                        </p>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
