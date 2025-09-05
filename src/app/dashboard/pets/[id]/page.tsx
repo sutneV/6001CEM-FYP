@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -129,6 +129,7 @@ export default function PetProfilePage() {
   const [isFavorite, setIsFavorite] = useState(false)
   const [showGalleryModal, setShowGalleryModal] = useState(false)
   const [galleryIndex, setGalleryIndex] = useState(0)
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (petId) {
@@ -143,6 +144,7 @@ export default function PetProfilePage() {
       console.log('Fetching pet with ID:', id)
       const data = await petsService.getPetById(id)
       console.log('Pet data received:', data)
+      console.log('Pet images array:', data.images)
       setPet(data)
       
       // Check if pet is in favorites
@@ -186,12 +188,16 @@ export default function PetProfilePage() {
 
   const nextImage = () => {
     const images = pet?.images || []
-    setCurrentImageIndex((prev) => (prev + 1) % Math.max(images.length, 1))
+    const newIndex = (currentImageIndex + 1) % Math.max(images.length, 1)
+    setCurrentImageIndex(newIndex)
+    console.log('Navigated to next image, index:', newIndex)
   }
 
   const prevImage = () => {
     const images = pet?.images || []
-    setCurrentImageIndex((prev) => (prev - 1 + Math.max(images.length, 1)) % Math.max(images.length, 1))
+    const newIndex = (currentImageIndex - 1 + Math.max(images.length, 1)) % Math.max(images.length, 1)
+    setCurrentImageIndex(newIndex)
+    console.log('Navigated to previous image, index:', newIndex)
   }
 
   const openGallery = (index: number) => {
@@ -204,6 +210,24 @@ export default function PetProfilePage() {
     setShowGalleryModal(false)
     document.body.style.overflow = "auto"
   }
+
+  const handleImageError = useCallback((imageUrl: string) => {
+    console.error('Image failed to load:', imageUrl)
+    setImageErrors(prev => new Set([...prev, imageUrl]))
+  }, [])
+
+  const getImageSrc = useCallback((imageUrl: string, fallbackText?: string) => {
+    console.log('getImageSrc called with:', imageUrl, 'errors:', imageErrors.has(imageUrl))
+    if (imageErrors.has(imageUrl)) {
+      const fallback = fallbackText ? 
+        `/placeholder.svg?height=600&width=800&text=${encodeURIComponent(fallbackText)}` :
+        '/placeholder.svg?height=600&width=800&text=Pet+Photo'
+      console.log('Using fallback due to error:', fallback)
+      return fallback
+    }
+    console.log('Returning original URL:', imageUrl)
+    return imageUrl
+  }, [imageErrors])
 
   const nextGalleryImage = () => {
     const images = pet?.images || []
@@ -241,7 +265,42 @@ export default function PetProfilePage() {
     )
   }
 
+  // Helper function to ensure proper image URLs
+  const processImageUrl = (imageUrl: string) => {
+    if (!imageUrl) {
+      const fallback = `/placeholder.svg?height=600&width=800&text=${pet.name}+Photo`
+      console.log('No image URL provided, using fallback:', fallback)
+      return fallback
+    }
+    
+    // If it's already a full URL or starts with http/https, use as is
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('/placeholder.svg')) {
+      console.log('Using URL as-is:', imageUrl)
+      return imageUrl
+    }
+    
+    // If it starts with /uploads/, use as is
+    if (imageUrl.startsWith('/uploads/')) {
+      console.log('Using uploads URL as-is:', imageUrl)
+      return imageUrl
+    }
+    
+    // If it doesn't start with /, add it
+    const processed = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+    console.log('Processed URL:', imageUrl, '->', processed)
+    return processed
+  }
+
   // Transform real data to match UI expectations
+  const processedImages = pet.images && pet.images.length > 0 
+    ? pet.images.map(processImageUrl)
+    : [processImageUrl('')]
+  
+  console.log('Original images:', pet.images)
+  console.log('Processed images:', processedImages)
+  console.log('Current image index:', currentImageIndex)
+  console.log('Current image URL:', processedImages[currentImageIndex])
+  
   const petData = {
     id: pet.id,
     name: pet.name,
@@ -269,9 +328,7 @@ export default function PetProfilePage() {
       apartments: pet.size === 'small' || pet.size === 'medium' ? 'Suitable for apartments' : 'Best with a yard',
     },
     adoptionFee: 'Please inquire',
-    images: pet.images && pet.images.length > 0 ? pet.images : [
-      `/placeholder.svg?height=600&width=800&text=${pet.name}+Photo`
-    ],
+    images: processedImages,
     fosterParent: {
       name: pet.shelter.name,
       image: `/placeholder.svg?height=40&width=40&text=${pet.shelter.name.charAt(0)}`,
@@ -283,47 +340,6 @@ export default function PetProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-white px-4 sm:px-6">
-        <Link href="/dashboard/pets" className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-900">
-          <ArrowLeft className="h-4 w-4" />
-          <span className="text-sm font-medium">Back to Pets</span>
-        </Link>
-        <div className="flex-1" />
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={toggleFavorite}>
-                    <Heart className={`h-4 w-4 ${isFavorite ? "fill-red-500 text-red-500" : ""}`} />
-                    <span className="sr-only">Add to favorites</span>
-                  </Button>
-                </motion.div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isFavorite ? "Remove from favorites" : "Add to favorites"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                  <Button variant="outline" size="icon" className="h-8 w-8">
-                    <Share2 className="h-4 w-4" />
-                    <span className="sr-only">Share</span>
-                  </Button>
-                </motion.div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Share this pet</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </header>
-
       <main className="container mx-auto px-4 py-8 md:px-6">
         <motion.div
           variants={staggerContainer}
@@ -334,25 +350,24 @@ export default function PetProfilePage() {
           {/* Left Column - Images */}
           <motion.div variants={fadeIn} className="lg:col-span-2">
             <div className="space-y-4">
-              {/* Main Image */}
+              {/* Main Image - Clean Working Version */}
               <div className="relative aspect-video overflow-hidden rounded-xl bg-gray-100">
-                <motion.div
-                  key={currentImageIndex}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="relative h-full w-full"
+                <img
+                  key={`main-image-${currentImageIndex}`}
+                  src={petData.images[currentImageIndex]}
+                  alt={`${petData.name} - Image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-cover cursor-pointer"
                   onClick={() => openGallery(currentImageIndex)}
-                >
-                  <Image
-                    src={petData.images[currentImageIndex] || "/placeholder.svg"}
-                    alt={`${petData.name} - Image ${currentImageIndex + 1}`}
-                    fill
-                    className="object-cover"
-                  />
-                  <div className="absolute inset-0 cursor-pointer bg-black bg-opacity-0 transition-all hover:bg-opacity-10" />
-                </motion.div>
+                  onError={(e) => {
+                    console.error('Main image failed:', petData.images[currentImageIndex])
+                    e.currentTarget.src = `/placeholder.svg?height=600&width=800&text=${encodeURIComponent(petData.name)}`
+                  }}
+                  onLoad={() => {
+                    console.log('Main image loaded:', petData.images[currentImageIndex])
+                  }}
+                />
+                
+                {/* Navigation buttons */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -377,6 +392,8 @@ export default function PetProfilePage() {
                   <ChevronRight className="h-6 w-6" />
                   <span className="sr-only">Next image</span>
                 </Button>
+                
+                {/* Image indicators */}
                 <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
                   {petData.images.map((_, index) => (
                     <button
@@ -386,6 +403,7 @@ export default function PetProfilePage() {
                       }`}
                       onClick={(e) => {
                         e.stopPropagation()
+                        console.log('Dot clicked, setting index to:', index)
                         setCurrentImageIndex(index)
                       }}
                     >
@@ -395,8 +413,9 @@ export default function PetProfilePage() {
                 </div>
               </div>
 
+
               {/* Thumbnail Gallery */}
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex overflow-x-auto pb-2 pt-2 gap-2.5 mx-0 pl-2 pr-2">
                 {petData.images.map((image, index) => (
                   <motion.button
                     key={index}
@@ -405,13 +424,21 @@ export default function PetProfilePage() {
                     className={`relative aspect-square h-20 flex-shrink-0 overflow-hidden rounded-md ${
                       index === currentImageIndex ? "ring-2 ring-teal-500 ring-offset-2" : ""
                     }`}
-                    onClick={() => setCurrentImageIndex(index)}
+                    onClick={() => {
+                      console.log('Thumbnail clicked, setting index to:', index)
+                      console.log('Thumbnail image URL:', image)
+                      setCurrentImageIndex(index)
+                    }}
                   >
-                    <Image
-                      src={image || "/placeholder.svg"}
+                    <img
+                      src={getImageSrc(image || "/placeholder.svg", `${petData.name} ${index + 1}`)}
                       alt={`${petData.name} - Thumbnail ${index + 1}`}
-                      fill
-                      className="object-cover"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('Thumbnail IMG error:', image)
+                        handleImageError(image)
+                        e.currentTarget.src = `/placeholder.svg?height=80&width=80&text=${index + 1}`
+                      }}
                     />
                   </motion.button>
                 ))}
