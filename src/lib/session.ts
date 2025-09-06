@@ -12,7 +12,8 @@ export function saveSession(user: UserWithRole): void {
   }
   
   if (typeof window !== 'undefined') {
-    localStorage.setItem('userSession', JSON.stringify(sessionData))
+    const port = window.location.port || '80'
+    localStorage.setItem(`userSession_${port}`, JSON.stringify(sessionData))
   }
 }
 
@@ -22,7 +23,8 @@ export function getSession(): SessionData | null {
   }
   
   try {
-    const sessionData = localStorage.getItem('userSession')
+    const port = window.location.port || '80'
+    const sessionData = localStorage.getItem(`userSession_${port}`)
     if (!sessionData) {
       return null
     }
@@ -36,7 +38,8 @@ export function getSession(): SessionData | null {
 
 export function clearSession(): void {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('userSession')
+    const port = window.location.port || '80'
+    localStorage.removeItem(`userSession_${port}`)
   }
 }
 
