@@ -1,6 +1,6 @@
 import { db } from '../db'
 import { conversations, messages, users, shelters, pets } from '../db/schema'
-import { eq, and, or, desc, sql } from 'drizzle-orm'
+import { eq, and, or, desc, sql, ne } from 'drizzle-orm'
 import type { Conversation, Message, NewConversation, NewMessage, User, Shelter, Pet } from '../db/schema'
 
 export interface ConversationWithDetails extends Conversation {
@@ -65,9 +65,7 @@ export class MessagingService {
             and(
               eq(messages.conversationId, result.conversation.id),
               eq(messages.status, 'sent'),
-              userRole === 'adopter' 
-                ? eq(messages.senderId, result.shelter.userId) // Messages from shelter to adopter
-                : eq(messages.senderId, result.conversation.adopterId) // Messages from adopter to shelter
+              ne(messages.senderId, userId) // Messages NOT sent by current user
             )
           )
 
@@ -260,6 +258,7 @@ export class MessagingService {
 
   async markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
     try {
+      // Mark messages as read that were NOT sent by the current user
       await db
         .update(messages)
         .set({
@@ -269,7 +268,7 @@ export class MessagingService {
         .where(
           and(
             eq(messages.conversationId, conversationId),
-            eq(messages.senderId, userId), // Only mark messages not sent by the current user
+            ne(messages.senderId, userId), // Mark messages NOT sent by the current user
             eq(messages.status, 'sent')
           )
         )
@@ -281,6 +280,13 @@ export class MessagingService {
 
   async getUnreadMessageCount(userId: string, userRole: 'adopter' | 'shelter'): Promise<number> {
     try {
+      let whereCondition
+      if (userRole === 'adopter') {
+        whereCondition = eq(conversations.adopterId, userId)
+      } else {
+        whereCondition = eq(conversations.shelterId, userId)
+      }
+
       const result = await db
         .select({ count: sql<number>`count(*)` })
         .from(messages)
@@ -288,15 +294,8 @@ export class MessagingService {
         .where(
           and(
             eq(messages.status, 'sent'),
-            userRole === 'adopter'
-              ? and(
-                  eq(conversations.adopterId, userId),
-                  eq(messages.senderId, conversations.shelterId)
-                )
-              : and(
-                  eq(conversations.shelterId, userId),
-                  eq(messages.senderId, conversations.adopterId)
-                )
+            ne(messages.senderId, userId), // Messages NOT sent by current user
+            whereCondition
           )
         )
 

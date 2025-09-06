@@ -156,10 +156,41 @@ export default function MessagesInterface() {
     }
   }
 
-  const handleConversationSelect = (conversationId: string) => {
+  const handleConversationSelect = async (conversationId: string) => {
     setSelectedConversation(conversationId)
     fetchMessages(conversationId)
     setShowMobileConversations(false)
+    
+    // Immediately update the unread count in the UI
+    setConversations(prev => prev.map(conv => 
+      conv.id === conversationId 
+        ? { ...conv, unreadCount: 0 }
+        : conv
+    ))
+    
+    // Mark messages as read on server
+    if (user) {
+      try {
+        await fetch('/api/messages/read', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-data': JSON.stringify(user),
+          },
+          body: JSON.stringify({
+            conversationId,
+          }),
+        })
+      } catch (error) {
+        console.error('Error marking messages as read:', error)
+        // Revert the unread count if the API call failed
+        setConversations(prev => prev.map(conv => 
+          conv.id === conversationId 
+            ? { ...conv, unreadCount: prev.find(c => c.id === conversationId)?.unreadCount || 0 }
+            : conv
+        ))
+      }
+    }
   }
 
   useEffect(() => {
