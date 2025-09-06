@@ -32,6 +32,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter as useNextRouter } from "next/navigation"
 
 // Animation variants
 const fadeIn = {
@@ -120,6 +122,8 @@ const getRequirements = (pet: PetWithShelter) => {
 export default function PetProfilePage() {
   const params = useParams()
   const router = useRouter()
+  const nextRouter = useNextRouter()
+  const { user } = useAuth()
   const petId = params.id as string
   
   const [pet, setPet] = useState<PetWithShelter | null>(null)
@@ -237,6 +241,48 @@ export default function PetProfilePage() {
   const prevGalleryImage = () => {
     const images = pet?.images || []
     setGalleryIndex((prev) => (prev - 1 + Math.max(images.length, 1)) % Math.max(images.length, 1))
+  }
+
+  const handleAskQuestion = async () => {
+    if (!user) {
+      toast.error('Please log in to ask a question')
+      nextRouter.push('/auth/signin')
+      return
+    }
+
+    if (user.role !== 'adopter') {
+      toast.error('Only adopters can ask questions about pets')
+      return
+    }
+
+    if (!pet) return
+
+    try {
+      const response = await fetch('/api/messages/conversations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify({
+          shelterId: pet.shelterId,
+          petId: pet.id,
+          message: `Hi! I'm interested in ${pet.name} and would like to know more. Could you tell me more about their personality and care requirements?`,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start conversation')
+      }
+
+      toast.success('Message sent! Check your messages for the conversation.')
+      nextRouter.push('/dashboard/messages')
+    } catch (error) {
+      console.error('Error starting conversation:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to start conversation')
+    }
   }
 
   if (loading) {
@@ -860,7 +906,7 @@ export default function PetProfilePage() {
                       </Button>
                     </motion.div>
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className="w-full" onClick={handleAskQuestion}>
                         <MessageSquare className="mr-2 h-4 w-4" />
                         Ask a Question
                       </Button>

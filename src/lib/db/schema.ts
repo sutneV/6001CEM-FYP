@@ -6,6 +6,8 @@ export const petSizeEnum = pgEnum('pet_size', ['small', 'medium', 'large', 'xlar
 export const petAgeEnum = pgEnum('pet_age', ['baby', 'young', 'adult', 'senior'])
 export const petGenderEnum = pgEnum('pet_gender', ['male', 'female', 'unknown'])
 export const petStatusEnum = pgEnum('pet_status', ['available', 'pending', 'adopted'])
+export const messageStatusEnum = pgEnum('message_status', ['sent', 'delivered', 'read'])
+export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'archived', 'closed'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -66,9 +68,35 @@ export const pets = pgTable('pets', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const conversations = pgTable('conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  adopterId: uuid('adopter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  shelterId: uuid('shelter_id').notNull().references(() => shelters.id, { onDelete: 'cascade' }),
+  petId: uuid('pet_id').references(() => pets.id, { onDelete: 'set null' }),
+  status: conversationStatusEnum('status').notNull().default('active'),
+  lastMessageAt: timestamp('last_message_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  status: messageStatusEnum('status').notNull().default('sent'),
+  readAt: timestamp('read_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Shelter = typeof shelters.$inferSelect
 export type NewShelter = typeof shelters.$inferInsert
 export type Pet = typeof pets.$inferSelect
 export type NewPet = typeof pets.$inferInsert
+export type Conversation = typeof conversations.$inferSelect
+export type NewConversation = typeof conversations.$inferInsert
+export type Message = typeof messages.$inferSelect
+export type NewMessage = typeof messages.$inferInsert
