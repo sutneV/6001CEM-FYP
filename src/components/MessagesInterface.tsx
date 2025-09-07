@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -73,6 +73,8 @@ export default function MessagesInterface() {
   const [messages, setMessages] = useState<MessageWithSender[]>([])
   const [loading, setLoading] = useState(true)
   const [sendingMessage, setSendingMessage] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
 
   const fetchConversations = useCallback(async () => {
     if (!user) return
@@ -196,6 +198,48 @@ export default function MessagesInterface() {
   useEffect(() => {
     fetchConversations()
   }, [fetchConversations])
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showEmojiPicker])
+
+  const commonEmojis = [
+    '😀', '😃', '😄', '😁', '😊', '😍', '🥰', '😘', '😗', '😙',
+    '😚', '🙂', '🤗', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏',
+    '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴', '😌', '😛',
+    '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲',
+    '🙁', '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨',
+    '😩', '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵',
+    '🥴', '😠', '😡', '🤬', '😷', '🤒', '🤕', '🤢', '🤮', '🤧',
+    '😇', '🤠', '🤡', '🥳', '🥺', '🤓', '🧐', '😎', '🤩', '🥸',
+    '👍', '👎', '👏', '🙌', '👐', '🤝', '👊', '✊', '🤛', '🤜',
+    '🤞', '✌️', '🤟', '🤘', '👌', '🤌', '🤏', '👈', '👉', '👆',
+    '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤙', '💪', '🖕',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+    '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
+    '✨', '🌟', '💫', '⭐', '🌠', '☄️', '🎉', '🎊', '🎈', '🎁'
+  ]
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji)
+    setShowEmojiPicker(false)
+  }
+
+  const toggleEmojiPicker = () => {
+    setShowEmojiPicker(prev => !prev)
+  }
 
   const filteredConversations = conversations.filter((conv) => {
     const participantName = user?.role === 'shelter' 
@@ -501,7 +545,7 @@ export default function MessagesInterface() {
                     placeholder="Type your message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    className="flex-1 min-h-[44px] max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none"
+                    className="flex-1 min-h-[44px] max-h-32 resize-none border-0 bg-transparent focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     onKeyPress={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault()
@@ -510,10 +554,37 @@ export default function MessagesInterface() {
                     }}
                     disabled={sendingMessage}
                   />
-                  <div className="flex items-end p-2">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <div className="flex items-end p-2 relative">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0" 
+                      onClick={toggleEmojiPicker}
+                      type="button"
+                    >
                       <Smile className="h-4 w-4" />
                     </Button>
+                    
+                    {/* Emoji Picker */}
+                    {showEmojiPicker && (
+                      <div 
+                        ref={emojiPickerRef}
+                        className="absolute bottom-full right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-80 max-h-60 overflow-y-auto z-50"
+                      >
+                        <div className="grid grid-cols-10 gap-2">
+                          {commonEmojis.map((emoji, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleEmojiSelect(emoji)}
+                              className="hover:bg-gray-100 rounded p-1 text-lg transition-colors"
+                              type="button"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
