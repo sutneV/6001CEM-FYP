@@ -72,6 +72,7 @@ export default function MessagesInterface() {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([])
   const [messages, setMessages] = useState<MessageWithSender[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMessages, setLoadingMessages] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -105,6 +106,7 @@ export default function MessagesInterface() {
     if (!user) return
 
     try {
+      setLoadingMessages(true)
       const response = await fetch(`/api/messages/conversations/${conversationId}`, {
         headers: {
           'x-user-data': JSON.stringify(user),
@@ -120,6 +122,8 @@ export default function MessagesInterface() {
     } catch (error) {
       console.error('Error fetching messages:', error)
       toast.error('Failed to load messages')
+    } finally {
+      setLoadingMessages(false)
     }
   }, [user])
 
@@ -423,9 +427,14 @@ export default function MessagesInterface() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h3 className="font-medium text-sm truncate max-w-[140px]">{displayData.participantName}</h3>
-                          <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {conversation.lastMessage ? formatTime(conversation.lastMessage.createdAt) : ''}
-                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {loadingMessages && selectedConversation === conversation.id && (
+                              <div className="animate-spin rounded-full h-3 w-3 border border-teal-500 border-t-transparent"></div>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {conversation.lastMessage ? formatTime(conversation.lastMessage.createdAt) : ''}
+                            </span>
+                          </div>
                         </div>
                         {displayData.petName && (
                           <p className="text-xs text-teal-600 font-medium">About {displayData.petName}</p>
@@ -501,7 +510,14 @@ export default function MessagesInterface() {
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
-              {messages.length > 0 ? (
+              {loadingMessages ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-500">Loading messages...</p>
+                  </div>
+                </div>
+              ) : messages.length > 0 ? (
                 messages.map((message) => (
                   <div
                     key={message.id}
@@ -552,7 +568,7 @@ export default function MessagesInterface() {
                         handleSendMessage()
                       }
                     }}
-                    disabled={sendingMessage}
+                    disabled={sendingMessage || loadingMessages}
                   />
                   <div className="flex items-end p-2 relative">
                     <Button 
@@ -591,7 +607,7 @@ export default function MessagesInterface() {
               <Button 
                 onClick={handleSendMessage} 
                 className="bg-teal-500 hover:bg-teal-600 h-11 px-4"
-                disabled={!newMessage.trim() || sendingMessage}
+                disabled={!newMessage.trim() || sendingMessage || loadingMessages}
               >
                 <Send className="h-4 w-4" />
               </Button>
