@@ -20,11 +20,23 @@ export class MessagingService {
   async getConversationsForUser(userId: string, userRole: 'adopter' | 'shelter'): Promise<ConversationWithDetails[]> {
     try {
       let whereCondition
+      let currentUserId: string // The actual user ID for message comparison
+      
       if (userRole === 'adopter') {
         whereCondition = eq(conversations.adopterId, userId)
+        currentUserId = userId
       } else {
-        // For shelter, userId is the shelter ID, not user ID
+        // For shelter, userId is the shelter ID, but we need the user ID for message comparison
         whereCondition = eq(conversations.shelterId, userId)
+        
+        // Get the shelter user ID
+        const shelterUser = await db
+          .select({ userId: shelters.userId })
+          .from(shelters)
+          .where(eq(shelters.id, userId))
+          .limit(1)
+        
+        currentUserId = shelterUser[0]?.userId || userId
       }
 
       const query = db
@@ -65,7 +77,7 @@ export class MessagingService {
             and(
               eq(messages.conversationId, result.conversation.id),
               eq(messages.status, 'sent'),
-              ne(messages.senderId, userId) // Messages NOT sent by current user
+              ne(messages.senderId, currentUserId) // Messages NOT sent by current user
             )
           )
 
@@ -258,6 +270,20 @@ export class MessagingService {
 
   async markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
     try {
+      // For shelter users, we need to use the actual user ID, not shelter ID
+      let actualUserId = userId
+      
+      // Check if this is a shelter user by checking if the userId is a shelter ID
+      const shelterCheck = await db
+        .select({ userId: shelters.userId })
+        .from(shelters)
+        .where(eq(shelters.id, userId))
+        .limit(1)
+      
+      if (shelterCheck[0]) {
+        actualUserId = shelterCheck[0].userId
+      }
+
       // Mark messages as read that were NOT sent by the current user
       await db
         .update(messages)
@@ -268,7 +294,7 @@ export class MessagingService {
         .where(
           and(
             eq(messages.conversationId, conversationId),
-            ne(messages.senderId, userId), // Mark messages NOT sent by the current user
+            ne(messages.senderId, actualUserId), // Mark messages NOT sent by the current user
             eq(messages.status, 'sent')
           )
         )
@@ -281,10 +307,21 @@ export class MessagingService {
   async getUnreadMessageCount(userId: string, userRole: 'adopter' | 'shelter'): Promise<number> {
     try {
       let whereCondition
+      let actualUserId = userId
+      
       if (userRole === 'adopter') {
         whereCondition = eq(conversations.adopterId, userId)
       } else {
         whereCondition = eq(conversations.shelterId, userId)
+        
+        // For shelter, get the actual user ID
+        const shelterUser = await db
+          .select({ userId: shelters.userId })
+          .from(shelters)
+          .where(eq(shelters.id, userId))
+          .limit(1)
+        
+        actualUserId = shelterUser[0]?.userId || userId
       }
 
       const result = await db
@@ -294,7 +331,7 @@ export class MessagingService {
         .where(
           and(
             eq(messages.status, 'sent'),
-            ne(messages.senderId, userId), // Messages NOT sent by current user
+            ne(messages.senderId, actualUserId), // Messages NOT sent by current user
             whereCondition
           )
         )
