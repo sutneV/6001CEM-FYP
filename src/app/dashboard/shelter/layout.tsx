@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import AuthGuard from "@/components/auth/AuthGuard"
 import { useAuth } from "@/contexts/AuthContext"
+import { useUnreadMessages } from "@/hooks/useUnreadMessages"
 
 export default function ShelterLayout({
   children,
@@ -46,6 +47,7 @@ export default function ShelterLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { unreadCount, loading: loadingUnread } = useUnreadMessages()
 
   const navigationItems = [
     { name: "Dashboard", icon: Home, href: "/dashboard/shelter" },
@@ -53,7 +55,12 @@ export default function ShelterLayout({
     { name: "Add New Pet", icon: Plus, href: "/dashboard/shelter/pets/add" },
     { name: "Applications", icon: ClipboardList, href: "/dashboard/shelter/applications", badge: "8" },
     { name: "Adopters", icon: Users, href: "/dashboard/shelter/adopters" },
-    { name: "Messages", icon: MessageSquare, href: "/dashboard/shelter/messages", badge: "8" },
+    { 
+      name: "Messages", 
+      icon: MessageSquare, 
+      href: "/dashboard/shelter/messages", 
+      badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
+    },
     { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
     { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
   ]
@@ -245,9 +252,11 @@ export default function ShelterLayout({
                 <Button variant="outline" size="icon" className="h-8 w-8">
                   <MessageSquare className="h-4 w-4" />
                   <span className="sr-only">Messages</span>
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
-                    8
-                  </span>
+                  {!loadingUnread && unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Button>
               </motion.div>
             </div>

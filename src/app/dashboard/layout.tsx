@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import AuthGuard from "@/components/auth/AuthGuard"
 import { useAuth } from "@/contexts/AuthContext"
+import { useUnreadMessages } from "@/hooks/useUnreadMessages"
 
 export default function DashboardLayout({
   children,
@@ -44,6 +45,7 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { unreadCount, loading: loadingUnread } = useUnreadMessages()
 
   // Don't render this layout for admin or shelter routes - they have their own layouts
   if (pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/shelter')) {
@@ -55,7 +57,12 @@ export default function DashboardLayout({
     { name: "Browse Pets", icon: PawPrint, href: "/dashboard/pets" },
     { name: "My Applications", icon: ClipboardList, href: "/dashboard/applications" },
     { name: "Favorites", icon: Heart, href: "/dashboard/favorites" },
-    { name: "Messages", icon: MessageSquare, href: "/dashboard/messages", badge: "3" },
+    { 
+      name: "Messages", 
+      icon: MessageSquare, 
+      href: "/dashboard/messages", 
+      badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
+    },
     { name: "Appointments", icon: Calendar, href: "/dashboard/appointments" },
     { name: "Resources", icon: FileText, href: "/dashboard/resources" },
   ]
@@ -253,9 +260,11 @@ export default function DashboardLayout({
                 <Button variant="outline" size="icon" className="h-8 w-8">
                   <MessageSquare className="h-4 w-4" />
                   <span className="sr-only">Messages</span>
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
-                    2
-                  </span>
+                  {!loadingUnread && unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Button>
               </motion.div>
             </div>
