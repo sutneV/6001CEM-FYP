@@ -16,6 +16,7 @@ import {
   PawPrint,
   Settings,
   User,
+  Users,
   FileText,
   ClipboardList,
   Menu,
@@ -63,6 +64,7 @@ export default function DashboardLayout({
       href: "/dashboard/messages", 
       badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
     },
+    { name: "Communities", icon: Users, href: "/dashboard/communities" },
     { name: "Appointments", icon: Calendar, href: "/dashboard/appointments" },
     { name: "Resources", icon: FileText, href: "/dashboard/resources" },
   ]
@@ -236,6 +238,7 @@ export default function DashboardLayout({
                pathname === "/dashboard/applications" ? "My Applications" :
                pathname === "/dashboard/favorites" ? "Favorites" :
                pathname === "/dashboard/messages" ? "Messages" :
+               pathname === "/dashboard/communities" ? "Communities" :
                pathname === "/dashboard/appointments" ? "Appointments" :
                pathname === "/dashboard/resources" ? "Resources" :
                pathname === "/dashboard/profile" ? "Profile" :
