@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,34 +17,12 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus } from "lucide-react"
+import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-
-// Mock community data
-const communityData: { [key: string]: any } = {
-  "1": {
-    id: 1,
-    name: "Dog Lovers",
-    description: "A community for dog enthusiasts in Penang",
-    members: 247,
-    tags: ["Dogs"],
-  },
-  "2": {
-    id: 2,
-    name: "Cat Rescue",
-    description: "Dedicated to rescuing and rehoming cats in Penang",
-    members: 147,
-    tags: ["Cats", "Rescue"],
-  },
-  "3": {
-    id: 3,
-    name: "Exotic Pet Enthusiasts",
-    description: "For owners and lovers of exotic pets",
-    members: 247,
-    tags: ["Pets", "Birds", "Reptiles"],
-  },
-}
+import { useCommunities, type Community } from "@/hooks/useCommunities"
+import { useAuth } from "@/contexts/AuthContext"
+import { toast } from "sonner"
 
 // Mock posts data
 const mockPosts = [
@@ -110,7 +88,9 @@ const mockPosts = [
 export default function CommunityPostsPage() {
   const params = useParams()
   const communityId = params.id as string
-  const community = communityData[communityId]
+  const { user } = useAuth()
+  const [community, setCommunity] = useState<Community | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const [posts, setPosts] = useState(mockPosts)
   const [isNewPostOpen, setIsNewPostOpen] = useState(false)
@@ -229,8 +209,66 @@ export default function CommunityPostsPage() {
     }
   }
 
+  useEffect(() => {
+    const fetchCommunity = async () => {
+      try {
+        setLoading(true)
+        
+        const headers: HeadersInit = {}
+        if (user) {
+          headers['x-user-id'] = user.id
+          headers['x-user-role'] = user.role
+        }
+
+        const response = await fetch(`/api/communities/${communityId}`, {
+          headers,
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          setCommunity(data.data)
+        } else {
+          throw new Error(data.error || 'Failed to fetch community')
+        }
+      } catch (error) {
+        console.error('Error fetching community:', error)
+        toast.error('Failed to load community')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (communityId) {
+      fetchCommunity()
+    }
+  }, [communityId, user])
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Loading community...</span>
+        </div>
+      </div>
+    )
+  }
+
   if (!community) {
-    return <div>Community not found</div>
+    return (
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Community not found</p>
+          <Link href="/dashboard/shelter/communities">
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Communities
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -238,7 +276,7 @@ export default function CommunityPostsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/communities">
+          <Link href="/dashboard/shelter/communities">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Communities
@@ -253,7 +291,7 @@ export default function CommunityPostsPage() {
           <h2 className="text-lg font-medium">{community.name}'s Posts</h2>
           <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
             <Users className="h-4 w-4" />
-            {community.members} members
+            {community.memberCount} members
           </div>
         </div>
       </div>

@@ -17,10 +17,10 @@ function getUserFromSession(request: NextRequest) {
 // GET /api/communities/[id] - Get community details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const communityId = params.id
+    const { id: communityId } = await params
 
     const community = await db
       .select()
@@ -77,7 +77,7 @@ export async function GET(
 // PUT /api/communities/[id] - Update community (owner only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = getUserFromSession(request)
@@ -88,7 +88,7 @@ export async function PUT(
       )
     }
 
-    const communityId = params.id
+    const { id: communityId } = await params
     const body = await request.json()
 
     // Check if user is the owner of the community
@@ -142,7 +142,7 @@ export async function PUT(
 // DELETE /api/communities/[id] - Delete community (owner only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = getUserFromSession(request)
@@ -153,7 +153,7 @@ export async function DELETE(
       )
     }
 
-    const communityId = params.id
+    const { id: communityId } = await params
 
     // Check if user is the owner of the community
     const community = await db

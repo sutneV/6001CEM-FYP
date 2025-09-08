@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
 export interface Community {
@@ -182,7 +182,7 @@ export const useCommunities = () => {
     }
   }
 
-  const getCommunityById = async (communityId: string) => {
+  const getCommunityById = useCallback(async (communityId: string) => {
     try {
       const headers: HeadersInit = {}
       if (user) {
@@ -206,7 +206,7 @@ export const useCommunities = () => {
       setError(message)
       throw new Error(message)
     }
-  }
+  }, [user, setError])
 
   useEffect(() => {
     fetchCommunities()
