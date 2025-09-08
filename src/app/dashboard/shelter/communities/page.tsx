@@ -48,7 +48,7 @@ const mockCommunities = [
   },
 ]
 
-export default function CommunitiesPage() {
+export default function ShelterCommunitiesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [activeTab, setActiveTab] = useState("discover")
@@ -230,7 +230,7 @@ export default function CommunitiesPage() {
                   </div>
                 </div>
                 {/* View Community Button */}
-                <Link href={`/dashboard/communities/${community.id}`}>
+                <Link href={`/dashboard/shelter/communities/${community.id}`}>
                   <Button variant="outline" size="sm" className="w-full bg-transparent">
                     View Community
                     <ArrowRight className="h-4 w-4 ml-2" />
@@ -275,7 +275,7 @@ export default function CommunitiesPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Link href={`/dashboard/communities/${community.id}`} className="flex-1">
+                        <Link href={`/dashboard/shelter/communities/${community.id}`} className="flex-1">
                           <Button size="sm" className="w-full bg-teal-500 hover:bg-teal-600 text-white">
                             <MessageCircle className="h-4 w-4 mr-1" />
                             View Posts

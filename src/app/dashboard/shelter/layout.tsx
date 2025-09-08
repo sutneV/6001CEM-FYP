@@ -61,6 +61,7 @@ export default function ShelterLayout({
       href: "/dashboard/shelter/messages", 
       badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
     },
+    { name: "Communities", icon: Users, href: "/dashboard/shelter/communities" },
     { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
     { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
   ]
@@ -232,6 +233,7 @@ export default function ShelterLayout({
               {pathname === "/dashboard/shelter" ? "Shelter Dashboard" : 
                pathname === "/dashboard/shelter/pets" ? "Pet Management" :
                pathname === "/dashboard/shelter/applications" ? "Applications" :
+               pathname === "/dashboard/shelter/communities" ? "Communities" :
                "Shelter Portal"}
             </h1>
           </div>
