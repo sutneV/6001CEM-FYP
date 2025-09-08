@@ -24,66 +24,6 @@ import { useCommunities, type Community } from "@/hooks/useCommunities"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
 
-// Mock posts data
-const mockPosts = [
-  {
-    id: 1,
-    title: "Multiple Stray Cats Spotted in Bayan Lepas Area!",
-    content:
-      "This morning, I noticed a group of about 5-6 stray cats roaming near the food court along Jalan Mahsuri in Bayan Lepas. Most of them look quite young and seem to be in need of food and shelter. A few appeared to be limping or underweight.\n\nIf anyone is from this area and interested in helping, perhaps we could coordinate feeding efforts or alert local animal welfare groups.",
-    author: {
-      name: "Me Lsg",
-      avatar: "/placeholder.svg?height=40&width=40",
-      initials: "ML",
-    },
-    timestamp: "May 3, 2025",
-    type: "help",
-    likes: 12,
-    comments: 8,
-    shares: 3,
-    isLiked: false,
-  },
-  {
-    id: 2,
-    title: "Success Story: Buddy Found His Forever Home!",
-    content:
-      "I'm so happy to share that Buddy, the golden retriever we rescued last month, has found his perfect family! The adoption process went smoothly and his new family is absolutely wonderful. Thank you to everyone who shared his story and helped spread the word.",
-    author: {
-      name: "Sarah Chen",
-      avatar: "/placeholder.svg?height=40&width=40",
-      initials: "SC",
-    },
-    timestamp: "May 2, 2025",
-    type: "success",
-    likes: 45,
-    comments: 23,
-    shares: 12,
-    isLiked: true,
-  },
-  {
-    id: 3,
-    title: "Pet Care Workshop This Weekend",
-    content:
-      "Join us for a comprehensive pet care workshop covering basic health checks, grooming tips, and emergency first aid. Perfect for new pet owners or anyone wanting to learn more about proper pet care.",
-    author: {
-      name: "Dr. Ahmad",
-      avatar: "/placeholder.svg?height=40&width=40",
-      initials: "DA",
-    },
-    timestamp: "May 1, 2025",
-    type: "event",
-    likes: 28,
-    comments: 15,
-    shares: 8,
-    isLiked: false,
-    eventDetails: {
-      date: "May 8, 2025",
-      time: "2:00 PM - 5:00 PM",
-      location: "Penang SPCA Center",
-      fee: "Free",
-    },
-  },
-]
 
 export default function CommunityPostsPage() {
   const params = useParams()
@@ -92,13 +32,14 @@ export default function CommunityPostsPage() {
   const [community, setCommunity] = useState<Community | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const [posts, setPosts] = useState(mockPosts)
+  const [posts, setPosts] = useState<any[]>([])
+  const [postsLoading, setPostsLoading] = useState(false)
   const [isNewPostOpen, setIsNewPostOpen] = useState(false)
   const [isNewEventOpen, setIsNewEventOpen] = useState(false)
   const [newPost, setNewPost] = useState({
     title: "",
     content: "",
-    type: "general",
+    type: "text",
   })
   const [newEvent, setNewEvent] = useState({
     title: "",
@@ -123,29 +64,43 @@ export default function CommunityPostsPage() {
     )
   }
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!newPost.title.trim() || !newPost.content.trim()) return
 
-    const post = {
-      id: posts.length + 1,
-      title: newPost.title,
-      content: newPost.content,
-      author: {
-        name: "You",
-        avatar: "/placeholder.svg?height=40&width=40",
-        initials: "YU",
-      },
-      timestamp: "Just now",
-      type: newPost.type,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      isLiked: false,
-    }
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
 
-    setPosts([post, ...posts])
-    setNewPost({ title: "", content: "", type: "general" })
-    setIsNewPostOpen(false)
+      const response = await fetch(`/api/communities/${communityId}/posts`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: newPost.title,
+          content: newPost.content,
+          type: newPost.type,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Add the new post to the beginning of the posts array
+        setPosts([data.data, ...posts])
+        setNewPost({ title: "", content: "", type: "text" })
+        setIsNewPostOpen(false)
+        toast.success('Post created successfully!')
+      } else {
+        throw new Error(data.error || 'Failed to create post')
+      }
+    } catch (error) {
+      console.error('Error creating post:', error)
+      toast.error('Failed to create post')
+    }
   }
 
   const handleCreateEvent = () => {
@@ -181,14 +136,12 @@ export default function CommunityPostsPage() {
 
   const getPostTypeColor = (type: string) => {
     switch (type) {
-      case "help":
-        return "bg-red-100 text-red-800"
-      case "success":
+      case "text":
+        return "bg-gray-100 text-gray-800"
+      case "image":
         return "bg-green-100 text-green-800"
       case "event":
         return "bg-blue-100 text-blue-800"
-      case "question":
-        return "bg-yellow-100 text-yellow-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -196,16 +149,42 @@ export default function CommunityPostsPage() {
 
   const getPostTypeLabel = (type: string) => {
     switch (type) {
-      case "help":
-        return "Help Needed"
-      case "success":
-        return "Success Story"
+      case "text":
+        return "Discussion"
+      case "image":
+        return "Image"
       case "event":
         return "Event"
-      case "question":
-        return "Question"
       default:
-        return "General"
+        return "Discussion"
+    }
+  }
+
+  const fetchPosts = async () => {
+    try {
+      setPostsLoading(true)
+      
+      const headers: HeadersInit = {}
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/posts`, {
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setPosts(data.data)
+      } else {
+        console.error('Failed to fetch posts:', data.error)
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error)
+    } finally {
+      setPostsLoading(false)
     }
   }
 
@@ -228,6 +207,8 @@ export default function CommunityPostsPage() {
 
         if (data.success) {
           setCommunity(data.data)
+          // Fetch posts after community is loaded
+          await fetchPosts()
         } else {
           throw new Error(data.error || 'Failed to fetch community')
         }
@@ -327,10 +308,9 @@ export default function CommunityPostsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general">General Discussion</SelectItem>
-                    <SelectItem value="help">Help Needed</SelectItem>
-                    <SelectItem value="success">Success Story</SelectItem>
-                    <SelectItem value="question">Question</SelectItem>
+                    <SelectItem value="text">General Discussion</SelectItem>
+                    <SelectItem value="image">Image Post</SelectItem>
+                    <SelectItem value="event">Event</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -441,21 +421,43 @@ export default function CommunityPostsPage() {
 
       {/* Posts Feed */}
       <div className="space-y-6">
-        {posts.map((post) => (
+        {postsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Loading posts...</span>
+            </div>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">No posts yet in this community</p>
+            <p className="text-sm text-gray-400">Be the first to share something!</p>
+          </div>
+        ) : (
+          posts.map((post) => {
+            const authorName = `${post.author.firstName} ${post.author.lastName}`
+            const authorInitials = `${post.author.firstName?.[0] || ''}${post.author.lastName?.[0] || ''}`.toUpperCase()
+            const timestamp = new Date(post.createdAt).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric' 
+            })
+            
+            return (
           <Card key={post.id} className="border border-gray-200">
             <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={post.author.avatar || "/placeholder.svg"} />
-                    <AvatarFallback>{post.author.initials}</AvatarFallback>
+                    <AvatarImage src="/placeholder.svg" />
+                    <AvatarFallback>{authorInitials}</AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{post.author.name}</span>
+                      <span className="font-medium">{authorName}</span>
                       <Badge className={`text-xs ${getPostTypeColor(post.type)}`}>{getPostTypeLabel(post.type)}</Badge>
                     </div>
-                    <span className="text-sm text-gray-500">{post.timestamp}</span>
+                    <span className="text-sm text-gray-500">{timestamp}</span>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="text-cyan-600 hover:text-cyan-700">
@@ -467,50 +469,30 @@ export default function CommunityPostsPage() {
               <h3 className="font-semibold text-lg mb-3">{post.title}</h3>
               <div className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed">{post.content}</div>
 
-              {/* Event Details */}
-              {post.type === "event" && post.eventDetails && (
-                <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                  <h4 className="font-medium text-blue-900 mb-2">Event Details</h4>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2 text-blue-700">
-                      <Calendar className="h-4 w-4" />
-                      {post.eventDetails.date} at {post.eventDetails.time}
-                    </div>
-                    <div className="flex items-center gap-2 text-blue-700">
-                      <MapPin className="h-4 w-4" />
-                      {post.eventDetails.location}
-                    </div>
-                    <div className="flex items-center gap-2 text-blue-700">
-                      <DollarSign className="h-4 w-4" />
-                      {post.eventDetails.fee}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Post Actions */}
               <div className="flex items-center gap-6 pt-4 border-t">
                 <button
-                  onClick={() => handleLike(post.id)}
-                  className={`flex items-center gap-2 text-sm transition-colors ${
-                    post.isLiked ? "text-red-600 hover:text-red-700" : "text-gray-600 hover:text-red-600"
-                  }`}
+                  onClick={() => {/* TODO: Implement real like functionality */}}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
                 >
-                  <Heart className={`h-4 w-4 ${post.isLiked ? "fill-current" : ""}`} />
-                  {post.likes}
+                  <Heart className="h-4 w-4" />
+                  {post.likesCount}
                 </button>
                 <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-cyan-600 transition-colors">
                   <MessageCircle className="h-4 w-4" />
-                  {post.comments}
+                  {post.commentsCount}
                 </button>
                 <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-cyan-600 transition-colors">
                   <Share2 className="h-4 w-4" />
-                  {post.shares}
+                  0
                 </button>
               </div>
             </CardContent>
           </Card>
-        ))}
+            )
+          })
+        )}
       </div>
 
       {/* Load More */}

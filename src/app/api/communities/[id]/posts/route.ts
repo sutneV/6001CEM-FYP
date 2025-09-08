@@ -17,10 +17,10 @@ function getUserFromSession(request: NextRequest) {
 // GET /api/communities/[id]/posts - Get community posts
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const communityId = params.id
+    const { id: communityId } = await params
     const searchParams = request.nextUrl.searchParams
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -104,7 +104,7 @@ export async function GET(
 // POST /api/communities/[id]/posts - Create a new post (members only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = getUserFromSession(request)
@@ -115,7 +115,7 @@ export async function POST(
       )
     }
 
-    const communityId = params.id
+    const { id: communityId } = await params
     const body = await request.json()
     const { title, content, type = 'text', images = [] } = body
 
