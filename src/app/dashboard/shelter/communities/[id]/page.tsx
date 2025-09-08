@@ -38,7 +38,7 @@ export default function CommunityPostsPage() {
   const [newPost, setNewPost] = useState({
     title: "",
     content: "",
-    type: "text",
+    type: "general",
   })
   const [newEvent, setNewEvent] = useState({
     title: "",
@@ -71,7 +71,7 @@ export default function CommunityPostsPage() {
         body: JSON.stringify({
           title: newPost.title,
           content: newPost.content,
-          type: newPost.type,
+          type: mapTypeToDbType(newPost.type),
         }),
       })
 
@@ -80,7 +80,7 @@ export default function CommunityPostsPage() {
       if (data.success) {
         // Add the new post to the beginning of the posts array
         setPosts([data.data, ...posts])
-        setNewPost({ title: "", content: "", type: "text" })
+        setNewPost({ title: "", content: "", type: "general" })
         setIsNewPostOpen(false)
         toast.success('Post created successfully!')
       } else {
@@ -101,11 +101,11 @@ export default function CommunityPostsPage() {
   const getPostTypeColor = (type: string) => {
     switch (type) {
       case "text":
-        return "bg-gray-100 text-gray-800"
+        return "bg-blue-50 text-blue-800"
       case "image":
         return "bg-green-100 text-green-800"
       case "event":
-        return "bg-blue-100 text-blue-800"
+        return "bg-purple-100 text-purple-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -121,6 +121,23 @@ export default function CommunityPostsPage() {
         return "Event"
       default:
         return "Discussion"
+    }
+  }
+
+  // Map user-friendly types to database types
+  const mapTypeToDbType = (uiType: string) => {
+    switch (uiType) {
+      case "general":
+      case "help":
+      case "success":
+      case "question":
+        return "text"
+      case "image":
+        return "image"
+      case "event":
+        return "event"
+      default:
+        return "text"
     }
   }
 
@@ -272,9 +289,10 @@ export default function CommunityPostsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="text">General Discussion</SelectItem>
-                    <SelectItem value="image">Image Post</SelectItem>
-                    <SelectItem value="event">Event</SelectItem>
+                    <SelectItem value="general">General Discussion</SelectItem>
+                    <SelectItem value="help">Help Needed</SelectItem>
+                    <SelectItem value="success">Success Story</SelectItem>
+                    <SelectItem value="question">Question</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
