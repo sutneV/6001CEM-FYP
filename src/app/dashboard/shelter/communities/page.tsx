@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Users, Calendar, MessageCircle, Heart, Check, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 // Simplified mock data matching the screenshot
 const mockCommunities = [
@@ -29,6 +30,7 @@ const mockCommunities = [
     members: 247,
     tags: ["Dogs"],
     isJoined: false,
+    bannerImage: "/images/dog-community-banner.jpg",
   },
   {
     id: 2,
@@ -37,6 +39,7 @@ const mockCommunities = [
     members: 147,
     tags: ["Cats", "Rescue"],
     isJoined: false,
+    bannerImage: "/images/cat-rescue-banner.jpg",
   },
   {
     id: 3,
@@ -45,6 +48,7 @@ const mockCommunities = [
     members: 247,
     tags: ["Pets", "Birds", "Reptiles"],
     isJoined: false,
+    bannerImage: "/images/exotic-pets-banner.jpg",
   },
 ]
 
@@ -195,7 +199,16 @@ export default function ShelterCommunitiesPage() {
       {activeTab === "discover" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCommunities.map((community) => (
-            <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow">
+            <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+              {/* Banner Image */}
+              <div className="relative h-32 w-full">
+                <Image
+                  src={community.bannerImage}
+                  alt={`${community.name} community banner`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg font-medium">{community.name}</CardTitle>
@@ -250,7 +263,16 @@ export default function ShelterCommunitiesPage() {
               {mockCommunities
                 .filter((community) => joinedCommunities.includes(community.id))
                 .map((community) => (
-                  <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow">
+                  <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                    {/* Banner Image */}
+                    <div className="relative h-32 w-full">
+                      <Image
+                        src={community.bannerImage}
+                        alt={`${community.name} community banner`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-lg font-medium">{community.name}</CardTitle>
