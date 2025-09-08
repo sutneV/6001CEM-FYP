@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,41 +16,11 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Users, Calendar, MessageCircle, Heart, Check, ArrowRight } from "lucide-react"
+import { Search, Users, Calendar, MessageCircle, Heart, Check, ArrowRight, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-
-// Simplified mock data matching the screenshot
-const mockCommunities = [
-  {
-    id: 1,
-    name: "Dog Lovers",
-    description:
-      "A community for dog enthusiasts in Penang. Share tips, organize meetups, and connect with fellow dog lovers!",
-    members: 247,
-    tags: ["Dogs"],
-    isJoined: false,
-    bannerImage: "/images/dog-community-banner.jpg",
-  },
-  {
-    id: 2,
-    name: "Cat Rescue",
-    description: "Dedicated to rescuing and rehoming cats in Penang. Join us in making a difference!",
-    members: 147,
-    tags: ["Cats", "Rescue"],
-    isJoined: false,
-    bannerImage: "/images/cat-rescue-banner.jpg",
-  },
-  {
-    id: 3,
-    name: "Exotic Pet Enthusiasts",
-    description: "For owners and lovers of exotic pets - birds, reptiles, small mammals and more!",
-    members: 247,
-    tags: ["Pets", "Birds", "Reptiles"],
-    isJoined: false,
-    bannerImage: "/images/exotic-pets-banner.jpg",
-  },
-]
+import { useCommunities, type CreateCommunityData } from "@/hooks/useCommunities"
+import { toast } from "sonner"
 
 export default function ShelterCommunitiesPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -59,17 +29,56 @@ export default function ShelterCommunitiesPage() {
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false)
   const [selectedCommunity, setSelectedCommunity] = useState<any>(null)
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false)
-  const [joinedCommunities, setJoinedCommunities] = useState<number[]>([])
   const [isJoining, setIsJoining] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
 
-  const filteredCommunities = mockCommunities.filter((community) => {
+  // Community creation form state
+  const [newCommunity, setNewCommunity] = useState<CreateCommunityData>({
+    name: "",
+    description: "",
+    category: "",
+    bannerImage: "",
+    isPublic: true,
+  })
+
+  const {
+    communities,
+    joinedCommunities,
+    loading,
+    error,
+    fetchCommunities,
+    createCommunity,
+    joinCommunity,
+    leaveCommunity,
+    setError,
+  } = useCommunities()
+
+  // Filter communities based on search and category
+  const filteredCommunities = communities.filter((community) => {
     const matchesSearch =
       community.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       community.description.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesSearch
+    const matchesCategory = selectedCategory === "all" || community.category.toLowerCase() === selectedCategory.toLowerCase()
+    return matchesSearch && matchesCategory
   })
 
+  const handleSearch = () => {
+    fetchCommunities(selectedCategory, searchTerm)
+  }
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSearch()
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, selectedCategory])
+
   const handleJoinClick = (community: any) => {
+    // Prevent joining if already a member
+    if (isJoined(community.id)) {
+      return
+    }
     setSelectedCommunity(community)
     setIsJoinDialogOpen(true)
   }
@@ -78,17 +87,49 @@ export default function ShelterCommunitiesPage() {
     if (!selectedCommunity) return
 
     setIsJoining(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    setJoinedCommunities((prev) => [...prev, selectedCommunity.id])
-    setIsJoining(false)
-    setIsJoinDialogOpen(false)
-    setSelectedCommunity(null)
+    try {
+      if (selectedCommunity.isMember) {
+        await leaveCommunity(selectedCommunity.id)
+        toast.success("Left community successfully!")
+      } else {
+        await joinCommunity(selectedCommunity.id)
+        toast.success("Joined community successfully!")
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Action failed")
+    } finally {
+      setIsJoining(false)
+      setIsJoinDialogOpen(false)
+      setSelectedCommunity(null)
+    }
   }
 
-  const isJoined = (communityId: number) => joinedCommunities.includes(communityId)
+  const handleCreateCommunity = async () => {
+    if (!newCommunity.name || !newCommunity.description || !newCommunity.category) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      await createCommunity(newCommunity)
+      toast.success("Community created successfully!")
+      setIsCreateCommunityOpen(false)
+      setNewCommunity({
+        name: "",
+        description: "",
+        category: "",
+        bannerImage: "",
+        isPublic: true,
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create community")
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const isJoined = (communityId: string) => communities.find(c => c.id === communityId)?.isMember || false
 
   return (
     <div className="flex-1 p-8">
@@ -110,11 +151,19 @@ export default function ShelterCommunitiesPage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="community-name">Community Name</Label>
-                <Input id="community-name" placeholder="Enter community name" />
+                <Input
+                  id="community-name"
+                  placeholder="Enter community name"
+                  value={newCommunity.name}
+                  onChange={(e) => setNewCommunity(prev => ({ ...prev, name: e.target.value }))}
+                />
               </div>
               <div>
                 <Label htmlFor="community-category">Category</Label>
-                <Select>
+                <Select
+                  value={newCommunity.category}
+                  onValueChange={(value) => setNewCommunity(prev => ({ ...prev, category: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -129,13 +178,51 @@ export default function ShelterCommunitiesPage() {
               </div>
               <div>
                 <Label htmlFor="community-description">Description</Label>
-                <Textarea id="community-description" placeholder="Describe your community" />
+                <Textarea
+                  id="community-description"
+                  placeholder="Describe your community"
+                  value={newCommunity.description}
+                  onChange={(e) => setNewCommunity(prev => ({ ...prev, description: e.target.value }))}
+                />
               </div>
-              <Button className="w-full bg-teal-500 hover:bg-teal-600">Create Community</Button>
+              <div>
+                <Label htmlFor="banner-image">Banner Image URL (optional)</Label>
+                <Input
+                  id="banner-image"
+                  placeholder="https://example.com/banner.jpg"
+                  value={newCommunity.bannerImage}
+                  onChange={(e) => setNewCommunity(prev => ({ ...prev, bannerImage: e.target.value }))}
+                />
+              </div>
+              <Button
+                className="w-full bg-teal-500 hover:bg-teal-600"
+                onClick={handleCreateCommunity}
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Community'
+                )}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+          <AlertCircle className="h-4 w-4" />
+          <span>{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+            ×
+          </Button>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="flex gap-4 mb-6">
@@ -156,7 +243,9 @@ export default function ShelterCommunitiesPage() {
             <SelectItem value="all">All Categories</SelectItem>
             <SelectItem value="dogs">Dogs</SelectItem>
             <SelectItem value="cats">Cats</SelectItem>
-            <SelectItem value="exotic">Exotic</SelectItem>
+            <SelectItem value="birds">Birds</SelectItem>
+            <SelectItem value="exotic">Exotic Pets</SelectItem>
+            <SelectItem value="general">General</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -197,120 +286,160 @@ export default function ShelterCommunitiesPage() {
 
       {/* Communities Grid */}
       {activeTab === "discover" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCommunities.map((community) => (
-            <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-              {/* Banner Image */}
-              <div className="relative h-32 w-full">
-                <Image
-                  src={community.bannerImage}
-                  alt={`${community.name} community banner`}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg font-medium">{community.name}</CardTitle>
-                  {isJoined(community.id) ? (
-                    <Button size="sm" disabled className="bg-green-500 text-white">
-                      <Check className="h-4 w-4 mr-1" />
-                      Joined
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="bg-teal-500 hover:bg-teal-600 text-white"
-                      onClick={() => handleJoinClick(community)}
-                    >
-                      Join
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-gray-600 mb-4 text-sm leading-relaxed">
-                  {community.description}
-                </CardDescription>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-gray-500">{community.members} members</span>
-                  <div className="flex gap-1">
-                    {community.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                {/* View Community Button */}
-                <Link href={`/dashboard/shelter/communities/${community.id}`}>
-                  <Button variant="outline" size="sm" className="w-full bg-transparent">
-                    View Community
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* My Communities Tab */}
-      {activeTab === "my-communities" && (
-        <div>
-          {joinedCommunities.length > 0 ? (
+        <>
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+              <span className="ml-2 text-gray-600">Loading communities...</span>
+            </div>
+          ) : filteredCommunities.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No communities found matching your criteria.</p>
+              <Button
+                className="mt-4 bg-teal-500 hover:bg-teal-600 text-white"
+                onClick={() => setIsCreateCommunityOpen(true)}
+              >
+                Create Your First Community
+              </Button>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockCommunities
-                .filter((community) => joinedCommunities.includes(community.id))
-                .map((community) => (
-                  <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-                    {/* Banner Image */}
-                    <div className="relative h-32 w-full">
+              {filteredCommunities.map((community) => (
+                <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                  {/* Banner Image */}
+                  <div className="relative h-32 w-full bg-gray-200">
+                    {community.bannerImage ? (
                       <Image
                         src={community.bannerImage}
                         alt={`${community.name} community banner`}
                         fill
                         className="object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                        }}
                       />
-                    </div>
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg font-medium">{community.name}</CardTitle>
-                        <Badge className="bg-green-100 text-green-800">
-                          <Check className="h-3 w-3 mr-1" />
-                          Member
-                        </Badge>
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gradient-to-br from-teal-400 to-teal-600">
+                        <Users className="h-12 w-12 text-white opacity-60" />
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <CardDescription className="text-gray-600 mb-4 text-sm leading-relaxed">
-                        {community.description}
-                      </CardDescription>
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-sm text-gray-500">{community.members} members</span>
-                        <div className="flex gap-1">
-                          {community.tags.map((tag, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Link href={`/dashboard/shelter/communities/${community.id}`} className="flex-1">
-                          <Button size="sm" className="w-full bg-teal-500 hover:bg-teal-600 text-white">
-                            <MessageCircle className="h-4 w-4 mr-1" />
-                            View Posts
-                          </Button>
-                        </Link>
-                        <Button size="sm" variant="outline" className="flex-1 bg-transparent">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          Events
+                    )}
+                  </div>
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg font-medium">{community.name}</CardTitle>
+                      {isJoined(community.id) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-green-50 border-green-200 text-green-700 cursor-default"
+                          disabled
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Joined
                         </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="bg-teal-500 hover:bg-teal-600 text-white"
+                          onClick={() => handleJoinClick(community)}
+                          disabled={isJoining}
+                        >
+                          Join
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-gray-600 mb-4 text-sm leading-relaxed">
+                      {community.description}
+                    </CardDescription>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-gray-500">{community.memberCount} members</span>
+                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                        {community.category}
+                      </Badge>
+                    </div>
+                    {/* View Community Button */}
+                    <Link href={`/dashboard/shelter/communities/${community.id}`}>
+                      <Button variant="outline" size="sm" className="w-full bg-transparent">
+                        View Community
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* My Communities Tab */}
+      {activeTab === "my-communities" && (
+        <div>
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+              <span className="ml-2 text-gray-600">Loading your communities...</span>
+            </div>
+          ) : joinedCommunities.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {joinedCommunities.map((community) => (
+                <Card key={community.id} className="border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                  {/* Banner Image */}
+                  <div className="relative h-32 w-full bg-gray-200">
+                    {community.bannerImage ? (
+                      <Image
+                        src={community.bannerImage}
+                        alt={`${community.name} community banner`}
+                        fill
+                        className="object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gradient-to-br from-teal-400 to-teal-600">
+                        <Users className="h-12 w-12 text-white opacity-60" />
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    )}
+                  </div>
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg font-medium">{community.name}</CardTitle>
+                      <Badge className="bg-green-100 text-green-800">
+                        <Check className="h-3 w-3 mr-1" />
+                        {community.memberRole === 'owner' ? 'Owner' : 'Member'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-gray-600 mb-4 text-sm leading-relaxed">
+                      {community.description}
+                    </CardDescription>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-gray-500">{community.memberCount} members</span>
+                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                        {community.category}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Link href={`/dashboard/shelter/communities/${community.id}`} className="flex-1">
+                        <Button size="sm" className="w-full bg-teal-500 hover:bg-teal-600 text-white">
+                          <MessageCircle className="h-4 w-4 mr-1" />
+                          View Posts
+                        </Button>
+                      </Link>
+                      <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Events
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -343,7 +472,7 @@ export default function ShelterCommunitiesPage() {
               Join {selectedCommunity?.name}
             </DialogTitle>
             <DialogDescription>
-              You're about to join a community of {selectedCommunity?.members} pet lovers!
+              You're about to join a community of {selectedCommunity?.memberCount} pet lovers!
             </DialogDescription>
           </DialogHeader>
 
@@ -355,15 +484,11 @@ export default function ShelterCommunitiesPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Users className="h-4 w-4" />
-                  {selectedCommunity?.members} members
+                  {selectedCommunity?.memberCount} members
                 </div>
-                <div className="flex gap-1">
-                  {selectedCommunity?.tags?.map((tag: string, index: number) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
+                <Badge variant="secondary" className="text-xs">
+                  {selectedCommunity?.category}
+                </Badge>
               </div>
             </div>
 
@@ -395,7 +520,7 @@ export default function ShelterCommunitiesPage() {
               <Label htmlFor="intro-message">Introduce yourself (optional)</Label>
               <Textarea
                 id="intro-message"
-                placeholder="Tell the community a bit about yourself and your pets..."
+                placeholder="Tell the community a bit about yourself and your shelter..."
                 className="mt-1"
               />
             </div>

@@ -8,6 +8,8 @@ export const petGenderEnum = pgEnum('pet_gender', ['male', 'female', 'unknown'])
 export const petStatusEnum = pgEnum('pet_status', ['available', 'pending', 'adopted'])
 export const messageStatusEnum = pgEnum('message_status', ['sent', 'delivered', 'read'])
 export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'archived', 'closed'])
+export const ownerTypeEnum = pgEnum('owner_type', ['adopter', 'shelter'])
+export const communityPostTypeEnum = pgEnum('post_type', ['text', 'image', 'event'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -90,6 +92,61 @@ export const messages = pgTable('messages', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// Communities
+export const communities = pgTable('communities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  category: varchar('category', { length: 50 }).notNull(),
+  bannerImage: varchar('banner_image', { length: 500 }),
+  ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  ownerType: ownerTypeEnum('owner_type').notNull(),
+  memberCount: integer('member_count').default(1),
+  isPublic: boolean('is_public').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const communityMembers = pgTable('community_members', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  communityId: uuid('community_id').notNull().references(() => communities.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 20 }).notNull().default('member'), // 'owner', 'moderator', 'member'
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+})
+
+export const communityPosts = pgTable('community_posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  communityId: uuid('community_id').notNull().references(() => communities.id, { onDelete: 'cascade' }),
+  authorId: uuid('author_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }),
+  content: text('content').notNull(),
+  type: communityPostTypeEnum('type').notNull().default('text'),
+  images: json('images').$type<string[]>().default([]),
+  likesCount: integer('likes_count').default(0),
+  commentsCount: integer('comments_count').default(0),
+  isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const communityPostComments = pgTable('community_post_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id').notNull().references(() => communityPosts.id, { onDelete: 'cascade' }),
+  authorId: uuid('author_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const communityPostLikes = pgTable('community_post_likes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  postId: uuid('post_id').notNull().references(() => communityPosts.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Shelter = typeof shelters.$inferSelect
@@ -100,3 +157,15 @@ export type Conversation = typeof conversations.$inferSelect
 export type NewConversation = typeof conversations.$inferInsert
 export type Message = typeof messages.$inferSelect
 export type NewMessage = typeof messages.$inferInsert
+
+// Community types
+export type Community = typeof communities.$inferSelect
+export type NewCommunity = typeof communities.$inferInsert
+export type CommunityMember = typeof communityMembers.$inferSelect
+export type NewCommunityMember = typeof communityMembers.$inferInsert
+export type CommunityPost = typeof communityPosts.$inferSelect
+export type NewCommunityPost = typeof communityPosts.$inferInsert
+export type CommunityPostComment = typeof communityPostComments.$inferSelect
+export type NewCommunityPostComment = typeof communityPostComments.$inferInsert
+export type CommunityPostLike = typeof communityPostLikes.$inferSelect
+export type NewCommunityPostLike = typeof communityPostLikes.$inferInsert
