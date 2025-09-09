@@ -332,7 +332,7 @@ export default function CommunityPostsPage() {
       <div className="flex gap-3 mb-8">
         <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-cyan-500 hover:bg-cyan-600 text-white">
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
               <Plus className="h-4 w-4 mr-2" />
               New Post
             </Button>
@@ -380,7 +380,7 @@ export default function CommunityPostsPage() {
                 <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewPostOpen(false)}>
                   Cancel
                 </Button>
-                <Button className="flex-1 bg-cyan-500 hover:bg-cyan-600" onClick={handleCreatePost}>
+                <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreatePost}>
                   Create Post
                 </Button>
               </div>
@@ -390,7 +390,7 @@ export default function CommunityPostsPage() {
 
         <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-cyan-500 hover:bg-cyan-600 text-white">
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
               <Calendar className="h-4 w-4 mr-2" />
               New Event
             </Button>
@@ -462,7 +462,7 @@ export default function CommunityPostsPage() {
                 <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewEventOpen(false)}>
                   Cancel
                 </Button>
-                <Button className="flex-1 bg-cyan-500 hover:bg-cyan-600" onClick={handleCreateEvent}>
+                <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreateEvent}>
                   Create Event
                 </Button>
               </div>
@@ -512,7 +512,7 @@ export default function CommunityPostsPage() {
                     <span className="text-sm text-gray-500">{timestamp}</span>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="text-cyan-600 hover:text-cyan-700">
+                <Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700">
                   View Discussion
                 </Button>
               </div>
@@ -531,11 +531,11 @@ export default function CommunityPostsPage() {
                   <Heart className="h-4 w-4" />
                   {post.likesCount}
                 </button>
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-cyan-600 transition-colors">
+                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
                   <MessageCircle className="h-4 w-4" />
                   {post.commentsCount}
                 </button>
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-cyan-600 transition-colors">
+                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
                   <Share2 className="h-4 w-4" />
                   0
                 </button>
