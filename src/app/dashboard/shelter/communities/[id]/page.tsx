@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -33,6 +34,9 @@ export default function CommunityPostsPage() {
 
   const [posts, setPosts] = useState<any[]>([])
   const [postsLoading, setPostsLoading] = useState(false)
+  const [events, setEvents] = useState<any[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [userEventParticipation, setUserEventParticipation] = useState<{[eventId: string]: boolean}>({})
   const [isNewPostOpen, setIsNewPostOpen] = useState(false)
   const [isNewEventOpen, setIsNewEventOpen] = useState(false)
   const [newPost, setNewPost] = useState({
@@ -50,7 +54,17 @@ export default function CommunityPostsPage() {
   })
 
   const handleLike = (postId: number) => {
-    // TODO: Implement real like functionality with API
+    setPosts(
+      posts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              isLiked: !post.isLiked,
+              likesCount: post.isLiked ? post.likesCount - 1 : post.likesCount + 1,
+            }
+          : post,
+      ),
+    )
   }
 
   const handleCreatePost = async () => {
@@ -92,10 +106,96 @@ export default function CommunityPostsPage() {
     }
   }
 
-  const handleCreateEvent = () => {
-    if (!newEvent.title.trim() || !newEvent.content.trim()) return
-    // TODO: Implement event creation with real API
-    toast.info('Event creation coming soon!')
+  const handleCreateEvent = async () => {
+    if (!newEvent.title.trim() || !newEvent.content.trim() || !newEvent.date.trim() || !newEvent.location.trim()) return
+
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/events`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: newEvent.title,
+          description: newEvent.content,
+          eventDate: newEvent.date,
+          eventTime: newEvent.time,
+          location: newEvent.location,
+          fee: newEvent.fee || 'Free',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Add the new event to the events list
+        setEvents([data.data, ...events])
+        setNewEvent({ title: "", content: "", date: "", time: "", location: "", fee: "" })
+        setIsNewEventOpen(false)
+        toast.success('Event created successfully!')
+      } else {
+        throw new Error(data.error || 'Failed to create event')
+      }
+    } catch (error) {
+      console.error('Error creating event:', error)
+      toast.error('Failed to create event')
+    }
+  }
+
+  const handleJoinEvent = async (eventId: string) => {
+    if (!user) return
+
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const isCurrentlyJoined = userEventParticipation[eventId]
+      const method = isCurrentlyJoined ? 'DELETE' : 'POST'
+      const response = await fetch(`/api/communities/${communityId}/events/${eventId}/join`, {
+        method,
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update participation status
+        setUserEventParticipation(prev => ({
+          ...prev,
+          [eventId]: !isCurrentlyJoined
+        }))
+
+        // Update the event's participant count in the events list
+        setEvents(prev => prev.map(event => 
+          event.id === eventId 
+            ? {
+                ...event, 
+                currentParticipants: isCurrentlyJoined 
+                  ? event.currentParticipants - 1 
+                  : event.currentParticipants + 1
+              }
+            : event
+        ))
+
+        toast.success(isCurrentlyJoined ? 'Left event successfully!' : 'Joined event successfully!')
+      } else {
+        throw new Error(data.error || 'Failed to update event participation')
+      }
+    } catch (error) {
+      console.error('Error updating event participation:', error)
+      toast.error('Failed to update event participation')
+    }
   }
 
   const getPostTypeColor = (type: string) => {
@@ -141,6 +241,40 @@ export default function CommunityPostsPage() {
     }
   }
 
+  // Map database types back to user-friendly labels for display
+  const getDisplayTypeLabel = (dbType: string, originalType?: string) => {
+    // If we have the original type stored, use it for better display
+    if (originalType) {
+      switch (originalType) {
+        case "general": return "General"
+        case "help": return "Help Needed"
+        case "success": return "Success Story"
+        case "question": return "Question"
+        case "image": return "Image"
+        case "event": return "Event"
+        default: return "Discussion"
+      }
+    }
+    
+    // Fallback to database type
+    return getPostTypeLabel(dbType)
+  }
+
+  const getDisplayTypeColor = (dbType: string, originalType?: string) => {
+    if (originalType) {
+      switch (originalType) {
+        case "help": return "bg-red-100 text-red-800"
+        case "success": return "bg-green-100 text-green-800"
+        case "question": return "bg-yellow-100 text-yellow-800"
+        case "general": return "bg-gray-100 text-gray-800"
+        case "image": return "bg-green-100 text-green-800"
+        case "event": return "bg-blue-100 text-blue-800"
+        default: return "bg-gray-100 text-gray-800"
+      }
+    }
+    return getPostTypeColor(dbType)
+  }
+
   const fetchPosts = async () => {
     try {
       setPostsLoading(true)
@@ -169,6 +303,41 @@ export default function CommunityPostsPage() {
     }
   }
 
+  const fetchEvents = async () => {
+    try {
+      setEventsLoading(true)
+      
+      const headers: HeadersInit = {}
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/events`, {
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setEvents(data.data)
+        
+        // Initialize participation status from API data
+        const participationStatus: {[eventId: string]: boolean} = {}
+        data.data.forEach((event: any) => {
+          participationStatus[event.id] = event.isUserParticipant || false
+        })
+        setUserEventParticipation(participationStatus)
+      } else {
+        console.error('Failed to fetch events:', data.error)
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error)
+    } finally {
+      setEventsLoading(false)
+    }
+  }
+
   useEffect(() => {
     const fetchCommunity = async () => {
       try {
@@ -188,8 +357,8 @@ export default function CommunityPostsPage() {
 
         if (data.success) {
           setCommunity(data.data)
-          // Fetch posts after community is loaded
-          await fetchPosts()
+          // Fetch both posts and events after community is loaded
+          await Promise.all([fetchPosts(), fetchEvents()])
         } else {
           throw new Error(data.error || 'Failed to fetch community')
         }
@@ -401,87 +570,211 @@ export default function CommunityPostsPage() {
         </Dialog>
       </div>
 
-      {/* Posts Feed */}
-      <div className="space-y-6">
-        {postsLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Loading posts...</span>
+      {/* Posts and Events Tabs */}
+      <Tabs defaultValue="posts" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="events">Events</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="posts" className="space-y-6">
+          {postsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading posts...</span>
+              </div>
             </div>
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">No posts yet in this community</p>
-            <p className="text-sm text-gray-400">Be the first to share something!</p>
-          </div>
-        ) : (
-          posts.map((post) => {
-            const authorName = `${post.author.firstName} ${post.author.lastName}`
-            const authorInitials = `${post.author.firstName?.[0] || ''}${post.author.lastName?.[0] || ''}`.toUpperCase()
-            const timestamp = new Date(post.createdAt).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'short', 
-              day: 'numeric' 
-            })
-            
-            return (
-          <Card key={post.id} className="border border-gray-200">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src="/placeholder.svg" />
-                    <AvatarFallback>{authorInitials}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{authorName}</span>
-                      <Badge className={`text-xs ${getPostTypeColor(post.type)}`}>{getPostTypeLabel(post.type)}</Badge>
+          ) : posts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">No posts yet in this community</p>
+              <p className="text-sm text-gray-400">Be the first to share something!</p>
+            </div>
+          ) : (
+            posts.map((post) => {
+              const authorName = `${post.author.firstName} ${post.author.lastName}`
+              const authorInitials = `${post.author.firstName?.[0] || ''}${post.author.lastName?.[0] || ''}`.toUpperCase()
+              const timestamp = new Date(post.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+              
+              return (
+            <Card key={post.id} className="border border-gray-200">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src="/placeholder.svg" />
+                      <AvatarFallback>{authorInitials}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{authorName}</span>
+                        <Badge className={`text-xs ${getPostTypeColor(post.type)}`}>{getPostTypeLabel(post.type)}</Badge>
+                      </div>
+                      <span className="text-sm text-gray-500">{timestamp}</span>
                     </div>
-                    <span className="text-sm text-gray-500">{timestamp}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700">
+                    View Discussion
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <h3 className="font-semibold text-lg mb-3">{post.title}</h3>
+                <div className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed">{post.content}</div>
+
+                {/* Post Actions */}
+                <div className="flex items-center gap-6 pt-4 border-t">
+                  <button
+                    onClick={() => {/* TODO: Implement real like functionality */}}
+                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
+                  >
+                    <Heart className="h-4 w-4" />
+                    {post.likesCount}
+                  </button>
+                  <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
+                    <MessageCircle className="h-4 w-4" />
+                    {post.commentsCount}
+                  </button>
+                  <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
+                    <Share2 className="h-4 w-4" />
+                    0
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+              )
+            })
+          )}
+        </TabsContent>
+
+        <TabsContent value="events" className="space-y-6">
+          {eventsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading events...</span>
+              </div>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">No events yet in this community</p>
+              <p className="text-sm text-gray-400">Be the first to create an event!</p>
+            </div>
+          ) : (
+            events.map((event) => {
+              const organizerName = `${event.organizer.firstName} ${event.organizer.lastName}`
+              const organizerInitials = `${event.organizer.firstName?.[0] || ''}${event.organizer.lastName?.[0] || ''}`.toUpperCase()
+              const eventDate = new Date(event.eventDate).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })
+              const createdAt = new Date(event.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })
+              
+              return (
+            <Card key={event.id} className="border border-gray-200">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src="/placeholder.svg" />
+                      <AvatarFallback>{organizerInitials}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{organizerName}</span>
+                        <Badge className="text-xs bg-blue-100 text-blue-800">Event</Badge>
+                      </div>
+                      <span className="text-sm text-gray-500">Created {createdAt}</span>
+                    </div>
+                  </div>
+                  {user && event.organizer.id !== user.id && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-teal-600 hover:text-teal-700"
+                      onClick={() => handleJoinEvent(event.id)}
+                    >
+                      {userEventParticipation[event.id] ? 'Leave Event' : 'Join Event'}
+                    </Button>
+                  )}
+                  {user && event.organizer.id === user.id && (
+                    <Badge className="bg-green-100 text-green-800">
+                      Organizer
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <h3 className="font-semibold text-lg mb-3">{event.title}</h3>
+                <div className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed">{event.description}</div>
+                
+                {/* Event Details */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-teal-600" />
+                    <span className="font-medium">Date:</span>
+                    <span>{eventDate}</span>
+                    {event.eventTime && <span>at {event.eventTime}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-teal-600" />
+                    <span className="font-medium">Location:</span>
+                    <span>{event.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <DollarSign className="h-4 w-4 text-teal-600" />
+                    <span className="font-medium">Fee:</span>
+                    <span>{event.fee}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users className="h-4 w-4 text-teal-600" />
+                    <span className="font-medium">Participants:</span>
+                    <span>{event.currentParticipants}{event.maxParticipants ? ` / ${event.maxParticipants}` : ''}</span>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700">
-                  View Discussion
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <h3 className="font-semibold text-lg mb-3">{post.title}</h3>
-              <div className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed">{post.content}</div>
 
-              {/* Post Actions */}
-              <div className="flex items-center gap-6 pt-4 border-t">
-                <button
-                  onClick={() => {/* TODO: Implement real like functionality */}}
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
-                >
-                  <Heart className="h-4 w-4" />
-                  {post.likesCount}
-                </button>
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
-                  <MessageCircle className="h-4 w-4" />
-                  {post.commentsCount}
-                </button>
-                <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
-                  <Share2 className="h-4 w-4" />
-                  0
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-            )
-          })
-        )}
-      </div>
-
-      {/* Load More */}
-      <div className="text-center mt-8">
-        <Button variant="outline" className="bg-transparent">
-          Load More Posts
-        </Button>
-      </div>
+                {/* Event Actions */}
+                <div className="flex items-center gap-6 pt-4 border-t">
+                  {user && event.organizer.id !== user.id && (
+                    <Button 
+                      size="sm" 
+                      className={userEventParticipation[event.id] 
+                        ? "bg-red-500 hover:bg-red-600" 
+                        : "bg-teal-500 hover:bg-teal-600"
+                      }
+                      onClick={() => handleJoinEvent(event.id)}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      {userEventParticipation[event.id] ? 'Leave Event' : 'Join Event'}
+                    </Button>
+                  )}
+                  {user && event.organizer.id === user.id && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <Users className="h-4 w-4" />
+                      <span className="font-medium">You are the organizer</span>
+                    </div>
+                  )}
+                  <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+              )
+            })
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

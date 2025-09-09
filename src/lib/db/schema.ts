@@ -147,6 +147,31 @@ export const communityPostLikes = pgTable('community_post_likes', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const communityEvents = pgTable('community_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  communityId: uuid('community_id').notNull().references(() => communities.id, { onDelete: 'cascade' }),
+  organizerId: uuid('organizer_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  eventDate: timestamp('event_date').notNull(),
+  eventTime: varchar('event_time', { length: 10 }), // e.g., "14:30"
+  location: text('location').notNull(),
+  fee: varchar('fee', { length: 100 }).default('Free'),
+  maxParticipants: integer('max_participants'),
+  currentParticipants: integer('current_participants').default(0),
+  images: json('images').$type<string[]>().default([]),
+  isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const communityEventParticipants = pgTable('community_event_participants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  eventId: uuid('event_id').notNull().references(() => communityEvents.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Shelter = typeof shelters.$inferSelect
@@ -169,3 +194,7 @@ export type CommunityPostComment = typeof communityPostComments.$inferSelect
 export type NewCommunityPostComment = typeof communityPostComments.$inferInsert
 export type CommunityPostLike = typeof communityPostLikes.$inferSelect
 export type NewCommunityPostLike = typeof communityPostLikes.$inferInsert
+export type CommunityEvent = typeof communityEvents.$inferSelect
+export type NewCommunityEvent = typeof communityEvents.$inferInsert
+export type CommunityEventParticipant = typeof communityEventParticipants.$inferSelect
+export type NewCommunityEventParticipant = typeof communityEventParticipants.$inferInsert
