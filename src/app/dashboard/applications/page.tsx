@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
@@ -46,6 +46,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useAuth } from "@/contexts/AuthContext"
+import { applicationsService, ApplicationWithDetails } from "@/lib/services/applications"
+import { toast } from "sonner"
 
 // Animation variants
 const fadeIn = {
@@ -80,109 +83,25 @@ const popIn = {
   },
 }
 
-// Mock application data
-const applications = [
-  {
-    id: "APP-123456",
-    pet: {
-      id: "buddy-123",
-      name: "Buddy",
-      breed: "Golden Retriever",
-      age: "2 years",
-      image: "/placeholder.svg?height=300&width=300&text=Buddy",
-      location: "George Town, Penang",
-    },
-    status: "interview_scheduled",
-    submittedDate: "2025-05-10",
-    lastUpdate: "2025-05-15",
-    progress: 50,
-    currentStep: "Phone Interview",
-    nextAction: "Phone interview scheduled for May 18, 2025 at 2:00 PM",
-    timeline: [
-      { step: "Application Submitted", date: "May 10, 2025", completed: true },
-      { step: "Initial Review", date: "May 12, 2025", completed: true },
-      { step: "Phone Interview", date: "May 18, 2025", completed: false, scheduled: true },
-      { step: "Meet & Greet", date: "TBD", completed: false },
-      { step: "Home Visit", date: "TBD", completed: false },
-      { step: "Final Decision", date: "TBD", completed: false },
-    ],
-  },
-  {
-    id: "APP-123789",
-    pet: {
-      id: "whiskers-456",
-      name: "Whiskers",
-      breed: "Siamese Cat",
-      age: "1 year",
-      image: "/placeholder.svg?height=300&width=300&text=Whiskers",
-      location: "Batu Ferringhi, Penang",
-    },
-    status: "approved",
-    submittedDate: "2025-05-02",
-    lastUpdate: "2025-05-14",
-    progress: 100,
-    currentStep: "Approved",
-    nextAction: "Adoption finalization scheduled for May 20, 2025",
-    timeline: [
-      { step: "Application Submitted", date: "May 2, 2025", completed: true },
-      { step: "Initial Review", date: "May 4, 2025", completed: true },
-      { step: "Phone Interview", date: "May 6, 2025", completed: true },
-      { step: "Meet & Greet", date: "May 8, 2025", completed: true },
-      { step: "Home Visit", date: "May 12, 2025", completed: true },
-      { step: "Final Decision", date: "May 14, 2025", completed: true },
-    ],
-  },
-  {
-    id: "APP-124567",
-    pet: {
-      id: "max-789",
-      name: "Max",
-      breed: "Labrador Retriever",
-      age: "3 years",
-      image: "/placeholder.svg?height=300&width=300&text=Max",
-      location: "Tanjung Bungah, Penang",
-    },
-    status: "under_review",
-    submittedDate: "2025-05-14",
-    lastUpdate: "2025-05-14",
-    progress: 25,
-    currentStep: "Initial Review",
-    nextAction: "Application is being reviewed by our adoption team",
-    timeline: [
-      { step: "Application Submitted", date: "May 14, 2025", completed: true },
-      { step: "Initial Review", date: "In Progress", completed: false },
-      { step: "Phone Interview", date: "TBD", completed: false },
-      { step: "Meet & Greet", date: "TBD", completed: false },
-      { step: "Home Visit", date: "TBD", completed: false },
-      { step: "Final Decision", date: "TBD", completed: false },
-    ],
-  },
-  {
-    id: "APP-124890",
-    pet: {
-      id: "luna-101",
-      name: "Luna",
-      breed: "Ragdoll",
-      age: "2 years",
-      image: "/placeholder.svg?height=300&width=300&text=Luna",
-      location: "George Town, Penang",
-    },
-    status: "withdrawn",
-    submittedDate: "2025-04-28",
-    lastUpdate: "2025-05-01",
-    progress: 25,
-    currentStep: "Withdrawn",
-    nextAction: "Application withdrawn by applicant",
-    timeline: [
-      { step: "Application Submitted", date: "Apr 28, 2025", completed: true },
-      { step: "Initial Review", date: "Apr 30, 2025", completed: true },
-      { step: "Application Withdrawn", date: "May 1, 2025", completed: true },
-    ],
-  },
-]
-
+// Status configuration helper
 const getStatusConfig = (status: string) => {
   switch (status) {
+    case "draft":
+      return {
+        label: "Draft",
+        color: "bg-gray-500",
+        textColor: "text-gray-700",
+        bgColor: "bg-gray-100",
+        icon: FileText,
+      }
+    case "submitted":
+      return {
+        label: "Submitted",
+        color: "bg-teal-500",
+        textColor: "text-teal-700",
+        bgColor: "bg-teal-100",
+        icon: FileText,
+      }
     case "under_review":
       return {
         label: "Under Review",
@@ -190,30 +109,6 @@ const getStatusConfig = (status: string) => {
         textColor: "text-yellow-700",
         bgColor: "bg-yellow-100",
         icon: Clock,
-      }
-    case "interview_scheduled":
-      return {
-        label: "Interview Scheduled",
-        color: "bg-blue-500",
-        textColor: "text-blue-700",
-        bgColor: "bg-blue-100",
-        icon: Phone,
-      }
-    case "meet_greet_scheduled":
-      return {
-        label: "Meet & Greet Scheduled",
-        color: "bg-purple-500",
-        textColor: "text-purple-700",
-        bgColor: "bg-purple-100",
-        icon: Heart,
-      }
-    case "home_visit_scheduled":
-      return {
-        label: "Home Visit Scheduled",
-        color: "bg-indigo-500",
-        textColor: "text-indigo-700",
-        bgColor: "bg-indigo-100",
-        icon: Home,
       }
     case "approved":
       return {
@@ -251,9 +146,31 @@ const getStatusConfig = (status: string) => {
 }
 
 export default function ApplicationsPage() {
+  const { user } = useAuth()
   const [selectedTab, setSelectedTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("newest")
+  const [applications, setApplications] = useState<ApplicationWithDetails[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchApplications()
+  }, [user])
+
+  const fetchApplications = async () => {
+    if (!user) return
+    
+    try {
+      setLoading(true)
+      const data = await applicationsService.getApplications(user)
+      setApplications(data)
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+      toast.error('Failed to load applications')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredApplications = applications.filter((app) => {
     const matchesTab = selectedTab === "all" || app.status === selectedTab
@@ -261,16 +178,16 @@ export default function ApplicationsPage() {
       searchQuery === "" ||
       app.pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.pet.breed.toLowerCase().includes(searchQuery.toLowerCase())
+      (app.pet.breed && app.pet.breed.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesTab && matchesSearch
   })
 
   const sortedApplications = [...filteredApplications].sort((a, b) => {
     switch (sortBy) {
       case "newest":
-        return new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime()
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       case "oldest":
-        return new Date(a.submittedDate).getTime() - new Date(b.submittedDate).getTime()
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       case "status":
         return a.status.localeCompare(b.status)
       case "pet_name":
@@ -279,6 +196,28 @@ export default function ApplicationsPage() {
         return 0
     }
   })
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+          <p className="text-muted-foreground">Please log in to view your applications.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your applications...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-8">
@@ -303,10 +242,8 @@ export default function ApplicationsPage() {
             color: "text-green-600",
           },
           {
-            label: "In Progress",
-            value: applications.filter((app) =>
-              ["interview_scheduled", "meet_greet_scheduled", "home_visit_scheduled"].includes(app.status),
-            ).length,
+            label: "Submitted",
+            value: applications.filter((app) => app.status === "submitted").length,
             color: "text-purple-600",
           },
         ].map((stat, index) => (
@@ -403,7 +340,7 @@ export default function ApplicationsPage() {
                             <div className="flex gap-4">
                               <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
                                 <Image
-                                  src={application.pet.image || "/placeholder.svg"}
+                                  src={application.pet.images?.[0] || "/placeholder.svg"}
                                   alt={application.pet.name}
                                   fill
                                   className="object-cover"
@@ -429,14 +366,14 @@ export default function ApplicationsPage() {
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                   <span className="font-medium">Progress</span>
-                                  <span className="text-gray-500">{application.progress}% Complete</span>
+                                  <span className="text-gray-500">{applicationsService.getProgressForStatus(application.status)}% Complete</span>
                                 </div>
                                 <Progress
-                                  value={application.progress}
+                                  value={applicationsService.getProgressForStatus(application.status)}
                                   className="h-2 bg-gray-100"
                                   indicatorClassName={statusConfig.color}
                                 />
-                                <p className="text-xs text-gray-500">Current: {application.currentStep}</p>
+                                <p className="text-xs text-gray-500">Current: {applicationsService.getCurrentStepForStatus(application.status)}</p>
                               </div>
                             </div>
 
@@ -444,10 +381,10 @@ export default function ApplicationsPage() {
                             <div className="flex flex-col gap-4 lg:items-end">
                               <div className="text-right">
                                 <p className="text-xs text-gray-500">
-                                  Submitted: {new Date(application.submittedDate).toLocaleDateString()}
+                                  Submitted: {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : new Date(application.createdAt).toLocaleDateString()}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  Updated: {new Date(application.lastUpdate).toLocaleDateString()}
+                                  Updated: {new Date(application.updatedAt).toLocaleDateString()}
                                 </p>
                               </div>
                               <div className="flex gap-2">
@@ -468,7 +405,7 @@ export default function ApplicationsPage() {
                                       <div className="flex gap-4">
                                         <div className="relative h-24 w-24 overflow-hidden rounded-lg">
                                           <Image
-                                            src={application.pet.image || "/placeholder.svg"}
+                                            src={application.pet.images?.[0] || "/placeholder.svg"}
                                             alt={application.pet.name}
                                             fill
                                             className="object-cover"
@@ -479,7 +416,7 @@ export default function ApplicationsPage() {
                                           <p className="text-gray-500">
                                             {application.pet.breed} • {application.pet.age}
                                           </p>
-                                          <p className="text-sm text-gray-500">{application.pet.location}</p>
+                                          <p className="text-sm text-gray-500">{application.pet.shelter.name}</p>
                                         </div>
                                       </div>
 
@@ -487,7 +424,7 @@ export default function ApplicationsPage() {
                                       <div>
                                         <h4 className="font-medium mb-4">Application Timeline</h4>
                                         <div className="space-y-4">
-                                          {application.timeline.map((step, index) => (
+                                          {applicationsService.getTimelineForApplication(application).map((step, index) => (
                                             <div key={index} className="flex items-center gap-4">
                                               <div
                                                 className={`flex h-8 w-8 items-center justify-center rounded-full ${
@@ -515,10 +452,13 @@ export default function ApplicationsPage() {
                                         </div>
                                       </div>
 
-                                      {/* Next Action */}
+                                      {/* Status Information */}
                                       <div className="rounded-lg bg-teal-50 p-4">
-                                        <h4 className="font-medium text-teal-900">Next Action</h4>
-                                        <p className="text-sm text-teal-700">{application.nextAction}</p>
+                                        <h4 className="font-medium text-teal-900">Current Status</h4>
+                                        <p className="text-sm text-teal-700">{applicationsService.getCurrentStepForStatus(application.status)}</p>
+                                        {application.reviewerNotes && (
+                                          <p className="text-sm text-teal-600 mt-2">Note: {application.reviewerNotes}</p>
+                                        )}
                                       </div>
                                     </div>
                                   </DialogContent>
@@ -562,16 +502,14 @@ export default function ApplicationsPage() {
                             </div>
                           </div>
 
-                          {/* Next Action Banner */}
-                          {application.status !== "withdrawn" &&
-                            application.status !== "rejected" &&
-                            application.nextAction && (
+                          {/* Status Banner */}
+                          {application.reviewerNotes && (
                               <div className="mt-4 rounded-lg bg-gray-50 p-3">
                                 <div className="flex items-center gap-2">
                                   <Info className="h-4 w-4 text-teal-500" />
-                                  <p className="text-sm font-medium">Next Step:</p>
+                                  <p className="text-sm font-medium">Shelter Notes:</p>
                                 </div>
-                                <p className="text-sm text-gray-600 mt-1">{application.nextAction}</p>
+                                <p className="text-sm text-gray-600 mt-1">{application.reviewerNotes}</p>
                               </div>
                             )}
                         </CardContent>
@@ -594,16 +532,16 @@ export default function ApplicationsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <Link href="/pets">
+              <Link href="/dashboard/pets">
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <PawPrint className="h-4 w-4" />
                   Browse Available Pets
                 </Button>
               </Link>
-              <Link href="/apply">
+              <Link href="/dashboard/pets">
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <FileText className="h-4 w-4" />
-                  Submit New Application
+                  Find Pets to Adopt
                 </Button>
               </Link>
               <Link href="/dashboard/messages">

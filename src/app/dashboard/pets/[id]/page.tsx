@@ -894,7 +894,7 @@ export default function PetProfilePage() {
                     <Progress value={95} className="h-2 bg-gray-100" indicatorClassName="bg-teal-500" />
                   </div>
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Link href={`/apply/${petData.id}`}>
+                    <Link href={`/dashboard/pets/${petData.id}/apply`}>
                       <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply to Adopt {petData.name}</Button>
                     </Link>
                   </motion.div>

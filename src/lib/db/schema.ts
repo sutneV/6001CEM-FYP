@@ -10,6 +10,7 @@ export const messageStatusEnum = pgEnum('message_status', ['sent', 'delivered', 
 export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'archived', 'closed'])
 export const ownerTypeEnum = pgEnum('owner_type', ['adopter', 'shelter'])
 export const communityPostTypeEnum = pgEnum('post_type', ['text', 'image', 'event'])
+export const applicationStatusEnum = pgEnum('application_status', ['draft', 'submitted', 'under_review', 'approved', 'rejected', 'withdrawn'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -88,6 +89,60 @@ export const messages = pgTable('messages', {
   content: text('content').notNull(),
   status: messageStatusEnum('status').notNull().default('sent'),
   readAt: timestamp('read_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// Applications
+export const applications = pgTable('applications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  petId: uuid('pet_id').notNull().references(() => pets.id, { onDelete: 'cascade' }),
+  adopterId: uuid('adopter_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // Personal Information
+  firstName: varchar('first_name', { length: 100 }).notNull(),
+  lastName: varchar('last_name', { length: 100 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  dateOfBirth: varchar('date_of_birth', { length: 10 }).notNull(), // YYYY-MM-DD format
+  occupation: varchar('occupation', { length: 255 }).notNull(),
+  
+  // Living Situation
+  housingType: varchar('housing_type', { length: 50 }).notNull(),
+  ownRent: varchar('own_rent', { length: 10 }).notNull(),
+  address: text('address').notNull(),
+  landlordPermission: varchar('landlord_permission', { length: 50 }),
+  yardType: varchar('yard_type', { length: 50 }).notNull(),
+  householdSize: integer('household_size').notNull(),
+  
+  // Pet Experience
+  previousPets: varchar('previous_pets', { length: 10 }).notNull(),
+  currentPets: varchar('current_pets', { length: 10 }).notNull(),
+  petExperience: text('pet_experience'),
+  veterinarian: text('veterinarian'),
+  
+  // Lifestyle
+  workSchedule: text('work_schedule').notNull(),
+  exerciseCommitment: varchar('exercise_commitment', { length: 50 }).notNull(),
+  travelFrequency: varchar('travel_frequency', { length: 50 }).notNull(),
+  petPreferences: text('pet_preferences').notNull(),
+  
+  // Household
+  householdMembers: text('household_members').notNull(),
+  allergies: varchar('allergies', { length: 50 }).notNull(),
+  childrenAges: varchar('children_ages', { length: 255 }),
+  
+  // Agreement
+  references: text('references').notNull(),
+  emergencyContact: text('emergency_contact').notNull(),
+  agreements: json('agreements').$type<number[]>().notNull().default([]),
+  
+  // Application metadata
+  status: applicationStatusEnum('status').notNull().default('draft'),
+  submittedAt: timestamp('submitted_at'),
+  reviewedAt: timestamp('reviewed_at'),
+  reviewerNotes: text('reviewer_notes'),
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -182,6 +237,8 @@ export type Conversation = typeof conversations.$inferSelect
 export type NewConversation = typeof conversations.$inferInsert
 export type Message = typeof messages.$inferSelect
 export type NewMessage = typeof messages.$inferInsert
+export type Application = typeof applications.$inferSelect
+export type NewApplication = typeof applications.$inferInsert
 
 // Community types
 export type Community = typeof communities.$inferSelect

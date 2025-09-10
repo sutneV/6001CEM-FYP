@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
 import {
@@ -49,6 +49,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from "@/contexts/AuthContext"
+import { applicationsService, ApplicationWithDetails } from "@/lib/services/applications"
+import { toast } from "sonner"
 
 // Animation variants
 const fadeIn = {
@@ -83,169 +86,26 @@ const popIn = {
   },
 }
 
-// Mock application data for shelter
-const initialApplications = [
-  {
-    id: "APP-123456",
-    applicant: {
-      name: "Sarah Johnson",
-      email: "sarah.johnson@email.com",
-      phone: "+60 12-345-6789",
-      location: "George Town, Penang",
-      avatar: "/placeholder.svg?height=40&width=40&text=SJ",
-    },
-    pet: {
-      id: "buddy-123",
-      name: "Buddy",
-      breed: "Golden Retriever",
-      age: "2 years",
-      image: "/placeholder.svg?height=300&width=300&text=Buddy",
-    },
-    status: "interview_scheduled",
-    submittedDate: "2025-05-10",
-    lastUpdate: "2025-05-15",
-    progress: 50,
-    currentStep: "Phone Interview",
-    priority: "high",
-    notes: "Experienced dog owner, has references from previous vet",
-    timeline: [
-      { step: "Application Submitted", date: "May 10, 2025", completed: true },
-      { step: "Initial Review", date: "May 12, 2025", completed: true },
-      { step: "Phone Interview", date: "May 18, 2025", completed: false, scheduled: true },
-      { step: "Meet & Greet", date: "TBD", completed: false },
-      { step: "Home Visit", date: "TBD", completed: false },
-      { step: "Final Decision", date: "TBD", completed: false },
-    ],
-  },
-  {
-    id: "APP-123789",
-    applicant: {
-      name: "Michael Chen",
-      email: "michael.chen@email.com",
-      phone: "+60 16-789-0123",
-      location: "Batu Ferringhi, Penang",
-      avatar: "/placeholder.svg?height=40&width=40&text=MC",
-    },
-    pet: {
-      id: "whiskers-456",
-      name: "Whiskers",
-      breed: "Siamese Cat",
-      age: "1 year",
-      image: "/placeholder.svg?height=300&width=300&text=Whiskers",
-    },
-    status: "pending_approval",
-    submittedDate: "2025-05-02",
-    lastUpdate: "2025-05-14",
-    progress: 90,
-    currentStep: "Final Decision",
-    priority: "medium",
-    notes: "All checks completed successfully, ready for final approval",
-    timeline: [
-      { step: "Application Submitted", date: "May 2, 2025", completed: true },
-      { step: "Initial Review", date: "May 4, 2025", completed: true },
-      { step: "Phone Interview", date: "May 6, 2025", completed: true },
-      { step: "Meet & Greet", date: "May 8, 2025", completed: true },
-      { step: "Home Visit", date: "May 12, 2025", completed: true },
-      { step: "Final Decision", date: "Pending", completed: false },
-    ],
-  },
-  {
-    id: "APP-124567",
-    applicant: {
-      name: "Emily Wong",
-      email: "emily.wong@email.com",
-      phone: "+60 19-456-7890",
-      location: "Tanjung Bungah, Penang",
-      avatar: "/placeholder.svg?height=40&width=40&text=EW",
-    },
-    pet: {
-      id: "max-789",
-      name: "Max",
-      breed: "Labrador Retriever",
-      age: "3 years",
-      image: "/placeholder.svg?height=300&width=300&text=Max",
-    },
-    status: "under_review",
-    submittedDate: "2025-05-14",
-    lastUpdate: "2025-05-14",
-    progress: 25,
-    currentStep: "Initial Review",
-    priority: "low",
-    notes: "New application, requires initial screening",
-    timeline: [
-      { step: "Application Submitted", date: "May 14, 2025", completed: true },
-      { step: "Initial Review", date: "In Progress", completed: false },
-      { step: "Phone Interview", date: "TBD", completed: false },
-      { step: "Meet & Greet", date: "TBD", completed: false },
-      { step: "Home Visit", date: "TBD", completed: false },
-      { step: "Final Decision", date: "TBD", completed: false },
-    ],
-  },
-  {
-    id: "APP-124890",
-    applicant: {
-      name: "David Lim",
-      email: "david.lim@email.com",
-      phone: "+60 17-234-5678",
-      location: "Gurney Drive, Penang",
-      avatar: "/placeholder.svg?height=40&width=40&text=DL",
-    },
-    pet: {
-      id: "luna-101",
-      name: "Luna",
-      breed: "Ragdoll",
-      age: "2 years",
-      image: "/placeholder.svg?height=300&width=300&text=Luna",
-    },
-    status: "rejected",
-    submittedDate: "2025-04-28",
-    lastUpdate: "2025-05-01",
-    progress: 25,
-    currentStep: "Application Rejected",
-    priority: "low",
-    notes: "Housing situation not suitable for pet requirements",
-    timeline: [
-      { step: "Application Submitted", date: "Apr 28, 2025", completed: true },
-      { step: "Initial Review", date: "Apr 30, 2025", completed: true },
-      { step: "Application Rejected", date: "May 1, 2025", completed: true },
-    ],
-  },
-  {
-    id: "APP-125123",
-    applicant: {
-      name: "Lisa Tan",
-      email: "lisa.tan@email.com",
-      phone: "+60 12-987-6543",
-      location: "Jelutong, Penang",
-      avatar: "/placeholder.svg?height=40&width=40&text=LT",
-    },
-    pet: {
-      id: "charlie-202",
-      name: "Charlie",
-      breed: "Beagle",
-      age: "4 years",
-      image: "/placeholder.svg?height=300&width=300&text=Charlie",
-    },
-    status: "meet_greet_scheduled",
-    submittedDate: "2025-05-08",
-    lastUpdate: "2025-05-16",
-    progress: 60,
-    currentStep: "Meet & Greet",
-    priority: "high",
-    notes: "Great interview, excited to meet the pet",
-    timeline: [
-      { step: "Application Submitted", date: "May 8, 2025", completed: true },
-      { step: "Initial Review", date: "May 10, 2025", completed: true },
-      { step: "Phone Interview", date: "May 14, 2025", completed: true },
-      { step: "Meet & Greet", date: "May 20, 2025", completed: false, scheduled: true },
-      { step: "Home Visit", date: "TBD", completed: false },
-      { step: "Final Decision", date: "TBD", completed: false },
-    ],
-  },
-]
+// Status and priority configurations
 
 const getStatusConfig = (status: string) => {
   switch (status) {
+    case "draft":
+      return {
+        label: "Draft",
+        color: "bg-gray-500",
+        textColor: "text-gray-700",
+        bgColor: "bg-gray-100",
+        icon: FileText,
+      }
+    case "submitted":
+      return {
+        label: "Submitted",
+        color: "bg-teal-500",
+        textColor: "text-teal-700",
+        bgColor: "bg-teal-100",
+        icon: FileText,
+      }
     case "under_review":
       return {
         label: "Under Review",
@@ -253,38 +113,6 @@ const getStatusConfig = (status: string) => {
         textColor: "text-yellow-700",
         bgColor: "bg-yellow-100",
         icon: Clock,
-      }
-    case "interview_scheduled":
-      return {
-        label: "Interview Scheduled",
-        color: "bg-blue-500",
-        textColor: "text-blue-700",
-        bgColor: "bg-blue-100",
-        icon: Phone,
-      }
-    case "meet_greet_scheduled":
-      return {
-        label: "Meet & Greet Scheduled",
-        color: "bg-purple-500",
-        textColor: "text-purple-700",
-        bgColor: "bg-purple-100",
-        icon: Heart,
-      }
-    case "home_visit_scheduled":
-      return {
-        label: "Home Visit Scheduled",
-        color: "bg-indigo-500",
-        textColor: "text-indigo-700",
-        bgColor: "bg-indigo-100",
-        icon: Home,
-      }
-    case "pending_approval":
-      return {
-        label: "Pending Approval",
-        color: "bg-orange-500",
-        textColor: "text-orange-700",
-        bgColor: "bg-orange-100",
-        icon: AlertCircle,
       }
     case "approved":
       return {
@@ -300,6 +128,14 @@ const getStatusConfig = (status: string) => {
         color: "bg-red-500",
         textColor: "text-red-700",
         bgColor: "bg-red-100",
+        icon: XCircle,
+      }
+    case "withdrawn":
+      return {
+        label: "Withdrawn",
+        color: "bg-gray-500",
+        textColor: "text-gray-700",
+        bgColor: "bg-gray-100",
         icon: XCircle,
       }
     default:
@@ -327,39 +163,76 @@ const getPriorityConfig = (priority: string) => {
 }
 
 export default function ShelterApplicationsPage() {
+  const { user } = useAuth()
   const [selectedTab, setSelectedTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("newest")
-  const [applications, setApplications] = useState(initialApplications)
+  const [applications, setApplications] = useState<ApplicationWithDetails[]>([])
+  const [loading, setLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchApplications()
+  }, [user])
+
+  const fetchApplications = async () => {
+    if (!user) return
+    
+    try {
+      setLoading(true)
+      const data = await applicationsService.getApplications(user)
+      setApplications(data)
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+      toast.error('Failed to load applications')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateApplicationStatus = async (
+    applicationId: string,
+    newStatus: string,
+    reviewerNotes?: string
+  ) => {
+    if (!user) return
+
+    try {
+      setIsUpdating(applicationId)
+      await applicationsService.updateApplicationStatus(applicationId, newStatus, reviewerNotes || null, user)
+      toast.success(`Application ${newStatus === 'approved' ? 'approved' : newStatus === 'rejected' ? 'rejected' : 'updated'} successfully`)
+      
+      // Refresh applications
+      await fetchApplications()
+    } catch (error) {
+      console.error('Error updating application:', error)
+      toast.error('Failed to update application')
+    } finally {
+      setIsUpdating(null)
+    }
+  }
 
   const filteredApplications = applications.filter((app) => {
     const matchesTab = selectedTab === "all" || app.status === selectedTab
     const matchesSearch =
       searchQuery === "" ||
-      app.applicant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (app.adopter && `${app.adopter.firstName} ${app.adopter.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())) ||
       app.pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.pet.breed.toLowerCase().includes(searchQuery.toLowerCase())
+      (app.pet.breed && app.pet.breed.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesTab && matchesSearch
   })
 
   const sortedApplications = [...filteredApplications].sort((a, b) => {
     switch (sortBy) {
       case "newest":
-        return new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime()
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       case "oldest":
-        return new Date(a.submittedDate).getTime() - new Date(b.submittedDate).getTime()
-      case "priority":
-        const priorityOrder = { high: 3, medium: 2, low: 1 }
-        return (
-          priorityOrder[b.priority as keyof typeof priorityOrder] -
-          priorityOrder[a.priority as keyof typeof priorityOrder]
-        )
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       case "status":
         return a.status.localeCompare(b.status)
       case "applicant_name":
-        return a.applicant.name.localeCompare(b.applicant.name)
+        return (a.adopter ? `${a.adopter.firstName} ${a.adopter.lastName}` : "").localeCompare(b.adopter ? `${b.adopter.firstName} ${b.adopter.lastName}` : "")
       case "pet_name":
         return a.pet.name.localeCompare(b.pet.name)
       default:
@@ -367,89 +240,7 @@ export default function ShelterApplicationsPage() {
     }
   })
 
-  const handleStatusUpdate = async (applicationId: string, newStatus: string, notes?: string) => {
-    setIsUpdating(applicationId)
 
-    try {
-    // In a real app, this would make an API call
-      // await updateApplicationStatus(applicationId, newStatus, notes)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Update local state
-      setApplications((prev) =>
-        prev.map((app) =>
-          app.id === applicationId
-            ? {
-                ...app,
-                status: newStatus,
-                lastUpdate: new Date().toISOString().split("T")[0],
-                progress: getProgressForStatus(newStatus),
-                currentStep: getCurrentStepForStatus(newStatus),
-                ...(notes && { notes: notes }),
-              }
-            : app,
-        ),
-      )
-
-      // Show success message (you could use a toast here)
-      console.log(`Application ${applicationId} updated to ${newStatus}`)
-    } catch (error) {
-      console.error("Failed to update application status:", error)
-      // Show error message
-    } finally {
-      setIsUpdating(null)
-    }
-  }
-
-  const getProgressForStatus = (status: string): number => {
-    switch (status) {
-      case "under_review":
-        return 25
-      case "interview_scheduled":
-        return 40
-      case "meet_greet_scheduled":
-        return 60
-      case "home_visit_scheduled":
-        return 80
-      case "pending_approval":
-        return 90
-      case "approved":
-        return 100
-      case "rejected":
-        return 25
-      default:
-        return 0
-    }
-  }
-
-  const getCurrentStepForStatus = (status: string): string => {
-    switch (status) {
-      case "under_review":
-        return "Initial Review"
-      case "interview_scheduled":
-        return "Phone Interview"
-      case "meet_greet_scheduled":
-        return "Meet & Greet"
-      case "home_visit_scheduled":
-        return "Home Visit"
-      case "pending_approval":
-        return "Final Decision"
-      case "approved":
-        return "Application Approved"
-      case "rejected":
-        return "Application Rejected"
-      default:
-        return "Application Submitted"
-    }
-  }
-
-  const handleBulkStatusUpdate = async (applicationIds: string[], newStatus: string) => {
-    for (const id of applicationIds) {
-      await handleStatusUpdate(id, newStatus)
-    }
-  }
 
   const [statusUpdateDialog, setStatusUpdateDialog] = useState<{
     open: boolean
@@ -459,6 +250,39 @@ export default function ShelterApplicationsPage() {
   } | null>(null)
 
   const [statusNotes, setStatusNotes] = useState("")
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+          <p className="text-muted-foreground">Please log in to view applications.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (user.role !== 'shelter') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">Only shelter users can access this page.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading applications...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -474,22 +298,22 @@ export default function ShelterApplicationsPage() {
               icon: Clock,
             },
             {
-              label: "Interviews Scheduled",
-              value: applications.filter((app) => app.status === "interview_scheduled").length,
+              label: "Submitted",
+              value: applications.filter((app) => app.status === "submitted").length,
               color: "text-purple-600",
               icon: Phone,
             },
             {
-              label: "Pending Approval",
-              value: applications.filter((app) => app.status === "pending_approval").length,
-              color: "text-orange-600",
-              icon: AlertCircle,
+              label: "Approved",
+              value: applications.filter((app) => app.status === "approved").length,
+              color: "text-green-600",
+              icon: CheckCircle2,
             },
             {
-              label: "High Priority",
-              value: applications.filter((app) => app.priority === "high").length,
+              label: "Rejected",
+              value: applications.filter((app) => app.status === "rejected").length,
               color: "text-red-600",
-              icon: UserCheck,
+              icon: XCircle,
             },
           ].map((stat, index) => {
             const IconComponent = stat.icon
@@ -575,7 +399,7 @@ export default function ShelterApplicationsPage() {
                 ) : (
                   sortedApplications.map((application) => {
                     const statusConfig = getStatusConfig(application.status)
-                    const priorityConfig = getPriorityConfig(application.priority)
+                    // Remove priority config since we don't have priority in real data
                     const StatusIcon = statusConfig.icon
 
                     return (
@@ -585,20 +409,18 @@ export default function ShelterApplicationsPage() {
                             <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
                               {/* Applicant Info */}
                               <div className="flex gap-4">
-                                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full">
-                                  <Image
-                                    src={application.applicant.avatar || "/placeholder.svg"}
-                                    alt={application.applicant.name}
-                                    fill
-                                    className="object-cover"
-                                  />
+                                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-teal-100 flex items-center justify-center">
+                                  <span className="text-teal-700 font-semibold">
+                                    {application.adopter ? `${application.adopter.firstName[0]}${application.adopter.lastName[0]}` : application.firstName[0] + application.lastName[0]}
+                                  </span>
                                 </div>
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-semibold">{application.applicant.name}</h3>
-                                    <Badge className={priorityConfig.color}>{priorityConfig.label}</Badge>
+                                    <h3 className="text-lg font-semibold">
+                                      {application.adopter ? `${application.adopter.firstName} ${application.adopter.lastName}` : `${application.firstName} ${application.lastName}`}
+                                    </h3>
                                   </div>
-                                  <p className="text-sm text-gray-500">{application.applicant.email}</p>
+                                  <p className="text-sm text-gray-500">{application.adopter?.email || application.email}</p>
                                   <p className="text-xs text-gray-400">Application ID: {application.id}</p>
                                 </div>
                               </div>
@@ -607,7 +429,7 @@ export default function ShelterApplicationsPage() {
                               <div className="flex gap-4">
                                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg">
                                   <Image
-                                    src={application.pet.image || "/placeholder.svg"}
+                                    src={application.pet.images?.[0] || "/placeholder.svg"}
                                     alt={application.pet.name}
                                     fill
                                     className="object-cover"
@@ -632,14 +454,14 @@ export default function ShelterApplicationsPage() {
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="font-medium">Progress</span>
-                                    <span className="text-gray-500">{application.progress}% Complete</span>
+                                    <span className="text-gray-500">{applicationsService.getProgressForStatus(application.status)}% Complete</span>
                                   </div>
                                   <Progress
-                                    value={application.progress}
+                                    value={applicationsService.getProgressForStatus(application.status)}
                                     className="h-2 bg-gray-100"
                                     indicatorClassName={statusConfig.color}
                                   />
-                                  <p className="text-xs text-gray-500">Current: {application.currentStep}</p>
+                                  <p className="text-xs text-gray-500">Current: {applicationsService.getCurrentStepForStatus(application.status)}</p>
                                 </div>
                               </div>
 
@@ -647,10 +469,10 @@ export default function ShelterApplicationsPage() {
                               <div className="flex flex-col gap-4 lg:items-end">
                                 <div className="text-right">
                                   <p className="text-xs text-gray-500">
-                                    Submitted: {new Date(application.submittedDate).toLocaleDateString()}
+                                    Submitted: {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : new Date(application.createdAt).toLocaleDateString()}
                                   </p>
                                   <p className="text-xs text-gray-500">
-                                    Updated: {new Date(application.lastUpdate).toLocaleDateString()}
+                                    Updated: {new Date(application.updatedAt).toLocaleDateString()}
                                   </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -666,7 +488,7 @@ export default function ShelterApplicationsPage() {
                                         <DialogTitle className="flex items-center gap-3">
                                           <div className="relative h-10 w-10 overflow-hidden rounded-full">
                                             <Image
-                                              src={application.pet.image || "/placeholder.svg"}
+                                              src={application.pet.images?.[0] || "/placeholder.svg"}
                                               alt={application.pet.name}
                                               fill
                                               className="object-cover"
@@ -675,7 +497,7 @@ export default function ShelterApplicationsPage() {
                                           <div>
                                             <div>Application Review - {application.pet.name}</div>
                                             <DialogDescription className="text-sm font-normal text-gray-500">
-                                          Applicant: {application.applicant.name} • ID: {application.id}
+                                          Applicant: {application.adopter ? `${application.adopter.firstName} ${application.adopter.lastName}` : `${application.firstName} ${application.lastName}`} • ID: {application.id}
                                         </DialogDescription>
                                           </div>
                                         </DialogTitle>
@@ -689,16 +511,13 @@ export default function ShelterApplicationsPage() {
                                               <StatusIcon className="mr-1 h-3 w-3" />
                                               {statusConfig.label}
                                             </Badge>
-                                            <Badge className={priorityConfig.color}>
-                                              {priorityConfig.label} Priority
-                                            </Badge>
                                           </div>
                                           <div className="text-right text-sm text-gray-500">
                                           <div>
-                                              Submitted: {new Date(application.submittedDate).toLocaleDateString()}
+                                              Submitted: {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : new Date(application.createdAt).toLocaleDateString()}
                                             </div>
                                             <div>
-                                              Last Updated: {new Date(application.lastUpdate).toLocaleDateString()}
+                                              Last Updated: {new Date(application.updatedAt).toLocaleDateString()}
                                             </div>
                                           </div>
                                         </div>
@@ -727,19 +546,16 @@ export default function ShelterApplicationsPage() {
                                             </CardHeader>
                                             <CardContent className="space-y-4">
                                               <div className="flex items-center gap-4">
-                                                <div className="relative h-16 w-16 overflow-hidden rounded-full">
-                                                  <Image
-                                                    src={application.applicant.avatar || "/placeholder.svg"}
-                                                    alt={application.applicant.name}
-                                                    fill
-                                                    className="object-cover"
-                                                  />
+                                                <div className="relative h-16 w-16 overflow-hidden rounded-full bg-teal-100 flex items-center justify-center">
+                                                  <span className="text-teal-700 font-semibold text-lg">
+                                                    {application.adopter ? `${application.adopter.firstName[0]}${application.adopter.lastName[0]}` : `${application.firstName[0]}${application.lastName[0]}`}
+                                                  </span>
                                                 </div>
                                                 <div>
                                                   <h3 className="font-semibold text-lg">
-                                                    {application.applicant.name}
+                                                    {application.adopter ? `${application.adopter.firstName} ${application.adopter.lastName}` : `${application.firstName} ${application.lastName}`}
                                                   </h3>
-                                                  <p className="text-gray-500">{application.applicant.location}</p>
+                                                  <p className="text-gray-500">{application.address}</p>
                                                 </div>
                                               </div>
 
@@ -749,7 +565,7 @@ export default function ShelterApplicationsPage() {
                                                   <div>
                                                     <p className="text-sm font-medium">Email</p>
                                                     <p className="text-sm text-gray-600">
-                                                      {application.applicant.email}
+                                                      {application.adopter?.email || application.email}
                                                     </p>
                                                   </div>
                                                 </div>
@@ -759,7 +575,7 @@ export default function ShelterApplicationsPage() {
                                                   <div>
                                                     <p className="text-sm font-medium">Phone</p>
                                                     <p className="text-sm text-gray-600">
-                                                      {application.applicant.phone}
+                                                      {application.adopter?.phone || application.phone}
                                               </p>
                                             </div>
                                           </div>
@@ -769,7 +585,7 @@ export default function ShelterApplicationsPage() {
                                           <div>
                                                     <p className="text-sm font-medium">Location</p>
                                                     <p className="text-sm text-gray-600">
-                                                      {application.applicant.location}
+                                                      {application.address}
                                                     </p>
                                                   </div>
                                                 </div>
@@ -782,7 +598,7 @@ export default function ShelterApplicationsPage() {
                                                   size="sm"
                                                   className="flex-1"
                                                   onClick={() =>
-                                                    window.open(`mailto:${application.applicant.email}`, "_blank")
+                                                    window.open(`mailto:${application.adopter?.email || application.email}`, "_blank")
                                                   }
                                                 >
                                                   <Mail className="mr-2 h-4 w-4" />
@@ -793,7 +609,7 @@ export default function ShelterApplicationsPage() {
                                                   size="sm"
                                                   className="flex-1"
                                                   onClick={() =>
-                                                    window.open(`tel:${application.applicant.phone}`, "_blank")
+                                                    window.open(`tel:${application.adopter?.phone || application.phone}`, "_blank")
                                                   }
                                                 >
                                                   <Phone className="mr-2 h-4 w-4" />
@@ -815,7 +631,7 @@ export default function ShelterApplicationsPage() {
                                               <div className="flex items-center gap-4">
                                                 <div className="relative h-20 w-20 overflow-hidden rounded-lg">
                                                 <Image
-                                                  src={application.pet.image || "/placeholder.svg"}
+                                                  src={application.pet.images?.[0] || "/placeholder.svg"}
                                                   alt={application.pet.name}
                                                   fill
                                                   className="object-cover"
@@ -881,7 +697,7 @@ export default function ShelterApplicationsPage() {
                                           </CardHeader>
                                           <CardContent>
                                           <div className="space-y-4">
-                                            {application.timeline.map((step, index) => (
+                                            {applicationsService.getTimelineForApplication(application).map((step, index) => (
                                                 <div key={index} className="flex items-start gap-4">
                                                 <div
                                                     className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
@@ -914,7 +730,7 @@ export default function ShelterApplicationsPage() {
                                                       )}
                                                     </div>
                                                     <p className="text-sm text-gray-500 mt-1">{step.date}</p>
-                                                    {index < application.timeline.length - 1 && (
+                                                    {index < applicationsService.getTimelineForApplication(application).length - 1 && (
                                                       <div
                                                         className={`w-0.5 h-6 mt-2 ml-4 ${step.completed ? "bg-green-200" : "bg-gray-200"}`}
                                                       />
@@ -937,7 +753,7 @@ export default function ShelterApplicationsPage() {
                                           <Button
                                             className="bg-green-600 hover:bg-green-700"
                                                 onClick={() => {
-                                                  handleStatusUpdate(
+                                                  updateApplicationStatus(
                                                     application.id,
                                                     "approved",
                                                     "Application approved by shelter staff",
@@ -952,7 +768,7 @@ export default function ShelterApplicationsPage() {
                                           <Button
                                             variant="destructive"
                                                 onClick={() => {
-                                                  handleStatusUpdate(
+                                                  updateApplicationStatus(
                                                     application.id,
                                                     "rejected",
                                                     "Application rejected by shelter staff",
@@ -967,10 +783,10 @@ export default function ShelterApplicationsPage() {
                                               <Button
                                                 variant="outline"
                                                 onClick={() => {
-                                                  handleStatusUpdate(
+                                                  updateApplicationStatus(
                                                     application.id,
-                                                    "interview_scheduled",
-                                                    "Interview scheduled by shelter staff",
+                                                    "under_review",
+                                                    "Application moved to under review",
                                                   )
                                                 }}
                                                 disabled={isUpdating === application.id}
@@ -982,16 +798,16 @@ export default function ShelterApplicationsPage() {
                                               <Button
                                                 variant="outline"
                                                 onClick={() => {
-                                                  handleStatusUpdate(
+                                                  updateApplicationStatus(
                                                     application.id,
-                                                    "meet_greet_scheduled",
-                                                    "Meet & Greet scheduled by shelter staff",
+                                                    "submitted",
+                                                    "Application status updated",
                                                   )
                                                 }}
                                                 disabled={isUpdating === application.id}
                                               >
                                                 <Heart className="mr-2 h-4 w-4" />
-                                                Schedule Meet & Greet
+                                                Mark as Submitted
                                           </Button>
                                         </div>
 
