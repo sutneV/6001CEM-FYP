@@ -32,6 +32,7 @@ export default function CommunityPostsPage() {
   const { user } = useAuth()
   const [community, setCommunity] = useState<Community | null>(null)
   const [loading, setLoading] = useState(true)
+  const [joining, setJoining] = useState(false)
 
   const [posts, setPosts] = useState<any[]>([])
   const [postsLoading, setPostsLoading] = useState(false)
@@ -146,6 +147,47 @@ export default function CommunityPostsPage() {
     } catch (error) {
       console.error('Error creating event:', error)
       toast.error('Failed to create event')
+    }
+  }
+
+  const handleJoinCommunity = async () => {
+    if (!user || !community) return
+
+    try {
+      setJoining(true)
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/join`, {
+        method: 'POST',
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update community state to reflect membership
+        setCommunity({
+          ...community,
+          isMember: true,
+          memberCount: community.memberCount + 1,
+        })
+        // Fetch posts and events now that user is a member
+        await Promise.all([fetchPosts(), fetchEvents()])
+        toast.success('Successfully joined the community!')
+      } else {
+        throw new Error(data.error || 'Failed to join community')
+      }
+    } catch (error) {
+      console.error('Error joining community:', error)
+      toast.error('Failed to join community')
+    } finally {
+      setJoining(false)
     }
   }
 
@@ -296,6 +338,10 @@ export default function CommunityPostsPage() {
         setPosts(data.data)
       } else {
         console.error('Failed to fetch posts:', data.error)
+        if (response.status === 403) {
+          // User is not a member, don't show error toast
+          setPosts([])
+        }
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
@@ -331,6 +377,10 @@ export default function CommunityPostsPage() {
         setUserEventParticipation(participationStatus)
       } else {
         console.error('Failed to fetch events:', data.error)
+        if (response.status === 403) {
+          // User is not a member, don't show error toast
+          setEvents([])
+        }
       }
     } catch (error) {
       console.error('Error fetching events:', error)
@@ -358,8 +408,10 @@ export default function CommunityPostsPage() {
 
         if (data.success) {
           setCommunity(data.data)
-          // Fetch both posts and events after community is loaded
-          await Promise.all([fetchPosts(), fetchEvents()])
+          // Only fetch posts and events if user is a member
+          if (data.data.isMember) {
+            await Promise.all([fetchPosts(), fetchEvents()])
+          }
         } else {
           throw new Error(data.error || 'Failed to fetch community')
         }
@@ -399,6 +451,71 @@ export default function CommunityPostsPage() {
             </Button>
           </Link>
         </div>
+      </div>
+    )
+  }
+
+  // Show join prompt for non-members
+  if (!community.isMember) {
+    return (
+      <div className="flex-1 p-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard/communities">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Communities
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-semibold">Join Community</h1>
+              <p className="text-gray-600">You need to be a member to view this community's content</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Community Info Card */}
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader className="text-center">
+            <h2 className="text-xl font-semibold mb-2">{community.name}</h2>
+            <p className="text-gray-600 mb-4">{community.description}</p>
+            <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                {community.memberCount} members
+              </div>
+              <Badge variant="secondary">{community.category}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-gray-700 mb-6">
+              This community is for members only. Join to access posts, events, and discussions.
+            </p>
+            <Button 
+              onClick={handleJoinCommunity}
+              disabled={joining || !user}
+              className="bg-teal-500 hover:bg-teal-600 text-white px-8"
+            >
+              {joining ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <Users className="h-4 w-4 mr-2" />
+                  Join Community
+                </>
+              )}
+            </Button>
+            {!user && (
+              <p className="text-sm text-gray-500 mt-4">
+                You need to be logged in to join communities.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     )
   }

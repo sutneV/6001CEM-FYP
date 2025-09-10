@@ -14,12 +14,13 @@ function getUserFromSession(request: NextRequest) {
   return { userId, role: userRole }
 }
 
-// GET /api/communities/[id]/posts - Get community posts
+// GET /api/communities/[id]/posts - Get community posts (members only)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = getUserFromSession(request)
     const { id: communityId } = await params
     const searchParams = request.nextUrl.searchParams
     const page = parseInt(searchParams.get('page') || '1')
@@ -37,6 +38,32 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: 'Community not found' },
         { status: 404 }
+      )
+    }
+
+    // Check if user is authenticated and is a member
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'You must be logged in to view community posts' },
+        { status: 401 }
+      )
+    }
+
+    const membership = await db
+      .select()
+      .from(communityMembers)
+      .where(
+        and(
+          eq(communityMembers.communityId, communityId),
+          eq(communityMembers.userId, user.userId)
+        )
+      )
+      .limit(1)
+
+    if (membership.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'You must be a member to view posts in this community' },
+        { status: 403 }
       )
     }
 

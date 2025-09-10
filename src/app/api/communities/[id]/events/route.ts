@@ -14,7 +14,7 @@ function getUserFromSession(request: NextRequest) {
   return { userId, role: userRole }
 }
 
-// GET /api/communities/[id]/events - Get community events
+// GET /api/communities/[id]/events - Get community events (members only)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -38,6 +38,32 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: 'Community not found' },
         { status: 404 }
+      )
+    }
+
+    // Check if user is authenticated and is a member
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'You must be logged in to view community events' },
+        { status: 401 }
+      )
+    }
+
+    const membership = await db
+      .select()
+      .from(communityMembers)
+      .where(
+        and(
+          eq(communityMembers.communityId, communityId),
+          eq(communityMembers.userId, user.userId)
+        )
+      )
+      .limit(1)
+
+    if (membership.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'You must be a member to view events in this community' },
+        { status: 403 }
       )
     }
 
