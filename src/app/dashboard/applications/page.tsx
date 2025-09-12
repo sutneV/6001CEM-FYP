@@ -21,6 +21,7 @@ import {
   XCircle,
   Info,
   Search,
+  AlertCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -109,6 +110,38 @@ const getStatusConfig = (status: string) => {
         textColor: "text-yellow-700",
         bgColor: "bg-yellow-100",
         icon: Clock,
+      }
+    case "interview_scheduled":
+      return {
+        label: "Interview Scheduled",
+        color: "bg-blue-500",
+        textColor: "text-blue-700",
+        bgColor: "bg-blue-100",
+        icon: Phone,
+      }
+    case "meet_greet_scheduled":
+      return {
+        label: "Meet & Greet Scheduled",
+        color: "bg-purple-500",
+        textColor: "text-purple-700",
+        bgColor: "bg-purple-100",
+        icon: Heart,
+      }
+    case "home_visit_scheduled":
+      return {
+        label: "Home Visit Scheduled",
+        color: "bg-indigo-500",
+        textColor: "text-indigo-700",
+        bgColor: "bg-indigo-100",
+        icon: Home,
+      }
+    case "pending_approval":
+      return {
+        label: "Pending Approval",
+        color: "bg-orange-500",
+        textColor: "text-orange-700",
+        bgColor: "bg-orange-100",
+        icon: AlertCircle,
       }
     case "approved":
       return {
@@ -228,13 +261,18 @@ export default function ApplicationsPage() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div variants={staggerContainer} className="grid gap-4 md:grid-cols-4">
+      <motion.div variants={staggerContainer} className="grid gap-4 md:grid-cols-5">
         {[
           { label: "Total Applications", value: applications.length, color: "text-blue-600" },
           {
-            label: "Under Review",
-            value: applications.filter((app) => app.status === "under_review").length,
+            label: "In Progress",
+            value: applications.filter((app) => ["submitted", "under_review", "interview_scheduled", "meet_greet_scheduled", "home_visit_scheduled", "pending_approval"].includes(app.status)).length,
             color: "text-yellow-600",
+          },
+          {
+            label: "Interviews",
+            value: applications.filter((app) => ["interview_scheduled", "meet_greet_scheduled"].includes(app.status)).length,
+            color: "text-blue-600",
           },
           {
             label: "Approved",
@@ -242,9 +280,9 @@ export default function ApplicationsPage() {
             color: "text-green-600",
           },
           {
-            label: "Submitted",
-            value: applications.filter((app) => app.status === "submitted").length,
-            color: "text-purple-600",
+            label: "Rejected",
+            value: applications.filter((app) => app.status === "rejected").length,
+            color: "text-red-600",
           },
         ].map((stat, index) => (
           <motion.div key={index} variants={popIn}>
@@ -294,13 +332,15 @@ export default function ApplicationsPage() {
       {/* Applications Tabs */}
       <motion.div variants={fadeIn}>
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="submitted">Submitted</TabsTrigger>
             <TabsTrigger value="under_review">Review</TabsTrigger>
             <TabsTrigger value="interview_scheduled">Interview</TabsTrigger>
+            <TabsTrigger value="meet_greet_scheduled">Meet & Greet</TabsTrigger>
+            <TabsTrigger value="pending_approval">Pending</TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
-            <TabsTrigger value="withdrawn">Withdrawn</TabsTrigger>
           </TabsList>
 
           <TabsContent value={selectedTab} className="mt-6">

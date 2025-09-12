@@ -30,7 +30,7 @@ export interface ApplicationFormData {
 
 export interface ApplicationWithDetails {
   id: string
-  status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn'
+  status: 'draft' | 'submitted' | 'under_review' | 'interview_scheduled' | 'meet_greet_scheduled' | 'home_visit_scheduled' | 'pending_approval' | 'approved' | 'rejected' | 'withdrawn'
   submittedAt: string | null
   reviewedAt: string | null
   reviewerNotes: string | null
@@ -221,6 +221,14 @@ class ApplicationsService {
         return 20
       case 'under_review':
         return 40
+      case 'interview_scheduled':
+        return 50
+      case 'meet_greet_scheduled':
+        return 65
+      case 'home_visit_scheduled':
+        return 80
+      case 'pending_approval':
+        return 90
       case 'approved':
         return 100
       case 'rejected':
@@ -241,6 +249,14 @@ class ApplicationsService {
         return 'Application Submitted'
       case 'under_review':
         return 'Under Review'
+      case 'interview_scheduled':
+        return 'Interview Scheduled'
+      case 'meet_greet_scheduled':
+        return 'Meet & Greet Scheduled'
+      case 'home_visit_scheduled':
+        return 'Home Visit Scheduled'
+      case 'pending_approval':
+        return 'Pending Final Approval'
       case 'approved':
         return 'Approved'
       case 'rejected':
@@ -252,62 +268,89 @@ class ApplicationsService {
     }
   }
 
-  // Helper function to generate mock timeline based on status
+  // Helper function to generate timeline based on status
   getTimelineForApplication(application: ApplicationWithDetails) {
     const timeline = []
     
-    timeline.push({
-      step: 'Application Submitted',
-      date: application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : new Date(application.createdAt).toLocaleDateString(),
-      completed: ['submitted', 'under_review', 'approved', 'rejected'].includes(application.status)
-    })
+    // Define the complete workflow steps
+    const workflowSteps = [
+      { status: 'submitted', step: 'Application Submitted' },
+      { status: 'under_review', step: 'Initial Review' },
+      { status: 'interview_scheduled', step: 'Interview Scheduled' },
+      { status: 'meet_greet_scheduled', step: 'Meet & Greet Scheduled' },
+      { status: 'home_visit_scheduled', step: 'Home Visit Scheduled' },
+      { status: 'pending_approval', step: 'Pending Final Approval' },
+      { status: 'approved', step: 'Application Approved' },
+      { status: 'rejected', step: 'Application Rejected' }
+    ]
 
-    if (application.status !== 'withdrawn') {
+    // Handle withdrawn status separately
+    if (application.status === 'withdrawn') {
       timeline.push({
-        step: 'Initial Review',
-        date: application.status === 'under_review' || application.status === 'approved' || application.status === 'rejected' ? 
-          'In Progress' : 'Pending',
-        completed: ['approved', 'rejected'].includes(application.status),
-        scheduled: application.status === 'under_review'
+        step: 'Application Submitted',
+        date: application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : new Date(application.createdAt).toLocaleDateString(),
+        completed: true
       })
-
-      if (application.status === 'approved') {
-        timeline.push({
-          step: 'Application Approved',
-          date: application.reviewedAt ? new Date(application.reviewedAt).toLocaleDateString() : 'Recently',
-          completed: true
-        })
-      } else if (application.status === 'rejected') {
-        timeline.push({
-          step: 'Application Not Approved',
-          date: application.reviewedAt ? new Date(application.reviewedAt).toLocaleDateString() : 'Recently',
-          completed: true
-        })
-      } else {
-        timeline.push({
-          step: 'Meet & Greet',
-          date: 'TBD',
-          completed: false
-        })
-
-        timeline.push({
-          step: 'Home Visit',
-          date: 'TBD',
-          completed: false
-        })
-
-        timeline.push({
-          step: 'Final Decision',
-          date: 'TBD',
-          completed: false
-        })
-      }
-    } else {
       timeline.push({
         step: 'Application Withdrawn',
         date: new Date(application.updatedAt).toLocaleDateString(),
         completed: true
       })
+      return timeline
+    }
+
+    // Get status hierarchy for determining completion
+    const statusHierarchy = ['draft', 'submitted', 'under_review', 'interview_scheduled', 'meet_greet_scheduled', 'home_visit_scheduled', 'pending_approval', 'approved', 'rejected']
+    const currentStatusIndex = statusHierarchy.indexOf(application.status)
+
+    // Build timeline based on current status
+    for (const workflowStep of workflowSteps) {
+      const stepIndex = statusHierarchy.indexOf(workflowStep.status)
+      
+      // Skip draft status in timeline
+      if (workflowStep.status === 'draft') continue
+      
+      // For terminal statuses (approved/rejected), only show if it's the current status
+      if ((workflowStep.status === 'approved' || workflowStep.status === 'rejected')) {
+        if (application.status === workflowStep.status) {
+          timeline.push({
+            step: workflowStep.step,
+            date: application.reviewedAt ? new Date(application.reviewedAt).toLocaleDateString() : 'Recently',
+            completed: true
+          })
+        }
+        continue
+      }
+
+      // For other statuses, show based on progression
+      if (stepIndex <= currentStatusIndex) {
+        let date = 'Pending'
+        
+        if (workflowStep.status === 'submitted') {
+          date = application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : new Date(application.createdAt).toLocaleDateString()
+        } else if (stepIndex < currentStatusIndex) {
+          // Completed steps - show as completed date (use updatedAt as approximation)
+          date = new Date(application.updatedAt).toLocaleDateString()
+        } else if (stepIndex === currentStatusIndex) {
+          // Current step - show when it was set to this status
+          date = new Date(application.updatedAt).toLocaleDateString()
+        }
+        
+        timeline.push({
+          step: workflowStep.step,
+          date: date,
+          completed: stepIndex < currentStatusIndex,
+          scheduled: stepIndex === currentStatusIndex
+        })
+      } else {
+        // Future steps
+        timeline.push({
+          step: workflowStep.step,
+          date: 'To be scheduled',
+          completed: false,
+          scheduled: false
+        })
+      }
     }
 
     return timeline

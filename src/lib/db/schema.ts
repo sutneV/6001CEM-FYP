@@ -10,7 +10,7 @@ export const messageStatusEnum = pgEnum('message_status', ['sent', 'delivered', 
 export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'archived', 'closed'])
 export const ownerTypeEnum = pgEnum('owner_type', ['adopter', 'shelter'])
 export const communityPostTypeEnum = pgEnum('post_type', ['text', 'image', 'event'])
-export const applicationStatusEnum = pgEnum('application_status', ['draft', 'submitted', 'under_review', 'approved', 'rejected', 'withdrawn'])
+export const applicationStatusEnum = pgEnum('application_status', ['draft', 'submitted', 'under_review', 'interview_scheduled', 'meet_greet_scheduled', 'home_visit_scheduled', 'pending_approval', 'approved', 'rejected', 'withdrawn'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),

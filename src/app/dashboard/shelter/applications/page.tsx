@@ -114,6 +114,38 @@ const getStatusConfig = (status: string) => {
         bgColor: "bg-yellow-100",
         icon: Clock,
       }
+    case "interview_scheduled":
+      return {
+        label: "Interview Scheduled",
+        color: "bg-blue-500",
+        textColor: "text-blue-700",
+        bgColor: "bg-blue-100",
+        icon: Phone,
+      }
+    case "meet_greet_scheduled":
+      return {
+        label: "Meet & Greet Scheduled",
+        color: "bg-purple-500",
+        textColor: "text-purple-700",
+        bgColor: "bg-purple-100",
+        icon: Heart,
+      }
+    case "home_visit_scheduled":
+      return {
+        label: "Home Visit Scheduled",
+        color: "bg-indigo-500",
+        textColor: "text-indigo-700",
+        bgColor: "bg-indigo-100",
+        icon: Home,
+      }
+    case "pending_approval":
+      return {
+        label: "Pending Approval",
+        color: "bg-orange-500",
+        textColor: "text-orange-700",
+        bgColor: "bg-orange-100",
+        icon: AlertCircle,
+      }
     case "approved":
       return {
         label: "Approved",
@@ -210,6 +242,14 @@ export default function ShelterApplicationsPage() {
     } finally {
       setIsUpdating(null)
     }
+  }
+
+  const handleStatusUpdate = async (
+    applicationId: string,
+    newStatus: string,
+    reviewerNotes?: string
+  ) => {
+    await updateApplicationStatus(applicationId, newStatus, reviewerNotes)
   }
 
   const filteredApplications = applications.filter((app) => {
@@ -882,13 +922,13 @@ export default function ShelterApplicationsPage() {
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
-                                        onClick={() => window.open(`mailto:${application.applicant.email}`, "_blank")}
+                                        onClick={() => window.open(`mailto:${application.adopter?.email || application.email}`, "_blank")}
                                       >
                                         <Mail className="mr-2 h-4 w-4" />
                                         Send Email
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
-                                        onClick={() => window.open(`tel:${application.applicant.phone}`, "_blank")}
+                                        onClick={() => window.open(`tel:${application.adopter?.phone || application.phone}`, "_blank")}
                                       >
                                         <MessageSquare className="mr-2 h-4 w-4" />
                                         Call Applicant

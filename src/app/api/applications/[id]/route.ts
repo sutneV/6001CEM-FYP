@@ -160,7 +160,7 @@ export async function PATCH(
     }
 
     // Validate status
-    const validStatuses = ['submitted', 'under_review', 'approved', 'rejected']
+    const validStatuses = ['submitted', 'under_review', 'interview_scheduled', 'meet_greet_scheduled', 'home_visit_scheduled', 'pending_approval', 'approved', 'rejected']
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
