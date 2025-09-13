@@ -63,7 +63,7 @@ export default function ShelterLayout({
       badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
     },
     { name: "Communities", icon: Users, href: "/dashboard/shelter/communities" },
-    { name: "Event Map", icon: MapPin, href: "/dashboard/event-map" },
+    { name: "Event Map", icon: MapPin, href: "/dashboard/shelter/event-map" },
     { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
     { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
   ]
