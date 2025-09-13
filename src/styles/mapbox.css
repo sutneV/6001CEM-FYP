@@ -1,0 +1,22 @@
+@import 'mapbox-gl/dist/mapbox-gl.css';
+
+/* Custom styles for MapBox components */
+.mapboxgl-popup {
+  max-width: 350px;
+}
+
+.mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 8px;
+}
+
+.mapboxgl-popup-close-button {
+  font-size: 16px;
+  padding: 4px;
+  color: #6b7280;
+}
+
+.mapboxgl-popup-close-button:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}

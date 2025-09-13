@@ -21,6 +21,7 @@ import {
   Users,
   Building,
   Menu,
+  MapPin,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -62,6 +63,7 @@ export default function ShelterLayout({
       badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
     },
     { name: "Communities", icon: Users, href: "/dashboard/shelter/communities" },
+    { name: "Event Map", icon: MapPin, href: "/dashboard/event-map" },
     { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
     { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
   ]
@@ -234,6 +236,7 @@ export default function ShelterLayout({
                pathname === "/dashboard/shelter/pets" ? "Pet Management" :
                pathname === "/dashboard/shelter/applications" ? "Applications" :
                pathname === "/dashboard/shelter/communities" ? "Communities" :
+               pathname === "/dashboard/event-map" ? "Event Map" :
                "Shelter Portal"}
             </h1>
           </div>
