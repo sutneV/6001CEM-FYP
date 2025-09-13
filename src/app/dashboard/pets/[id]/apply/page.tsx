@@ -30,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
@@ -121,7 +122,7 @@ export default function PetApplicationPage() {
     lastName: "",
     email: "",
     phone: "",
-    dateOfBirth: "",
+    dateOfBirth: undefined as Date | undefined,
     occupation: "",
 
     // Living Situation
@@ -247,7 +248,12 @@ export default function PetApplicationPage() {
 
     const missingFields = []
     for (const [field, label] of Object.entries(requiredFields)) {
-      if (!formData[field as keyof typeof formData] || formData[field as keyof typeof formData].toString().trim() === '') {
+      const value = formData[field as keyof typeof formData]
+      if (field === 'dateOfBirth') {
+        if (!value) {
+          missingFields.push(label)
+        }
+      } else if (!value || value.toString().trim() === '') {
         missingFields.push(label)
       }
     }
@@ -270,6 +276,7 @@ export default function PetApplicationPage() {
         {
           petId: pet.id,
           ...formData,
+          dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.toISOString().split('T')[0] : '',
           householdSize: parseInt(formData.householdSize) || 0,
         },
         user
@@ -293,6 +300,7 @@ export default function PetApplicationPage() {
         {
           petId: pet.id,
           ...formData,
+          dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.toISOString().split('T')[0] : '',
           householdSize: parseInt(formData.householdSize) || 0,
         },
         user
@@ -540,11 +548,11 @@ export default function PetApplicationPage() {
                         <Label htmlFor="dateOfBirth">
                           Date of Birth <span className="text-red-500">*</span>
                         </Label>
-                        <Input
+                        <DatePicker
                           id="dateOfBirth"
-                          type="date"
                           value={formData.dateOfBirth}
-                          onChange={(e) => updateFormData("dateOfBirth", e.target.value)}
+                          onChange={(date) => updateFormData("dateOfBirth", date)}
+                          placeholder="Select your date of birth"
                         />
                       </div>
                       <div className="space-y-2">
