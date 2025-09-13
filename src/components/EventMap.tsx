@@ -14,70 +14,70 @@ const mockEvents = [
     id: "1",
     title: "Pet Adoption Fair",
     description: "Join us for a fun-filled day of meeting adorable pets looking for their forever homes!",
-    location: "Central Park, New York",
-    coordinates: [-73.965, 40.782],
+    location: "Gurney Plaza, George Town",
+    coordinates: [100.3101, 5.4375],
     date: "2024-01-20",
     time: "10:00 AM",
     fee: "Free",
     maxParticipants: 100,
     currentParticipants: 45,
-    organizer: "NYC Animal Shelter",
+    organizer: "Penang Animal Shelter",
     type: "adoption"
   },
   {
     id: "2", 
     title: "Dog Training Workshop",
     description: "Learn essential dog training techniques from professional trainers.",
-    location: "Community Center, Brooklyn",
-    coordinates: [-73.950, 40.678],
+    location: "Penang Community Center, Bayan Lepas",
+    coordinates: [100.2772, 5.3234],
     date: "2024-01-22",
     time: "2:00 PM", 
-    fee: "$25",
+    fee: "RM 50",
     maxParticipants: 30,
     currentParticipants: 18,
-    organizer: "Brooklyn Pet Training",
+    organizer: "Penang Pet Training Academy",
     type: "workshop"
   },
   {
     id: "3",
     title: "Cat Care Seminar",
     description: "Everything you need to know about caring for your feline friends.",
-    location: "Library Hall, Queens",
-    coordinates: [-73.794, 40.728],
+    location: "Penang Library, Tanjung Bungah",
+    coordinates: [100.3041, 5.4702],
     date: "2024-01-25",
     time: "6:00 PM",
     fee: "Free",
     maxParticipants: 50,
     currentParticipants: 32,
-    organizer: "Queens Cat Society",
+    organizer: "Penang Cat Society",
     type: "education"
   },
   {
     id: "4",
     title: "Pet Vaccination Drive",
     description: "Free vaccinations for your pets. Bring your furry friends!",
-    location: "Veterinary Clinic, Manhattan",
-    coordinates: [-73.985, 40.748],
+    location: "Animal Clinic, Butterworth",
+    coordinates: [100.3638, 5.4238],
     date: "2024-01-27",
     time: "9:00 AM",
     fee: "Free",
     maxParticipants: 80,
     currentParticipants: 23,
-    organizer: "Manhattan Vet Clinic",
+    organizer: "Butterworth Veterinary Clinic",
     type: "healthcare"
   },
   {
     id: "5",
     title: "Pet Photography Session",
     description: "Professional photos of your pets for adoption profiles and keepsakes.",
-    location: "Photo Studio, Staten Island", 
-    coordinates: [-74.150, 40.579],
+    location: "Photo Studio, Bukit Mertajam", 
+    coordinates: [100.4692, 5.3634],
     date: "2024-01-30",
     time: "11:00 AM",
-    fee: "$15",
+    fee: "RM 30",
     maxParticipants: 25,
     currentParticipants: 12,
-    organizer: "Pet Portrait Pro",
+    organizer: "Penang Pet Portrait Studio",
     type: "photo"
   }
 ]
@@ -111,6 +111,7 @@ export default function EventMap() {
   const [mapRef, setMapRef] = useState<any>(null)
   const [is3DView, setIs3DView] = useState(true)
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/standard")
+  const [showEventDetails, setShowEventDetails] = useState(false)
 
   // Get MapBox token from environment variables
   const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
@@ -192,7 +193,132 @@ export default function EventMap() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-4 p-4">
+    <div className="flex h-[calc(100vh-140px)] gap-4 p-4 relative">
+      {/* Event Details Sidebar - Slides from left */}
+      <div className={`absolute left-4 top-4 bottom-4 w-96 bg-white rounded-2xl border border-gray-200 shadow-lg z-30 transition-all duration-500 ease-out ${
+        showEventDetails ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+      }`}>
+        {selectedEvent && (
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Event Details</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowEventDetails(false)
+                  setSelectedEvent(null)
+                }}
+                className="h-8 w-8 p-0"
+              >
+                ×
+              </Button>
+            </div>
+            
+            {/* Event Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-6">
+                {/* Event Header */}
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-3xl">{getEventTypeIcon(selectedEvent.type)}</span>
+                  </div>
+                  <h1 className="text-xl font-bold text-gray-900 mb-2">{selectedEvent.title}</h1>
+                  <Badge className={`${getEventTypeColor(selectedEvent.type)}`} variant="secondary">
+                    {selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1)}
+                  </Badge>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">About this event</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">{selectedEvent.description}</p>
+                </div>
+
+                {/* Event Details */}
+                <div className="space-y-4">
+                  <h3 className="font-medium text-gray-900">Event Details</h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Date</p>
+                        <p className="text-sm text-gray-600">{new Date(selectedEvent.date).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Time</p>
+                        <p className="text-sm text-gray-600">{selectedEvent.time}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Location</p>
+                        <p className="text-sm text-gray-600">{selectedEvent.location}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Users className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Participants</p>
+                        <p className="text-sm text-gray-600">{selectedEvent.currentParticipants} of {selectedEvent.maxParticipants} joined</p>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                          <div 
+                            className="bg-teal-600 h-2 rounded-full" 
+                            style={{ width: `${(selectedEvent.currentParticipants / selectedEvent.maxParticipants) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="h-5 w-5 flex items-center justify-center">
+                        <span className="text-lg">💰</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Fee</p>
+                        <p className="text-lg font-semibold text-green-600">{selectedEvent.fee}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="h-5 w-5 flex items-center justify-center">
+                        <span className="text-lg">🏢</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Organizer</p>
+                        <p className="text-sm text-gray-600">{selectedEvent.organizer}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="pt-4">
+                  <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Register for Event
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Main Map Area */}
       <div className="flex-1 relative bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200">
         <div className="h-full w-full relative">
@@ -226,9 +352,9 @@ export default function EventMap() {
                   ref={(ref) => setMapRef(ref?.getMap())}
                   mapboxAccessToken={MAPBOX_TOKEN}
                   initialViewState={{
-                    latitude: 40.7128,
-                    longitude: -74.0060,
-                    zoom: 15,
+                    latitude: 5.4164,
+                    longitude: 100.3327,
+                    zoom: 13,
                     pitch: 45, // 3D tilt angle (0-60 degrees)
                     bearing: 0 // Map rotation
                   }}
@@ -332,8 +458,8 @@ export default function EventMap() {
                       onClick={() => {
                         if (mapRef) {
                           mapRef.easeTo({
-                            center: [-74.0060, 40.7128],
-                            zoom: 15,
+                            center: [100.3327, 5.4164],
+                            zoom: 13,
                             pitch: is3DView ? 45 : 0,
                             bearing: 0,
                             duration: 1500
@@ -360,7 +486,10 @@ export default function EventMap() {
                     >
                       <div 
                         className="cursor-pointer transform hover:scale-125 transition-all duration-300"
-                        onClick={() => setSelectedEvent(event)}
+                        onClick={() => {
+                          setSelectedEvent(event)
+                          setShowEventDetails(true)
+                        }}
                         style={{
                           filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))'
                         }}
@@ -397,58 +526,6 @@ export default function EventMap() {
                       </div>
                     </Marker>
                   ))}
-
-                  {selectedEvent && (
-                    <Popup
-                      longitude={selectedEvent.coordinates[0]}
-                      latitude={selectedEvent.coordinates[1]}
-                      anchor="top"
-                      onClose={() => setSelectedEvent(null)}
-                      closeButton={true}
-                      closeOnClick={false}
-                      className="min-w-[300px]"
-                    >
-                      <div className="p-4">
-                        <div className="flex items-start gap-3 mb-3">
-                          <span className="text-2xl">{getEventTypeIcon(selectedEvent.type)}</span>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{selectedEvent.title}</h3>
-                            <p className="text-sm text-gray-600 mb-2">{selectedEvent.description}</p>
-                            <Badge className={getEventTypeColor(selectedEvent.type)} variant="secondary">
-                              {selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1)}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            <span>{new Date(selectedEvent.date).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            <span>{selectedEvent.time}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-gray-500" />
-                            <span>{selectedEvent.location}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-gray-500" />
-                            <span>{selectedEvent.currentParticipants}/{selectedEvent.maxParticipants} participants</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="font-semibold text-green-600">{selectedEvent.fee}</span>
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Join Event
-                          </Button>
-                        </div>
-                      </div>
-                    </Popup>
-                  )}
                 </Map>
         </div>
       </div>
@@ -482,6 +559,7 @@ export default function EventMap() {
                 }`}
                 onClick={() => {
                   setSelectedEvent(event)
+                  setShowEventDetails(true)
                   flyToLocation(event.coordinates)
                 }}
               >
