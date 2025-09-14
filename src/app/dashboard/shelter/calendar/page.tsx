@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { 
   addDays, 
   format, 
@@ -225,9 +225,17 @@ export default function ShelterCalendarPage() {
       {/* Calendar Grid */}
       <div className="flex-1 p-6">
         <div className="h-full">
-          {viewType === 'month' && (
-            <>
-              {/* Week Header */}
+          <AnimatePresence mode="wait">
+            {viewType === 'month' && (
+              <motion.div
+                key="month"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="h-full"
+              >
+                {/* Week Header */}
               <div className="grid grid-cols-7 gap-px mb-2">
                 {weekDays.map((day) => (
                   <div key={day} className="p-3 text-center">
@@ -319,12 +327,19 @@ export default function ShelterCalendarPage() {
               )
             })}
               </div>
-            </>
-          )}
+              </motion.div>
+            )}
 
-          {viewType === 'week' && (
-            <>
-              {/* Week Days Header */}
+            {viewType === 'week' && (
+              <motion.div
+                key="week"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="h-full"
+              >
+                {/* Week Days Header */}
               <div className="grid grid-cols-8 gap-px mb-2">
                 <div className="p-3"></div> {/* Empty corner for time column */}
                 {eachDayOfInterval({ 
@@ -387,12 +402,19 @@ export default function ShelterCalendarPage() {
                   </div>
                 ))}
               </div>
-            </>
-          )}
+              </motion.div>
+            )}
 
-          {viewType === 'day' && (
-            <>
-              {/* Day Header */}
+            {viewType === 'day' && (
+              <motion.div
+                key="day"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="h-full"
+              >
+                {/* Day Header */}
               <div className="flex items-center justify-center mb-4">
                 <div className="text-center">
                   <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">
@@ -473,8 +495,9 @@ export default function ShelterCalendarPage() {
                   </div>
                 </div>
               </div>
-            </>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
