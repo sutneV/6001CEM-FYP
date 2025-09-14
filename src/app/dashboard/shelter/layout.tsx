@@ -64,6 +64,7 @@ export default function ShelterLayout({
     },
     { name: "Communities", icon: Users, href: "/dashboard/shelter/communities" },
     { name: "Event Map", icon: MapPin, href: "/dashboard/shelter/event-map" },
+    { name: "Calendar", icon: Calendar, href: "/dashboard/shelter/calendar" },
     { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
     { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
   ]
@@ -236,6 +237,8 @@ export default function ShelterLayout({
                pathname === "/dashboard/shelter/pets" ? "Pet Management" :
                pathname === "/dashboard/shelter/applications" ? "Applications" :
                pathname === "/dashboard/shelter/communities" ? "Communities" :
+               pathname === "/dashboard/shelter/calendar" ? "Calendar" :
+               pathname === "/dashboard/shelter/events" ? "Events" :
                pathname === "/dashboard/event-map" ? "Event Map" :
                "Shelter Portal"}
             </h1>
