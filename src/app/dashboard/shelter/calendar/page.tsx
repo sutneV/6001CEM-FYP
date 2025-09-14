@@ -14,7 +14,9 @@ import {
   startOfWeek,
   endOfWeek,
   addMonths,
-  subMonths
+  subMonths,
+  addWeeks,
+  subWeeks
 } from "date-fns"
 import {
   Calendar as CalendarIcon,
@@ -119,9 +121,21 @@ export default function ShelterCalendarPage() {
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
-      setCurrentDate(subMonths(currentDate, 1))
+      if (viewType === 'month') {
+        setCurrentDate(subMonths(currentDate, 1))
+      } else if (viewType === 'week') {
+        setCurrentDate(subWeeks(currentDate, 1))
+      } else if (viewType === 'day') {
+        setCurrentDate(addDays(currentDate, -1))
+      }
     } else {
-      setCurrentDate(addMonths(currentDate, 1))
+      if (viewType === 'month') {
+        setCurrentDate(addMonths(currentDate, 1))
+      } else if (viewType === 'week') {
+        setCurrentDate(addWeeks(currentDate, 1))
+      } else if (viewType === 'day') {
+        setCurrentDate(addDays(currentDate, 1))
+      }
     }
   }
 
@@ -155,7 +169,9 @@ export default function ShelterCalendarPage() {
             </Button>
             
             <h2 className="text-xl font-semibold text-gray-900 min-w-[160px] text-center">
-              {format(currentDate, 'MMMM yyyy')}
+              {viewType === 'month' && format(currentDate, 'MMMM yyyy')}
+              {viewType === 'week' && `Week of ${format(startOfWeek(currentDate), 'MMM d, yyyy')}`}
+              {viewType === 'day' && format(currentDate, 'EEEE, MMMM d, yyyy')}
             </h2>
             
             <Button
@@ -209,20 +225,22 @@ export default function ShelterCalendarPage() {
       {/* Calendar Grid */}
       <div className="flex-1 p-6">
         <div className="h-full">
-          {/* Week Header */}
-          <div className="grid grid-cols-7 gap-px mb-2">
-            {weekDays.map((day) => (
-              <div key={day} className="p-3 text-center">
-                <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                  {day}
-                </span>
+          {viewType === 'month' && (
+            <>
+              {/* Week Header */}
+              <div className="grid grid-cols-7 gap-px mb-2">
+                {weekDays.map((day) => (
+                  <div key={day} className="p-3 text-center">
+                    <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      {day}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Calendar Cells */}
-          <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden" style={{ height: 'calc(100% - 60px)' }}>
-            {calendarDays.map((date, index) => {
+              {/* Calendar Cells */}
+              <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden" style={{ height: 'calc(100% - 60px)' }}>
+                {calendarDays.map((date, index) => {
               const dayEvents = getEventsForDate(date)
               const isCurrentMonth = isSameMonth(date, currentDate)
               const isSelected = selectedDate && isSameDay(date, selectedDate)
@@ -300,7 +318,163 @@ export default function ShelterCalendarPage() {
                 </motion.div>
               )
             })}
-          </div>
+              </div>
+            </>
+          )}
+
+          {viewType === 'week' && (
+            <>
+              {/* Week Days Header */}
+              <div className="grid grid-cols-8 gap-px mb-2">
+                <div className="p-3"></div> {/* Empty corner for time column */}
+                {eachDayOfInterval({ 
+                  start: startOfWeek(currentDate), 
+                  end: endOfWeek(currentDate) 
+                }).map((day) => (
+                  <div key={day.toISOString()} className="p-3 text-center">
+                    <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      {format(day, 'EEE')}
+                    </div>
+                    <div className={`text-lg font-semibold mt-1 ${
+                      isToday(day) ? 'bg-teal-600 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto' : 'text-gray-900'
+                    }`}>
+                      {format(day, 'd')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Week Grid */}
+              <div className="grid grid-cols-8 gap-px bg-gray-200 rounded-lg overflow-hidden flex-1">
+                {/* Time Column */}
+                <div className="bg-white">
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <div key={hour} className="h-16 border-b border-gray-100 px-2 py-1 text-xs text-gray-500">
+                      {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Week Days */}
+                {eachDayOfInterval({ 
+                  start: startOfWeek(currentDate), 
+                  end: endOfWeek(currentDate) 
+                }).map((day) => (
+                  <div key={day.toISOString()} className="bg-white relative">
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <div key={hour} className="h-16 border-b border-gray-100 border-r border-gray-100 relative">
+                        {getEventsForDate(day).map((event, eventIndex) => {
+                          const eventHour = parseInt(event.time.split(':')[0])
+                          const isAM = event.time.includes('AM')
+                          const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
+                          
+                          if (eventHour24 === hour) {
+                            return (
+                              <div
+                                key={event.id}
+                                className={`absolute left-1 right-1 top-1 text-xs p-1 rounded ${event.color} border cursor-pointer z-10`}
+                                style={{ height: '56px' }}
+                              >
+                                <div className="font-medium truncate">{event.title}</div>
+                                <div className="text-[10px] opacity-75">{event.time}</div>
+                              </div>
+                            )
+                          }
+                          return null
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {viewType === 'day' && (
+            <>
+              {/* Day Header */}
+              <div className="flex items-center justify-center mb-4">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    {format(currentDate, 'EEEE')}
+                  </div>
+                  <div className={`text-2xl font-bold mt-2 ${
+                    isToday(currentDate) ? 'bg-teal-600 text-white rounded-full w-12 h-12 flex items-center justify-center mx-auto' : 'text-gray-900'
+                  }`}>
+                    {format(currentDate, 'd')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Day Schedule */}
+              <div className="flex-1 bg-gray-200 rounded-lg overflow-hidden">
+                <div className="grid grid-cols-2 gap-px">
+                  {/* Time Column */}
+                  <div className="bg-white">
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <div key={hour} className="h-20 border-b border-gray-100 px-4 py-2 flex items-start">
+                        <span className="text-sm text-gray-500">
+                          {hour === 0 ? '12:00 AM' : hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Events Column */}
+                  <div className="bg-white relative">
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <div key={hour} className="h-20 border-b border-gray-100 border-r border-gray-100 relative p-2">
+                        {getEventsForDate(currentDate).map((event, eventIndex) => {
+                          const eventHour = parseInt(event.time.split(':')[0])
+                          const isAM = event.time.includes('AM')
+                          const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
+                          
+                          if (eventHour24 === hour) {
+                            return (
+                              <div
+                                key={event.id}
+                                className={`w-full text-sm p-3 rounded ${event.color} border cursor-pointer mb-1`}
+                              >
+                                <div className="font-medium">{event.title}</div>
+                                <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{event.time}</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-xs opacity-75">
+                                  <MapPin className="h-3 w-3" />
+                                  <span>{event.location}</span>
+                                </div>
+                                {event.applicant && (
+                                  <div className="flex items-center gap-1 text-xs opacity-75">
+                                    <User className="h-3 w-3" />
+                                    <span>Applicant: {event.applicant}</span>
+                                  </div>
+                                )}
+                                {event.participants && (
+                                  <div className="flex items-center gap-1 text-xs opacity-75">
+                                    <Users className="h-3 w-3" />
+                                    <span>{event.participants}</span>
+                                  </div>
+                                )}
+                                {event.staff && (
+                                  <div className="flex items-center gap-1 text-xs opacity-75">
+                                    <Users className="h-3 w-3" />
+                                    <span>{event.staff}</span>
+                                  </div>
+                                )}
+                                <div className="text-xs text-gray-600 mt-1">{event.description}</div>
+                              </div>
+                            )
+                          }
+                          return null
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
