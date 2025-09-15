@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { communities, communityMembers, communityPosts, users } from '@/lib/db/schema'
+import { communities, communityMembers, communityPosts, communityPostLikes, users } from '@/lib/db/schema'
 import { eq, and, desc, sql } from 'drizzle-orm'
 
 function getUserFromSession(request: NextRequest) {
@@ -98,6 +98,35 @@ export async function GET(
       .limit(limit)
       .offset(offset)
 
+    // For each post, check if the current user has liked it and get actual likes count
+    const postsWithLikeStatus = await Promise.all(
+      posts.map(async (post) => {
+        // Check if current user liked this post
+        const userLike = await db
+          .select()
+          .from(communityPostLikes)
+          .where(
+            and(
+              eq(communityPostLikes.postId, post.id),
+              eq(communityPostLikes.userId, user.userId)
+            )
+          )
+          .limit(1)
+
+        // Get actual likes count from likes table
+        const actualLikesCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(communityPostLikes)
+          .where(eq(communityPostLikes.postId, post.id))
+
+        return {
+          ...post,
+          likesCount: actualLikesCount[0].count, // Use actual count instead of stored count
+          isLikedByUser: userLike.length > 0
+        }
+      })
+    )
+
     // Get total count for pagination
     const totalCount = await db
       .select({ count: sql<number>`count(*)` })
@@ -111,7 +140,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: posts,
+      data: postsWithLikeStatus,
       pagination: {
         page,
         limit,

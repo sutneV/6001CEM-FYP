@@ -18,7 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2 } from "lucide-react"
+import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2, Send } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useCommunities, type Community } from "@/hooks/useCommunities"
@@ -57,19 +57,156 @@ export default function CommunityPostsPage() {
     longitude: null as number | null,
     fee: "",
   })
+  const [postComments, setPostComments] = useState<{[postId: string]: any[]}>({}) 
+  const [postLikeStates, setPostLikeStates] = useState<{[postId: string]: {isLiked: boolean, count: number}}>({})
+  const [showComments, setShowComments] = useState<{[postId: string]: boolean}>({})
+  const [newComment, setNewComment] = useState<{[postId: string]: string}>({})
+  const [commentsLoading, setCommentsLoading] = useState<{[postId: string]: boolean}>({})
 
-  const handleLike = (postId: number) => {
-    setPosts(
-      posts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              isLiked: !post.isLiked,
-              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            }
-          : post,
-      ),
-    )
+  const handleLike = async (postId: string) => {
+    if (!user) return
+
+    try {
+      const currentState = postLikeStates[postId]
+      const isCurrentlyLiked = currentState?.isLiked || false
+      const method = isCurrentlyLiked ? 'DELETE' : 'POST'
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const requestUrl = `/api/communities/${communityId}/posts/${postId}/likes`
+
+      const response = await fetch(requestUrl, {
+        method,
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update like state
+        setPostLikeStates(prev => ({
+          ...prev,
+          [postId]: {
+            isLiked: data.data.liked,
+            count: data.data.likesCount
+          }
+        }))
+        
+        // Update posts array for immediate UI feedback
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, likesCount: data.data.likesCount }
+            : post
+        ))
+      } else {
+        // Log the error and show user-friendly message
+        console.error('Like operation failed:', data.error)
+        toast.error(data.error || 'Failed to toggle like')
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      toast.error('Failed to toggle like')
+    }
+  }
+
+  const toggleComments = async (postId: string) => {
+    const isCurrentlyShowing = showComments[postId]
+    
+    if (isCurrentlyShowing) {
+      // Hide comments
+      setShowComments(prev => ({ ...prev, [postId]: false }))
+    } else {
+      // Show comments and fetch them if not already loaded
+      setShowComments(prev => ({ ...prev, [postId]: true }))
+      
+      if (!postComments[postId]) {
+        await fetchComments(postId)
+      }
+    }
+  }
+
+  const fetchComments = async (postId: string) => {
+    try {
+      setCommentsLoading(prev => ({ ...prev, [postId]: true }))
+      
+      const headers: HeadersInit = {}
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/posts/${postId}/comments`, {
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: data.data
+        }))
+      } else {
+        throw new Error(data.error || 'Failed to fetch comments')
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+      toast.error('Failed to load comments')
+    } finally {
+      setCommentsLoading(prev => ({ ...prev, [postId]: false }))
+    }
+  }
+
+  const handleAddComment = async (postId: string) => {
+    const content = newComment[postId]?.trim()
+    if (!content || !user) return
+
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/posts/${postId}/comments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Add new comment to the comments list
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [data.data.comment, ...(prev[postId] || [])]
+        }))
+        
+        // Update comment count in posts
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, commentsCount: data.data.commentsCount }
+            : post
+        ))
+        
+        // Clear input
+        setNewComment(prev => ({ ...prev, [postId]: '' }))
+      } else {
+        throw new Error(data.error || 'Failed to add comment')
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error)
+      toast.error('Failed to add comment')
+    }
   }
 
   const handleCreatePost = async () => {
@@ -99,6 +236,16 @@ export default function CommunityPostsPage() {
       if (data.success) {
         // Add the new post to the beginning of the posts array
         setPosts([data.data, ...posts])
+        
+        // Initialize like state for the new post
+        setPostLikeStates(prev => ({
+          ...prev,
+          [data.data.id]: {
+            isLiked: false,
+            count: 0
+          }
+        }))
+        
         setNewPost({ title: "", content: "", type: "general" })
         setIsNewPostOpen(false)
         toast.success('Post created successfully!')
@@ -350,6 +497,16 @@ export default function CommunityPostsPage() {
 
       if (data.success) {
         setPosts(data.data)
+        
+        // Initialize like states for all posts using API data
+        const likeStates: {[postId: string]: {isLiked: boolean, count: number}} = {}
+        data.data.forEach((post: any) => {
+          likeStates[post.id] = {
+            isLiked: post.isLikedByUser || false,
+            count: post.likesCount || 0
+          }
+        })
+        setPostLikeStates(likeStates)
       } else {
         console.error('Failed to fetch posts:', data.error)
         if (response.status === 403) {
@@ -774,21 +931,113 @@ export default function CommunityPostsPage() {
                 {/* Post Actions */}
                 <div className="flex items-center gap-6 pt-4 border-t">
                   <button
-                    onClick={() => {/* TODO: Implement real like functionality */}}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
+                    onClick={() => handleLike(post.id)}
+                    className={`flex items-center gap-2 text-sm transition-colors ${
+                      postLikeStates[post.id]?.isLiked 
+                        ? 'text-red-600' 
+                        : 'text-gray-600 hover:text-red-600'
+                    }`}
                   >
-                    <Heart className="h-4 w-4" />
-                    {post.likesCount}
+                    <Heart className={`h-4 w-4 ${postLikeStates[post.id]?.isLiked ? 'fill-current' : ''}`} />
+                    {postLikeStates[post.id]?.count || post.likesCount || 0}
                   </button>
-                  <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
+                  <button 
+                    onClick={() => toggleComments(post.id)}
+                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors"
+                  >
                     <MessageCircle className="h-4 w-4" />
-                    {post.commentsCount}
+                    {post.commentsCount || 0}
                   </button>
                   <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
                     <Share2 className="h-4 w-4" />
                     0
                   </button>
                 </div>
+
+                {/* Comments Section */}
+                {showComments[post.id] && (
+                  <div className="mt-4 pt-4 border-t bg-gray-50 rounded-lg p-4">
+                    {/* Add Comment Input */}
+                    <div className="flex gap-3 mb-4">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage src="/placeholder.svg" />
+                        <AvatarFallback>
+                          {user?.firstName?.[0]}{user?.lastName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 flex gap-2">
+                        <Input
+                          placeholder="Write a comment..."
+                          value={newComment[post.id] || ''}
+                          onChange={(e) => setNewComment(prev => ({ 
+                            ...prev, 
+                            [post.id]: e.target.value 
+                          }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              handleAddComment(post.id)
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleAddComment(post.id)}
+                          disabled={!newComment[post.id]?.trim()}
+                          className="bg-teal-500 hover:bg-teal-600"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Comments List */}
+                    {commentsLoading[post.id] ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <span className="text-sm text-gray-500">Loading comments...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {(postComments[post.id] || []).map((comment) => {
+                          const commentAuthorName = `${comment.author.firstName} ${comment.author.lastName}`
+                          const commentAuthorInitials = `${comment.author.firstName?.[0] || ''}${comment.author.lastName?.[0] || ''}`.toUpperCase()
+                          const commentTimestamp = new Date(comment.createdAt).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                          
+                          return (
+                            <div key={comment.id} className="flex gap-3">
+                              <Avatar className="h-7 w-7 flex-shrink-0">
+                                <AvatarImage src="/placeholder.svg" />
+                                <AvatarFallback className="text-xs">{commentAuthorInitials}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 bg-white rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium text-sm">{commentAuthorName}</span>
+                                  <span className="text-xs text-gray-500">{commentTimestamp}</span>
+                                </div>
+                                <p className="text-sm text-gray-700 whitespace-pre-line">{comment.content}</p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        
+                        {(postComments[post.id] || []).length === 0 && !commentsLoading[post.id] && (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-gray-500">No comments yet</p>
+                            <p className="text-xs text-gray-400">Be the first to comment!</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
               )
