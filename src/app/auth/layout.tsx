@@ -42,10 +42,10 @@ const BlurText = ({
             delay: index * 0.05,
             ease: "easeOut"
           }}
-          className="inline-block"
+          className={animateBy === "words" ? "inline-block mr-1" : "inline-block"}
         >
           {animateBy === "words" 
-            ? segment + (index < segments.length - 1 ? " " : "")
+            ? segment
             : segment === " " ? "\u00A0" : segment
           }
         </motion.span>
@@ -280,8 +280,8 @@ export default function AuthLayout({
               <BlurText 
                 text="Join thousands of happy pet owners across Penang who found their companions through our platform."
                 delay={3500}
-                animateBy="characters"
-                className="text-xl text-teal-100 leading-relaxed break-keep"
+                animateBy="words"
+                className="text-xl text-teal-100 leading-relaxed break-words hyphens-none"
               />
             </div>
           </div>

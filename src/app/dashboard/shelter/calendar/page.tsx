@@ -222,10 +222,12 @@ export default function ShelterCalendarPage() {
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="flex-1 p-6">
-        <div className="h-full">
-          <AnimatePresence mode="wait">
+      {/* Main Content */}
+      <div className="flex-1 flex">
+        {/* Calendar Grid */}
+        <div className={`transition-all duration-300 p-6 ${selectedDate ? 'flex-[2]' : 'flex-1'}`}>
+          <div className="h-full">
+            <AnimatePresence mode="wait">
             {viewType === 'month' && (
               <motion.div
                 key="month"
@@ -498,85 +500,113 @@ export default function ShelterCalendarPage() {
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
         </div>
-      </div>
 
-      {/* Event Details Popup */}
-      {selectedDate && (
-        <Popover open={!!selectedDate} onOpenChange={() => setSelectedDate(undefined)}>
-          <PopoverTrigger asChild>
-            <div />
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="center">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {getEventsForDate(selectedDate).length} event{getEventsForDate(selectedDate).length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <div className="max-h-64 overflow-y-auto p-2">
-              {getEventsForDate(selectedDate).map((event) => (
-                <div
-                  key={event.id}
-                  className={`p-3 rounded-lg border ${event.color} mb-2`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg">{getEventTypeIcon(event.type)}</span>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">{event.title}</h4>
-                      <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{event.time}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs opacity-75">
-                        <MapPin className="h-3 w-3" />
-                        <span>{event.location}</span>
-                      </div>
-                      {event.applicant && (
-                        <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
-                          <User className="h-3 w-3" />
-                          <span>Applicant: {event.applicant}</span>
-                        </div>
-                      )}
-                      {event.participants && (
-                        <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
-                          <Users className="h-3 w-3" />
-                          <span>{event.participants}</span>
-                        </div>
-                      )}
-                      {event.staff && (
-                        <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
-                          <Users className="h-3 w-3" />
-                          <span>{event.staff}</span>
-                        </div>
-                      )}
-                      {event.vet && (
-                        <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
-                          <User className="h-3 w-3" />
-                          <span>Vet: {event.vet}</span>
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-600 mt-1">{event.description}</p>
+        {/* Slide-in Event Details Panel */}
+        <AnimatePresence>
+          {selectedDate && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="border-l border-gray-200 bg-white overflow-hidden"
+            >
+                {/* Panel Header */}
+                <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-blue-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {format(selectedDate, 'EEEE')}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {format(selectedDate, 'MMMM d, yyyy')}
+                      </p>
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setSelectedDate(undefined)}
+                      className="h-10 w-10 p-0 hover:bg-white/50 rounded-full"
+                    >
+                      <Plus className="h-5 w-5 rotate-45 text-gray-600" />
+                    </Button>
+                  </div>
+                  <div className="mt-3">
+                    <span className="text-sm text-teal-700 bg-teal-100 px-3 py-1 rounded-full">
+                      {getEventsForDate(selectedDate).length} event{getEventsForDate(selectedDate).length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
-              ))}
-              {getEventsForDate(selectedDate).length === 0 && (
-                <div className="p-8 text-center">
-                  <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">No events scheduled</p>
-                  <Button size="sm" variant="outline" className="mt-2">
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Event
-                  </Button>
+
+                {/* Events List */}
+                <div className="overflow-y-auto p-6 space-y-4" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+                  {getEventsForDate(selectedDate).map((event) => (
+                    <div
+                      key={event.id}
+                      className={`p-5 rounded-xl border ${event.color} bg-white shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <span className="text-2xl mt-1">{getEventTypeIcon(event.type)}</span>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg text-gray-900 mb-2">{event.title}</h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Clock className="h-4 w-4 text-teal-600" />
+                              <span>{event.time}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <MapPin className="h-4 w-4 text-teal-600" />
+                              <span>{event.location}</span>
+                            </div>
+                            {event.applicant && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <User className="h-4 w-4 text-teal-600" />
+                                <span>Applicant: {event.applicant}</span>
+                              </div>
+                            )}
+                            {event.participants && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Users className="h-4 w-4 text-teal-600" />
+                                <span>{event.participants}</span>
+                              </div>
+                            )}
+                            {event.staff && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Users className="h-4 w-4 text-teal-600" />
+                                <span>{event.staff}</span>
+                              </div>
+                            )}
+                            {event.vet && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <User className="h-4 w-4 text-teal-600" />
+                                <span>Vet: {event.vet}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-700 mt-3 leading-relaxed">{event.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {getEventsForDate(selectedDate).length === 0 && (
+                    <div className="text-center py-16">
+                      <CalendarIcon className="h-20 w-20 text-gray-300 mx-auto mb-6" />
+                      <p className="text-lg text-gray-500 mb-4">No events scheduled</p>
+                      <p className="text-sm text-gray-400 mb-6">This day is free for new appointments</p>
+                      <Button size="lg" className="bg-teal-600 hover:bg-teal-700">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Event
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
+              </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
