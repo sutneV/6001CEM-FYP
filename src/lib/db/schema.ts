@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, text, pgEnum, boolean, integer, json } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, varchar, timestamp, text, pgEnum, boolean, integer, json, decimal } from 'drizzle-orm/pg-core'
 
 export const userRoleEnum = pgEnum('user_role', ['adopter', 'shelter', 'admin'])
 export const petTypeEnum = pgEnum('pet_type', ['dog', 'cat', 'rabbit', 'bird', 'other'])
@@ -211,6 +211,8 @@ export const communityEvents = pgTable('community_events', {
   eventDate: timestamp('event_date').notNull(),
   eventTime: varchar('event_time', { length: 10 }), // e.g., "14:30"
   location: text('location').notNull(),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }),
   fee: varchar('fee', { length: 100 }).default('Free'),
   maxParticipants: integer('max_participants'),
   currentParticipants: integer('current_participants').default(0),

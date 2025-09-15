@@ -24,6 +24,7 @@ import { useParams } from "next/navigation"
 import { useCommunities, type Community } from "@/hooks/useCommunities"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import MapLocationPicker from "@/components/MapLocationPicker"
 
 export default function CommunityPostsPage() {
   const params = useParams()
@@ -50,6 +51,8 @@ export default function CommunityPostsPage() {
     date: "",
     time: "",
     location: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
     fee: "",
   })
 
@@ -127,6 +130,8 @@ export default function CommunityPostsPage() {
           eventDate: newEvent.date,
           eventTime: newEvent.time,
           location: newEvent.location,
+          latitude: newEvent.latitude,
+          longitude: newEvent.longitude,
           fee: newEvent.fee || 'Free',
         }),
       })
@@ -136,7 +141,7 @@ export default function CommunityPostsPage() {
       if (data.success) {
         // Add the new event to the events list
         setEvents([data.data, ...events])
-        setNewEvent({ title: "", content: "", date: "", time: "", location: "", fee: "" })
+        setNewEvent({ title: "", content: "", date: "", time: "", location: "", latitude: null, longitude: null, fee: "" })
         setIsNewEventOpen(false)
         toast.success('Event created successfully!')
       } else {
@@ -146,6 +151,15 @@ export default function CommunityPostsPage() {
       console.error('Error creating event:', error)
       toast.error('Failed to create event')
     }
+  }
+
+  const handleLocationSelect = (location: { latitude: number; longitude: number; address?: string }) => {
+    setNewEvent({
+      ...newEvent,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      location: location.address || `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
+    })
   }
 
   const handleJoinEvent = async (eventId: string) => {
@@ -494,7 +508,7 @@ export default function CommunityPostsPage() {
               New Event
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Event</DialogTitle>
               <DialogDescription>Organize an event for the {community.name} community</DialogDescription>
@@ -529,15 +543,28 @@ export default function CommunityPostsPage() {
                   />
                 </div>
               </div>
+              
+              {/* Map Location Picker */}
               <div>
-                <Label htmlFor="event-location">Location</Label>
+                <Label>Event Location</Label>
+                <MapLocationPicker 
+                  onLocationSelect={handleLocationSelect}
+                  height="300px"
+                  className="mt-2"
+                />
+              </div>
+              
+              {/* Manual Location Input (fallback) */}
+              <div>
+                <Label htmlFor="event-location">Location (Manual Entry)</Label>
                 <Input
                   id="event-location"
-                  placeholder="Where will this event take place?"
+                  placeholder="You can also type the address manually"
                   value={newEvent.location}
                   onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                 />
               </div>
+              
               <div>
                 <Label htmlFor="event-fee">Fee (optional)</Label>
                 <Input

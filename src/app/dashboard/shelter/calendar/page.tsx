@@ -222,6 +222,7 @@ export default function ShelterCalendarPage() {
         </div>
       </div>
 
+
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Calendar Grid */}

@@ -6,81 +6,20 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, Users, ExternalLink } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, ExternalLink, Loader2 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { toast } from 'sonner'
 
-// Mock data for community events - in a real app, this would come from your API
-const mockEvents = [
-  {
-    id: "1",
-    title: "Pet Adoption Fair",
-    description: "Join us for a fun-filled day of meeting adorable pets looking for their forever homes!",
-    location: "Gurney Plaza, George Town",
-    coordinates: [100.3101, 5.4375],
-    date: "2024-01-20",
-    time: "10:00 AM",
-    fee: "Free",
-    maxParticipants: 100,
-    currentParticipants: 45,
-    organizer: "Penang Animal Shelter",
-    type: "adoption"
-  },
-  {
-    id: "2", 
-    title: "Dog Training Workshop",
-    description: "Learn essential dog training techniques from professional trainers.",
-    location: "Penang Community Center, Bayan Lepas",
-    coordinates: [100.2772, 5.3234],
-    date: "2024-01-22",
-    time: "2:00 PM", 
-    fee: "RM 50",
-    maxParticipants: 30,
-    currentParticipants: 18,
-    organizer: "Penang Pet Training Academy",
-    type: "workshop"
-  },
-  {
-    id: "3",
-    title: "Cat Care Seminar",
-    description: "Everything you need to know about caring for your feline friends.",
-    location: "Penang Library, Tanjung Bungah",
-    coordinates: [100.3041, 5.4702],
-    date: "2024-01-25",
-    time: "6:00 PM",
-    fee: "Free",
-    maxParticipants: 50,
-    currentParticipants: 32,
-    organizer: "Penang Cat Society",
-    type: "education"
-  },
-  {
-    id: "4",
-    title: "Pet Vaccination Drive",
-    description: "Free vaccinations for your pets. Bring your furry friends!",
-    location: "Animal Clinic, Butterworth",
-    coordinates: [100.3638, 5.4238],
-    date: "2024-01-27",
-    time: "9:00 AM",
-    fee: "Free",
-    maxParticipants: 80,
-    currentParticipants: 23,
-    organizer: "Butterworth Veterinary Clinic",
-    type: "healthcare"
-  },
-  {
-    id: "5",
-    title: "Pet Photography Session",
-    description: "Professional photos of your pets for adoption profiles and keepsakes.",
-    location: "Photo Studio, Bukit Mertajam", 
-    coordinates: [100.4692, 5.3634],
-    date: "2024-01-30",
-    time: "11:00 AM",
-    fee: "RM 30",
-    maxParticipants: 25,
-    currentParticipants: 12,
-    organizer: "Penang Pet Portrait Studio",
-    type: "photo"
-  }
-]
+// Event type mapping for determining colors and icons
+const getEventType = (description: string, title: string): string => {
+  const text = (title + " " + description).toLowerCase()
+  if (text.includes('adoption') || text.includes('adopt')) return 'adoption'
+  if (text.includes('training') || text.includes('workshop') || text.includes('class')) return 'workshop'
+  if (text.includes('care') || text.includes('seminar') || text.includes('education') || text.includes('learn')) return 'education'
+  if (text.includes('vaccination') || text.includes('health') || text.includes('vet') || text.includes('medical')) return 'healthcare'
+  if (text.includes('photo') || text.includes('picture')) return 'photo'
+  return 'general'
+}
 
 const getEventTypeColor = (type: string) => {
   switch (type) {
@@ -89,6 +28,7 @@ const getEventTypeColor = (type: string) => {
     case 'education': return 'bg-purple-100 text-purple-800'
     case 'healthcare': return 'bg-red-100 text-red-800'
     case 'photo': return 'bg-yellow-100 text-yellow-800'
+    case 'general': return 'bg-teal-100 text-teal-800'
     default: return 'bg-gray-100 text-gray-800'
   }
 }
@@ -100,11 +40,13 @@ const getEventTypeIcon = (type: string) => {
     case 'education': return '📚'
     case 'healthcare': return '🏥'
     case 'photo': return '📸'
+    case 'general': return '🎉'
     default: return '📅'
   }
 }
 
 export default function EventMap() {
+  const { user } = useAuth()
   const [selectedEvent, setSelectedEvent] = useState<any>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -112,9 +54,75 @@ export default function EventMap() {
   const [is3DView, setIs3DView] = useState(true)
   const [mapStyle, setMapStyle] = useState("mapbox://styles/mapbox/standard")
   const [showEventDetails, setShowEventDetails] = useState(false)
+  const [events, setEvents] = useState<any[]>([])
+  const [eventsLoading, setEventsLoading] = useState(true)
+  const [eventsError, setEventsError] = useState<string | null>(null)
 
   // Get MapBox token from environment variables
   const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+
+  // Fetch events from API
+  const fetchEvents = async () => {
+    if (!user) {
+      setEventsLoading(false)
+      return
+    }
+
+    try {
+      setEventsLoading(true)
+      setEventsError(null)
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch('/api/events/map', {
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Transform the data to match the expected format
+        const transformedEvents = data.data.map((event: any) => ({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          coordinates: [parseFloat(event.longitude), parseFloat(event.latitude)],
+          date: event.eventDate,
+          time: event.eventTime || 'All day',
+          fee: event.fee || 'Free',
+          maxParticipants: event.maxParticipants || 0,
+          currentParticipants: event.currentParticipants || 0,
+          organizer: `${event.organizer.firstName} ${event.organizer.lastName}`,
+          community: event.community.name,
+          type: getEventType(event.description, event.title),
+          createdAt: event.createdAt,
+        }))
+        
+        setEvents(transformedEvents)
+      } else {
+        throw new Error(data.error || 'Failed to fetch events')
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error)
+      setEventsError(error instanceof Error ? error.message : 'Failed to load events')
+      toast.error('Failed to load events')
+    } finally {
+      setEventsLoading(false)
+    }
+  }
+
+  // Fetch events when component mounts and user changes
+  useEffect(() => {
+    fetchEvents()
+  }, [user])
 
   // Debug token
   useEffect(() => {
@@ -303,6 +311,18 @@ export default function EventMap() {
                         <p className="text-sm text-gray-600">{selectedEvent.organizer}</p>
                       </div>
                     </div>
+
+                    {selectedEvent.community && (
+                      <div className="flex items-center gap-3">
+                        <div className="h-5 w-5 flex items-center justify-center">
+                          <span className="text-lg">👥</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Community</p>
+                          <p className="text-sm text-gray-600">{selectedEvent.community}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -477,7 +497,7 @@ export default function EventMap() {
                   <ScaleControl position="bottom-left" style={{ marginBottom: '60px' }} />
                   
                   {/* Enhanced 3D Event Markers */}
-                  {mockEvents.map((event) => (
+                  {events.map((event) => (
                     <Marker
                       key={event.id}
                       longitude={event.coordinates[0]}
@@ -537,7 +557,9 @@ export default function EventMap() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-              <p className="text-sm text-gray-500">{mockEvents.length} events found</p>
+              <p className="text-sm text-gray-500">
+                {eventsLoading ? 'Loading...' : `${events.length} events found`}
+              </p>
             </div>
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -549,7 +571,27 @@ export default function EventMap() {
         {/* Events List */}
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-1 p-2">
-            {mockEvents.map((event) => (
+            {eventsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="text-gray-500">Loading events...</span>
+                </div>
+              </div>
+            ) : eventsError ? (
+              <div className="text-center py-8">
+                <p className="text-red-500 mb-2">Failed to load events</p>
+                <Button size="sm" onClick={fetchEvents} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-2">No events found</p>
+                <p className="text-sm text-gray-400">Join communities to see their events on the map</p>
+              </div>
+            ) : (
+              events.map((event) => (
               <div 
                 key={event.id} 
                 className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
@@ -605,7 +647,8 @@ export default function EventMap() {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
