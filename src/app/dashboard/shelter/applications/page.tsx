@@ -22,6 +22,14 @@ import {
   UserCheck,
   AlertCircle,
   Settings,
+  Users,
+  Briefcase,
+  MapPin,
+  DollarSign,
+  Car,
+  Activity,
+  Baby,
+  Shield,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -566,11 +574,15 @@ export default function ShelterApplicationsPage() {
                                         <div className="space-y-2">
                                           <div className="flex items-center justify-between text-sm">
                                             <span className="font-medium">Application Progress</span>
-                                            <span className="text-gray-500">{application.progress}% Complete</span>
+                                            <span className="text-gray-500">{applicationsService.getProgressForStatus(application.status)}% Complete</span>
                                           </div>
-                                          <Progress value={application.progress} className="h-3 bg-gray-100" />
+                                          <Progress 
+                                            value={applicationsService.getProgressForStatus(application.status)} 
+                                            className="h-3 bg-gray-100"
+                                            indicatorClassName={statusConfig.color}
+                                          />
                                           <p className="text-sm text-gray-500">
-                                            Current Step: {application.currentStep}
+                                            Current Step: {applicationsService.getCurrentStepForStatus(application.status)}
                                           </p>
                                         </div>
 
@@ -709,6 +721,175 @@ export default function ShelterApplicationsPage() {
                                             </CardContent>
                                           </Card>
                                         </div>
+
+                                        {/* Comprehensive Application Details */}
+                                        <div className="grid gap-6 md:grid-cols-2">
+                                          {/* Living Situation */}
+                                          <Card>
+                                            <CardHeader>
+                                              <CardTitle className="flex items-center gap-2">
+                                                <Home className="h-5 w-5" />
+                                                Living Situation
+                                              </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                              <div className="grid gap-3">
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Housing Type:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.housingType}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Own/Rent:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.ownRent}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Yard Type:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.yardType}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Household Size:</span>
+                                                  <span className="text-sm text-gray-600">{application.householdSize} people</span>
+                                                </div>
+                                                {application.landlordPermission && (
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm font-medium">Landlord Permission:</span>
+                                                    <span className="text-sm text-gray-600 capitalize">{application.landlordPermission}</span>
+                                                  </div>
+                                                )}
+                                                <div className="pt-2 border-t">
+                                                  <span className="text-sm font-medium">Full Address:</span>
+                                                  <p className="text-sm text-gray-600 mt-1">{application.address}</p>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+
+                                          {/* Pet Experience */}
+                                          <Card>
+                                            <CardHeader>
+                                              <CardTitle className="flex items-center gap-2">
+                                                <PawPrint className="h-5 w-5" />
+                                                Pet Experience
+                                              </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                              <div className="grid gap-3">
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Previous Pets:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.previousPets}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Current Pets:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.currentPets}</span>
+                                                </div>
+                                                {application.petExperience && (
+                                                  <div className="pt-2 border-t">
+                                                    <span className="text-sm font-medium">Pet Experience:</span>
+                                                    <p className="text-sm text-gray-600 mt-1">{application.petExperience}</p>
+                                                  </div>
+                                                )}
+                                                {application.veterinarian && (
+                                                  <div className="pt-2 border-t">
+                                                    <span className="text-sm font-medium">Veterinarian:</span>
+                                                    <p className="text-sm text-gray-600 mt-1">{application.veterinarian}</p>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+
+                                          {/* Lifestyle Information */}
+                                          <Card>
+                                            <CardHeader>
+                                              <CardTitle className="flex items-center gap-2">
+                                                <Briefcase className="h-5 w-5" />
+                                                Lifestyle & Work
+                                              </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                              <div className="grid gap-3">
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Occupation:</span>
+                                                  <span className="text-sm text-gray-600">{application.occupation}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Exercise Commitment:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.exerciseCommitment}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Travel Frequency:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.travelFrequency}</span>
+                                                </div>
+                                                <div className="pt-2 border-t">
+                                                  <span className="text-sm font-medium">Work Schedule:</span>
+                                                  <p className="text-sm text-gray-600 mt-1">{application.workSchedule}</p>
+                                                </div>
+                                                <div className="pt-2 border-t">
+                                                  <span className="text-sm font-medium">Pet Preferences:</span>
+                                                  <p className="text-sm text-gray-600 mt-1">{application.petPreferences}</p>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+
+                                          {/* Household Details */}
+                                          <Card>
+                                            <CardHeader>
+                                              <CardTitle className="flex items-center gap-2">
+                                                <Users className="h-5 w-5" />
+                                                Household Details
+                                              </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                              <div className="grid gap-3">
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Date of Birth:</span>
+                                                  <span className="text-sm text-gray-600">{application.dateOfBirth}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span className="text-sm font-medium">Allergies:</span>
+                                                  <span className="text-sm text-gray-600 capitalize">{application.allergies}</span>
+                                                </div>
+                                                {application.childrenAges && (
+                                                  <div className="flex justify-between">
+                                                    <span className="text-sm font-medium">Children Ages:</span>
+                                                    <span className="text-sm text-gray-600">{application.childrenAges}</span>
+                                                  </div>
+                                                )}
+                                                <div className="pt-2 border-t">
+                                                  <span className="text-sm font-medium">Household Members:</span>
+                                                  <p className="text-sm text-gray-600 mt-1">{application.householdMembers}</p>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        </div>
+
+                                        {/* References & Emergency Contact */}
+                                        <Card>
+                                          <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                              <Shield className="h-5 w-5" />
+                                              References & Emergency Contact
+                                            </CardTitle>
+                                          </CardHeader>
+                                          <CardContent className="space-y-4">
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                              <div>
+                                                <span className="text-sm font-medium">References:</span>
+                                                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{application.references}</p>
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <span className="text-sm font-medium">Emergency Contact:</span>
+                                                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{application.emergencyContact}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </CardContent>
+                                        </Card>
 
                                         {/* Application Notes */}
                                         <Card>
