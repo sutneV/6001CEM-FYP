@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   addDays, 
@@ -36,81 +36,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/contexts/AuthContext"
+import { interviewsService } from "@/lib/services/interviews"
 
-// Mock events data for shelter
-const mockEvents = [
-  {
-    id: "1",
-    title: "Home Visit - Bella Application",
-    type: "visit",
-    date: new Date(),
-    time: "10:00 AM",
-    location: "Tanjung Bungah, Penang",
-    applicant: "Sarah Chen",
-    description: "Home visit for Bella adoption application",
-    color: "bg-blue-100 text-blue-800 border-blue-200"
-  },
-  {
-    id: "2",
-    title: "Volunteer Training Session",
-    type: "training",
-    date: addDays(new Date(), 1),
-    time: "2:00 PM",
-    location: "Shelter Main Hall",
-    participants: "8 volunteers",
-    description: "Monthly volunteer orientation and training",
-    color: "bg-green-100 text-green-800 border-green-200"
-  },
-  {
-    id: "3",
-    title: "Pet Health Check - Weekly",
-    type: "health",
-    date: addDays(new Date(), 2),
-    time: "9:00 AM",
-    location: "Shelter Clinic",
-    vet: "Dr. Lim",
-    description: "Weekly health examination for all shelter pets",
-    color: "bg-red-100 text-red-800 border-red-200"
-  },
-  {
-    id: "4",
-    title: "Adoption Fair Setup",
-    type: "event",
-    date: addDays(new Date(), 4),
-    time: "7:00 AM",
-    location: "Gurney Plaza",
-    staff: "5 staff members",
-    description: "Setup for weekend adoption fair",
-    color: "bg-purple-100 text-purple-800 border-purple-200"
-  },
-  {
-    id: "5",
-    title: "Interview - Max Application",
-    type: "interview",
-    date: addDays(new Date(), 6),
-    time: "3:30 PM",
-    location: "Shelter Office",
-    applicant: "Ahmad Rahman",
-    description: "Adoption interview for Max",
-    color: "bg-orange-100 text-orange-800 border-orange-200"
-  }
-]
 
 const getEventTypeIcon = (type: string) => {
   switch (type) {
-    case 'visit': return '🏠'
+    case 'home_visit': return '🏠'
+    case 'meet_greet': return '🤝'
+    case 'interview': return '👥'
     case 'training': return '🎓'
     case 'health': return '🏥'
     case 'event': return '🎉'
-    case 'interview': return '👥'
     default: return '📅'
   }
 }
 
 export default function ShelterCalendarPage() {
+  const { user } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [viewType, setViewType] = useState<'month' | 'week' | 'day'>('month')
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Generate calendar grid for current month
   const monthStart = startOfMonth(currentDate)
@@ -118,6 +67,80 @@ export default function ShelterCalendarPage() {
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }) // Sunday
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+
+  // Fetch calendar events
+  useEffect(() => {
+    if (user) {
+      fetchCalendarEvents()
+    }
+  }, [user, currentDate, viewType])
+
+  const fetchCalendarEvents = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+
+      // Get date range based on view type
+      let startDate, endDate
+
+      if (viewType === 'month') {
+        startDate = format(calendarStart, 'yyyy-MM-dd')
+        endDate = format(calendarEnd, 'yyyy-MM-dd')
+      } else if (viewType === 'week') {
+        startDate = format(startOfWeek(currentDate), 'yyyy-MM-dd')
+        endDate = format(endOfWeek(currentDate), 'yyyy-MM-dd')
+      } else {
+        startDate = format(currentDate, 'yyyy-MM-dd')
+        endDate = format(currentDate, 'yyyy-MM-dd')
+      }
+
+      const events = await interviewsService.getCalendarEvents(user, {
+        startDate,
+        endDate,
+      })
+
+      // Transform events to match the expected format
+      const transformedEvents = events.map(event => ({
+        id: event.id,
+        title: event.title,
+        type: event.event_type,
+        date: new Date(event.event_date),
+        time: format(new Date(`${event.event_date}T${event.event_time}`), 'h:mm a'),
+        location: event.location || '',
+        description: event.description || '',
+        color: getEventTypeColor(event.event_type, event.is_confirmed),
+        isConfirmed: event.is_confirmed,
+        interviewId: event.interview_id,
+      }))
+
+      setCalendarEvents(transformedEvents)
+    } catch (error) {
+      console.error('Error fetching calendar events:', error)
+      setCalendarEvents([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getEventTypeColor = (type: string, isConfirmed: boolean) => {
+    const baseColors = {
+      interview: isConfirmed
+        ? "bg-blue-100 text-blue-800 border-blue-300"
+        : "bg-blue-50 text-blue-700 border-blue-200",
+      meet_greet: isConfirmed
+        ? "bg-purple-100 text-purple-800 border-purple-300"
+        : "bg-purple-50 text-purple-700 border-purple-200",
+      home_visit: isConfirmed
+        ? "bg-green-100 text-green-800 border-green-300"
+        : "bg-green-50 text-green-700 border-green-200",
+      training: "bg-green-100 text-green-800 border-green-200",
+      health: "bg-red-100 text-red-800 border-red-200",
+      event: "bg-purple-100 text-purple-800 border-purple-200",
+    }
+
+    return baseColors[type as keyof typeof baseColors] || "bg-gray-100 text-gray-800 border-gray-200"
+  }
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
@@ -140,7 +163,7 @@ export default function ShelterCalendarPage() {
   }
 
   const getEventsForDate = (date: Date) => {
-    return mockEvents.filter(event => isSameDay(event.date, date))
+    return calendarEvents.filter(event => isSameDay(event.date, date))
   }
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -309,11 +332,10 @@ export default function ShelterCalendarPage() {
                           <Clock className="h-2 w-2" />
                           <span>{event.time}</span>
                         </div>
-                        {(event.applicant || event.participants || event.staff) && (
+                        {event.interviewId && (
                           <div className="flex items-center gap-1 opacity-75">
-                            <User className="h-2 w-2" />
-                            <span className="truncate">
-                              {event.applicant || event.participants || event.staff}
+                            <span className="text-[8px]">
+                              {event.isConfirmed ? '✓' : '?'}
                             </span>
                           </div>
                         )}
@@ -465,26 +487,18 @@ export default function ShelterCalendarPage() {
                                   <Clock className="h-3 w-3" />
                                   <span>{event.time}</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-xs opacity-75">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>{event.location}</span>
-                                </div>
-                                {event.applicant && (
+                                {event.location && (
                                   <div className="flex items-center gap-1 text-xs opacity-75">
-                                    <User className="h-3 w-3" />
-                                    <span>Applicant: {event.applicant}</span>
+                                    <MapPin className="h-3 w-3" />
+                                    <span>{event.location}</span>
                                   </div>
                                 )}
-                                {event.participants && (
+                                {event.interviewId && (
                                   <div className="flex items-center gap-1 text-xs opacity-75">
-                                    <Users className="h-3 w-3" />
-                                    <span>{event.participants}</span>
-                                  </div>
-                                )}
-                                {event.staff && (
-                                  <div className="flex items-center gap-1 text-xs opacity-75">
-                                    <Users className="h-3 w-3" />
-                                    <span>{event.staff}</span>
+                                    <span className="text-[8px]">
+                                      {event.isConfirmed ? '✓' : '?'}
+                                    </span>
+                                    <span>{event.isConfirmed ? 'Confirmed' : 'Pending'}</span>
                                   </div>
                                 )}
                                 <div className="text-xs text-gray-600 mt-1">{event.description}</div>
@@ -551,38 +565,26 @@ export default function ShelterCalendarPage() {
                       <div className="flex items-start gap-4">
                         <span className="text-2xl mt-1">{getEventTypeIcon(event.type)}</span>
                         <div className="flex-1">
-                          <h4 className="font-semibold text-lg text-gray-900 mb-2">{event.title}</h4>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-lg text-gray-900">{event.title}</h4>
+                            {event.interviewId && (
+                              <Badge
+                                variant={event.isConfirmed ? "default" : "outline"}
+                                className={event.isConfirmed ? "bg-green-600" : ""}
+                              >
+                                {event.isConfirmed ? "Confirmed" : "Pending"}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Clock className="h-4 w-4 text-teal-600" />
                               <span>{event.time}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <MapPin className="h-4 w-4 text-teal-600" />
-                              <span>{event.location}</span>
-                            </div>
-                            {event.applicant && (
+                            {event.location && (
                               <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <User className="h-4 w-4 text-teal-600" />
-                                <span>Applicant: {event.applicant}</span>
-                              </div>
-                            )}
-                            {event.participants && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Users className="h-4 w-4 text-teal-600" />
-                                <span>{event.participants}</span>
-                              </div>
-                            )}
-                            {event.staff && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Users className="h-4 w-4 text-teal-600" />
-                                <span>{event.staff}</span>
-                              </div>
-                            )}
-                            {event.vet && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <User className="h-4 w-4 text-teal-600" />
-                                <span>Vet: {event.vet}</span>
+                                <MapPin className="h-4 w-4 text-teal-600" />
+                                <span>{event.location}</span>
                               </div>
                             )}
                           </div>

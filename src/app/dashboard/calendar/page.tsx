@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   addDays, 
@@ -27,7 +27,12 @@ import {
   Plus,
   Clock,
   MapPin,
-  MoreHorizontal
+  MoreHorizontal,
+  Phone,
+  Heart,
+  Home,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -36,50 +41,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/contexts/AuthContext"
+import { interviewsService } from "@/lib/services/interviews"
 
-// Mock events data
-const mockEvents = [
-  {
-    id: "1",
-    title: "Vet Appointment - Max",
-    type: "appointment",
-    date: new Date(),
-    time: "10:00 AM",
-    location: "Penang Veterinary Clinic",
-    description: "Annual checkup for Max",
-    color: "bg-blue-100 text-blue-800 border-blue-200"
-  },
-  {
-    id: "2",
-    title: "Dog Training Class",
-    type: "training",
-    date: addDays(new Date(), 2),
-    time: "3:00 PM",
-    location: "Pet Training Center",
-    description: "Basic obedience training",
-    color: "bg-green-100 text-green-800 border-green-200"
-  },
-  {
-    id: "3",
-    title: "Pet Adoption Fair",
-    type: "event",
-    date: addDays(new Date(), 5),
-    time: "9:00 AM",
-    location: "Central Park Penang",
-    description: "Community adoption event",
-    color: "bg-purple-100 text-purple-800 border-purple-200"
-  },
-  {
-    id: "4",
-    title: "Home Visit - Luna Application",
-    type: "visit",
-    date: addDays(new Date(), 7),
-    time: "2:00 PM",
-    location: "Your Address",
-    description: "Home visit for Luna adoption application",
-    color: "bg-orange-100 text-orange-800 border-orange-200"
-  }
-]
 
 const getEventTypeIcon = (type: string) => {
   switch (type) {
@@ -92,9 +57,12 @@ const getEventTypeIcon = (type: string) => {
 }
 
 export default function CalendarPage() {
+  const { user } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [viewType, setViewType] = useState<'month' | 'week' | 'day'>('month')
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Generate calendar grid for current month
   const monthStart = startOfMonth(currentDate)
@@ -102,6 +70,81 @@ export default function CalendarPage() {
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }) // Sunday
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+
+  // Fetch calendar events
+  useEffect(() => {
+    if (user) {
+      fetchCalendarEvents()
+    }
+  }, [user, currentDate, viewType])
+
+  const fetchCalendarEvents = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+
+      // Get date range based on view type
+      let startDate, endDate
+
+      if (viewType === 'month') {
+        startDate = format(calendarStart, 'yyyy-MM-dd')
+        endDate = format(calendarEnd, 'yyyy-MM-dd')
+      } else if (viewType === 'week') {
+        startDate = format(startOfWeek(currentDate), 'yyyy-MM-dd')
+        endDate = format(endOfWeek(currentDate), 'yyyy-MM-dd')
+      } else {
+        startDate = format(currentDate, 'yyyy-MM-dd')
+        endDate = format(currentDate, 'yyyy-MM-dd')
+      }
+
+      const events = await interviewsService.getCalendarEvents(user, {
+        startDate,
+        endDate,
+      })
+
+      // Transform events to match the expected format
+      const transformedEvents = events.map(event => ({
+        id: event.id,
+        title: event.title,
+        type: event.event_type,
+        date: new Date(event.event_date),
+        time: format(new Date(`${event.event_date}T${event.event_time}`), 'h:mm a'),
+        location: event.location || '',
+        description: event.description || '',
+        color: getEventTypeColor(event.event_type, event.is_confirmed),
+        isConfirmed: event.is_confirmed,
+        interviewId: event.interview_id,
+      }))
+
+      setCalendarEvents(transformedEvents)
+    } catch (error) {
+      console.error('Error fetching calendar events:', error)
+      setCalendarEvents([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getEventTypeColor = (type: string, isConfirmed: boolean) => {
+    const baseColors = {
+      interview: isConfirmed
+        ? "bg-blue-100 text-blue-800 border-blue-300"
+        : "bg-blue-50 text-blue-700 border-blue-200",
+      meet_greet: isConfirmed
+        ? "bg-purple-100 text-purple-800 border-purple-300"
+        : "bg-purple-50 text-purple-700 border-purple-200",
+      home_visit: isConfirmed
+        ? "bg-green-100 text-green-800 border-green-300"
+        : "bg-green-50 text-green-700 border-green-200",
+      appointment: "bg-blue-100 text-blue-800 border-blue-200",
+      training: "bg-green-100 text-green-800 border-green-200",
+      event: "bg-purple-100 text-purple-800 border-purple-200",
+      visit: "bg-orange-100 text-orange-800 border-orange-200",
+    }
+
+    return baseColors[type as keyof typeof baseColors] || "bg-gray-100 text-gray-800 border-gray-200"
+  }
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
@@ -124,7 +167,7 @@ export default function CalendarPage() {
   }
 
   const getEventsForDate = (date: Date) => {
-    return mockEvents.filter(event => isSameDay(event.date, date))
+    return calendarEvents.filter(event => isSameDay(event.date, date))
   }
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -283,6 +326,11 @@ export default function CalendarPage() {
                           <span className="truncate font-medium">
                             {event.title}
                           </span>
+                          {event.interviewId && (
+                            <span className="text-[8px]">
+                              {event.isConfirmed ? '✓' : '?'}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 opacity-75">
                           <Clock className="h-2 w-2" />
@@ -504,18 +552,54 @@ export default function CalendarPage() {
                       <div className="flex items-start gap-4">
                         <span className="text-2xl mt-1">{getEventTypeIcon(event.type)}</span>
                         <div className="flex-1">
-                          <h4 className="font-semibold text-lg text-gray-900 mb-2">{event.title}</h4>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-lg text-gray-900">{event.title}</h4>
+                            {event.interviewId && (
+                              <Badge
+                                variant={event.isConfirmed ? "default" : "outline"}
+                                className={event.isConfirmed ? "bg-green-600" : ""}
+                              >
+                                {event.isConfirmed ? (
+                                  <>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Confirmed
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Pending Response
+                                  </>
+                                )}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               <Clock className="h-4 w-4 text-teal-600" />
                               <span>{event.time}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <MapPin className="h-4 w-4 text-teal-600" />
-                              <span>{event.location}</span>
-                            </div>
+                            {event.location && (
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <MapPin className="h-4 w-4 text-teal-600" />
+                                <span>{event.location}</span>
+                              </div>
+                            )}
                           </div>
                           <p className="text-sm text-gray-700 mt-3 leading-relaxed">{event.description}</p>
+
+                          {/* Interview Actions */}
+                          {event.interviewId && !event.isConfirmed && user?.role === 'adopter' && (
+                            <div className="flex gap-2 mt-4">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                Accept
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Decline
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

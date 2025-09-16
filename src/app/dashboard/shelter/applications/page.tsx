@@ -59,6 +59,8 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/AuthContext"
 import { applicationsService, ApplicationWithDetails } from "@/lib/services/applications"
+import { interviewsService, CreateInterviewData } from "@/lib/services/interviews"
+import { InterviewScheduler } from "@/components/ui/interview-scheduler"
 import { toast } from "sonner"
 
 // Animation variants
@@ -260,6 +262,46 @@ export default function ShelterApplicationsPage() {
     await updateApplicationStatus(applicationId, newStatus, reviewerNotes)
   }
 
+  const handleScheduleInterview = async (data: CreateInterviewData & { applicationId: string }) => {
+    if (!user) return
+
+    try {
+      // Schedule the interview
+      await interviewsService.scheduleInterview(data, user)
+
+      // Update application status based on interview type
+      const newStatus = data.type === 'interview' ? 'interview_scheduled' :
+                       data.type === 'meet_greet' ? 'meet_greet_scheduled' :
+                       'home_visit_scheduled'
+
+      await updateApplicationStatus(data.applicationId, newStatus, `${interviewsService.getInterviewTypeLabel(data.type)} scheduled`)
+
+      toast.success(`${interviewsService.getInterviewTypeLabel(data.type)} scheduled successfully`)
+      setSchedulingDialog(null)
+
+      // Refresh applications
+      await fetchApplications()
+    } catch (error) {
+      console.error('Error scheduling interview:', error)
+      toast.error('Failed to schedule interview')
+    }
+  }
+
+  const openSchedulingDialog = (
+    applicationId: string,
+    petName: string,
+    applicantName: string,
+    interviewType?: "interview" | "meet_greet" | "home_visit"
+  ) => {
+    setSchedulingDialog({
+      open: true,
+      applicationId,
+      petName,
+      applicantName,
+      interviewType,
+    })
+  }
+
   const filteredApplications = applications.filter((app) => {
     const matchesTab = selectedTab === "all" || app.status === selectedTab
     const matchesSearch =
@@ -298,6 +340,15 @@ export default function ShelterApplicationsPage() {
   } | null>(null)
 
   const [statusNotes, setStatusNotes] = useState("")
+
+  // Interview scheduling state
+  const [schedulingDialog, setSchedulingDialog] = useState<{
+    open: boolean
+    applicationId: string
+    petName: string
+    applicantName: string
+    interviewType?: "interview" | "meet_greet" | "home_visit"
+  } | null>(null)
 
   if (!user) {
     return (
@@ -1064,10 +1115,11 @@ export default function ShelterApplicationsPage() {
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         onClick={() =>
-                                          handleStatusUpdate(
+                                          openSchedulingDialog(
                                             application.id,
-                                            "interview_scheduled",
-                                            "Interview scheduled by shelter staff",
+                                            application.pet.name,
+                                            application.adopter ? `${application.adopter.firstName} ${application.adopter.lastName}` : `${application.firstName} ${application.lastName}`,
+                                            "interview"
                                           )
                                         }
                                         disabled={isUpdating === application.id}
@@ -1077,10 +1129,11 @@ export default function ShelterApplicationsPage() {
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onClick={() =>
-                                          handleStatusUpdate(
+                                          openSchedulingDialog(
                                             application.id,
-                                            "meet_greet_scheduled",
-                                            "Meet & Greet scheduled by shelter staff",
+                                            application.pet.name,
+                                            application.adopter ? `${application.adopter.firstName} ${application.adopter.lastName}` : `${application.firstName} ${application.lastName}`,
+                                            "meet_greet"
                                           )
                                         }
                                         disabled={isUpdating === application.id}
@@ -1090,10 +1143,11 @@ export default function ShelterApplicationsPage() {
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onClick={() =>
-                                          handleStatusUpdate(
+                                          openSchedulingDialog(
                                             application.id,
-                                            "home_visit_scheduled",
-                                            "Home visit scheduled by shelter staff",
+                                            application.pet.name,
+                                            application.adopter ? `${application.adopter.firstName} ${application.adopter.lastName}` : `${application.firstName} ${application.lastName}`,
+                                            "home_visit"
                                           )
                                         }
                                         disabled={isUpdating === application.id}
@@ -1268,6 +1322,24 @@ export default function ShelterApplicationsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Interview Scheduler Dialog */}
+      {schedulingDialog && (
+        <InterviewScheduler
+          open={schedulingDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSchedulingDialog(null)
+            }
+          }}
+          applicationId={schedulingDialog.applicationId}
+          petName={schedulingDialog.petName}
+          applicantName={schedulingDialog.applicantName}
+          interviewType={schedulingDialog.interviewType}
+          onSchedule={handleScheduleInterview}
+          isLoading={isUpdating === schedulingDialog.applicationId}
+        />
+      )}
     </>
   )
 }
