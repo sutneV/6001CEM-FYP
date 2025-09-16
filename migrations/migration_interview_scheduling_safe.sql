@@ -168,7 +168,7 @@ BEGIN
             WHEN NEW.type = 'meet_greet' THEN 'Meet & Greet: ' || p.name
             WHEN NEW.type = 'home_visit' THEN 'Home Visit: ' || p.name
         END,
-        'Application ID: ' || NEW.application_id,
+        'Application ID: ' || NEW.application_id || E'\nApplicant: ' || a.first_name || ' ' || a.last_name,
         NEW.scheduled_date,
         NEW.scheduled_time,
         NEW.duration_minutes,
@@ -201,7 +201,7 @@ BEGIN
             WHEN NEW.type = 'meet_greet' THEN 'Meet & Greet: ' || p.name
             WHEN NEW.type = 'home_visit' THEN 'Home Visit: ' || p.name
         END,
-        'With ' || sh.name || ' shelter',
+        'Application ID: ' || NEW.application_id || E'\nShelter: ' || sh.name,
         NEW.scheduled_date,
         NEW.scheduled_time,
         NEW.duration_minutes,

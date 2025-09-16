@@ -1,3 +1,5 @@
+import { format } from 'date-fns'
+
 export interface InterviewData {
   id: string
   applicationId: string
@@ -80,7 +82,7 @@ class InterviewsService {
       },
       body: JSON.stringify({
         ...interviewData,
-        scheduledDate: interviewData.date.toISOString().split('T')[0],
+        scheduledDate: format(interviewData.date, 'yyyy-MM-dd'),
         scheduledTime: interviewData.time,
         durationMinutes: parseInt(interviewData.duration),
       }),

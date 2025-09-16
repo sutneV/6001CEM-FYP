@@ -529,7 +529,7 @@ export default function ShelterCalendarPage() {
                                     </span>
                                   </div>
                                 )}
-                                <div className="text-xs text-gray-600 mt-1">{event.description}</div>
+                                <div className="text-xs text-gray-600 mt-1 whitespace-pre-line">{event.description}</div>
                               </div>
                             )
                           }
@@ -626,7 +626,7 @@ export default function ShelterCalendarPage() {
                               </div>
                             )}
                           </div>
-                          <p className="text-sm text-gray-700 mt-3 leading-relaxed">{event.description}</p>
+                          <p className="text-sm text-gray-700 mt-3 leading-relaxed whitespace-pre-line">{event.description}</p>
                         </div>
                       </div>
                     </div>
