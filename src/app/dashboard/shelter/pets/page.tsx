@@ -311,13 +311,17 @@ export default function ShelterPetsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/shelter/pets/${pet.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Pet
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/shelter/pets/${pet.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Pet
+                              </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-red-600"

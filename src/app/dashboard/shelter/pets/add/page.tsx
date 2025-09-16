@@ -293,7 +293,7 @@ export default function AddPetPage() {
               <CardTitle className="text-lg">Add Pet Information</CardTitle>
               <CardDescription>Fill out the details below to add a new pet for adoption</CardDescription>
               <div className="mt-2">
-                <Progress value={formProgress} className="h-2" />
+                <Progress value={formProgress} className="h-2" indicatorClassName="bg-teal-500" />
                 <div className="flex justify-between mt-1 text-xs text-muted-foreground">
                   <span>Basic Info</span>
                   <span>Physical</span>
