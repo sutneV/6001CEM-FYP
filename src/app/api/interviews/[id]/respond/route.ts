@@ -41,33 +41,7 @@ export async function PATCH(
         status: adopterResponse ? 'confirmed' : 'cancelled'
       })
       .eq('id', params.id)
-      .select(`
-        *,
-        application:applications(
-          id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          pet:pets(
-            id,
-            name,
-            type,
-            breed
-          )
-        ),
-        shelter:shelters(
-          id,
-          name
-        ),
-        adopter:users(
-          id,
-          first_name,
-          last_name,
-          email,
-          phone
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
@@ -75,7 +49,43 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update interview' }, { status: 500 })
     }
 
-    return NextResponse.json(updatedInterview)
+    // Fetch related data separately to build the complete response
+    const { data: applicationData } = await supabase
+      .from('applications')
+      .select('id, first_name, last_name, email, phone, pet_id')
+      .eq('id', updatedInterview.application_id)
+      .single()
+
+    const { data: petData } = await supabase
+      .from('pets')
+      .select('id, name, type, breed')
+      .eq('id', applicationData?.pet_id)
+      .single()
+
+    const { data: shelterData } = await supabase
+      .from('shelters')
+      .select('id, name')
+      .eq('id', updatedInterview.shelter_id)
+      .single()
+
+    const { data: adopterData } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, phone')
+      .eq('id', updatedInterview.adopter_id)
+      .single()
+
+    // Build the complete response
+    const completeInterview = {
+      ...updatedInterview,
+      application: {
+        ...applicationData,
+        pet: petData
+      },
+      shelter: shelterData,
+      adopter: adopterData
+    }
+
+    return NextResponse.json(completeInterview)
   } catch (error) {
     console.error('Error in interview respond:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

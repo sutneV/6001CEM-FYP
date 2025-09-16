@@ -280,7 +280,16 @@ export default function NotificationsPage() {
                                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
                               )}
                               <Badge variant="outline" className="text-xs">
-                                {format(new Date(notification.createdAt), 'MMM d, h:mm a')}
+                                {(() => {
+                                  try {
+                                    if (!notification.createdAt) return 'No date'
+                                    const date = new Date(notification.createdAt)
+                                    if (isNaN(date.getTime())) return 'Invalid date'
+                                    return format(date, 'MMM d, h:mm a')
+                                  } catch (error) {
+                                    return 'Invalid date'
+                                  }
+                                })()}
                               </Badge>
                             </div>
                           </div>
@@ -298,10 +307,18 @@ export default function NotificationsPage() {
                                 <div className="flex items-center gap-2">
                                   <Calendar className="h-4 w-4 text-gray-500" />
                                   <span className="text-gray-600">
-                                    {notification.metadata.scheduled_date && notification.metadata.scheduled_time
-                                      ? format(new Date(`${notification.metadata.scheduled_date}T${notification.metadata.scheduled_time}`), 'EEEE, MMMM d, yyyy • h:mm a')
-                                      : 'Date to be confirmed'
-                                    }
+                                    {(() => {
+                                      try {
+                                        if (!notification.metadata.scheduled_date || !notification.metadata.scheduled_time) {
+                                          return 'Date to be confirmed'
+                                        }
+                                        const date = new Date(`${notification.metadata.scheduled_date}T${notification.metadata.scheduled_time}`)
+                                        if (isNaN(date.getTime())) return 'Invalid date'
+                                        return format(date, 'EEEE, MMMM d, yyyy • h:mm a')
+                                      } catch (error) {
+                                        return 'Invalid date'
+                                      }
+                                    })()}
                                   </span>
                                 </div>
                                 {notification.metadata.location && (
@@ -380,10 +397,18 @@ export default function NotificationsPage() {
                       <div>
                         <p className="text-sm font-medium">Date & Time</p>
                         <p className="text-sm text-gray-600">
-                          {responseDialog.notification.metadata?.scheduled_date && responseDialog.notification.metadata?.scheduled_time
-                            ? format(new Date(`${responseDialog.notification.metadata.scheduled_date}T${responseDialog.notification.metadata.scheduled_time}`), 'EEEE, MMMM d, yyyy • h:mm a')
-                            : 'To be confirmed'
-                          }
+                          {(() => {
+                            try {
+                              if (!responseDialog.notification.metadata?.scheduled_date || !responseDialog.notification.metadata?.scheduled_time) {
+                                return 'To be confirmed'
+                              }
+                              const date = new Date(`${responseDialog.notification.metadata.scheduled_date}T${responseDialog.notification.metadata.scheduled_time}`)
+                              if (isNaN(date.getTime())) return 'Invalid date'
+                              return format(date, 'EEEE, MMMM d, yyyy • h:mm a')
+                            } catch (error) {
+                              return 'Invalid date'
+                            }
+                          })()}
                         </p>
                       </div>
                     </div>

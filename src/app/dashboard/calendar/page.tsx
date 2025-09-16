@@ -112,9 +112,11 @@ export default function CalendarPage() {
         time: format(new Date(`${event.event_date}T${event.event_time}`), 'h:mm a'),
         location: event.location || '',
         description: event.description || '',
-        color: getEventTypeColor(event.event_type, event.is_confirmed),
+        color: getEventTypeColor(event.event_type, event.is_confirmed, event.interview_status, event.interview_response),
         isConfirmed: event.is_confirmed,
         interviewId: event.interview_id,
+        interviewStatus: event.interview_status,
+        interviewResponse: event.interview_response,
       }))
 
       setCalendarEvents(transformedEvents)
@@ -126,17 +128,35 @@ export default function CalendarPage() {
     }
   }
 
-  const getEventTypeColor = (type: string, isConfirmed: boolean) => {
+  const getEventTypeColor = (type: string, isConfirmed: boolean, interviewStatus?: string, interviewResponse?: boolean | null) => {
+    // Handle interview-specific statuses
+    if (['interview', 'meet_greet', 'home_visit'].includes(type)) {
+      // If interview was declined (response is false or status is cancelled)
+      if (interviewResponse === false || interviewStatus === 'cancelled') {
+        return "bg-red-100 text-red-800 border-red-300"
+      }
+
+      // If interview was confirmed (response is true or status is confirmed)
+      if (interviewResponse === true || interviewStatus === 'confirmed' || isConfirmed) {
+        const confirmedColors = {
+          interview: "bg-blue-100 text-blue-800 border-blue-300",
+          meet_greet: "bg-purple-100 text-purple-800 border-purple-300",
+          home_visit: "bg-green-100 text-green-800 border-green-300",
+        }
+        return confirmedColors[type as keyof typeof confirmedColors]
+      }
+
+      // Pending interviews (no response yet)
+      const pendingColors = {
+        interview: "bg-blue-50 text-blue-700 border-blue-200",
+        meet_greet: "bg-purple-50 text-purple-700 border-purple-200",
+        home_visit: "bg-green-50 text-green-700 border-green-200",
+      }
+      return pendingColors[type as keyof typeof pendingColors]
+    }
+
+    // Non-interview events
     const baseColors = {
-      interview: isConfirmed
-        ? "bg-blue-100 text-blue-800 border-blue-300"
-        : "bg-blue-50 text-blue-700 border-blue-200",
-      meet_greet: isConfirmed
-        ? "bg-purple-100 text-purple-800 border-purple-300"
-        : "bg-purple-50 text-purple-700 border-purple-200",
-      home_visit: isConfirmed
-        ? "bg-green-100 text-green-800 border-green-300"
-        : "bg-green-50 text-green-700 border-green-200",
       appointment: "bg-blue-100 text-blue-800 border-blue-200",
       training: "bg-green-100 text-green-800 border-green-200",
       event: "bg-purple-100 text-purple-800 border-purple-200",
@@ -328,7 +348,9 @@ export default function CalendarPage() {
                           </span>
                           {event.interviewId && (
                             <span className="text-[8px]">
-                              {event.isConfirmed ? '✓' : '?'}
+                              {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? '✓' :
+                               event.interviewResponse === false || event.interviewStatus === 'cancelled' ? '✕' :
+                               '?'}
                             </span>
                           )}
                         </div>
@@ -556,13 +578,26 @@ export default function CalendarPage() {
                             <h4 className="font-semibold text-lg text-gray-900">{event.title}</h4>
                             {event.interviewId && (
                               <Badge
-                                variant={event.isConfirmed ? "default" : "outline"}
-                                className={event.isConfirmed ? "bg-green-600" : ""}
+                                variant={
+                                  event.interviewResponse === true || event.interviewStatus === 'confirmed' ? "default" :
+                                  event.interviewResponse === false || event.interviewStatus === 'cancelled' ? "destructive" :
+                                  "outline"
+                                }
+                                className={
+                                  event.interviewResponse === true || event.interviewStatus === 'confirmed' ? "bg-green-600 text-white" :
+                                  event.interviewResponse === false || event.interviewStatus === 'cancelled' ? "bg-red-600 text-white" :
+                                  ""
+                                }
                               >
-                                {event.isConfirmed ? (
+                                {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? (
                                   <>
                                     <CheckCircle2 className="h-3 w-3 mr-1" />
                                     Confirmed
+                                  </>
+                                ) : event.interviewResponse === false || event.interviewStatus === 'cancelled' ? (
+                                  <>
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                    Declined
                                   </>
                                 ) : (
                                   <>
@@ -588,7 +623,12 @@ export default function CalendarPage() {
                           <p className="text-sm text-gray-700 mt-3 leading-relaxed">{event.description}</p>
 
                           {/* Interview Actions */}
-                          {event.interviewId && !event.isConfirmed && user?.role === 'adopter' && (
+                          {event.interviewId &&
+                           !event.isConfirmed &&
+                           event.interviewResponse === null &&
+                           event.interviewStatus !== 'confirmed' &&
+                           event.interviewStatus !== 'cancelled' &&
+                           user?.role === 'adopter' && (
                             <div className="flex gap-2 mt-4">
                               <Button size="sm" className="bg-green-600 hover:bg-green-700">
                                 <CheckCircle2 className="h-4 w-4 mr-1" />

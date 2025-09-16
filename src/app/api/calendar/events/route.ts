@@ -35,7 +35,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch calendar events' }, { status: 500 })
     }
 
-    return NextResponse.json(data || [])
+    // For events with interview_id, get the actual interview status
+    const transformedData = await Promise.all((data || []).map(async (event) => {
+      if (event.interview_id) {
+        // Get the actual interview status
+        const { data: interview } = await supabase
+          .from('interviews')
+          .select('status, adopter_response')
+          .eq('id', event.interview_id)
+          .single()
+
+        if (interview) {
+          return {
+            ...event,
+            // Override is_confirmed based on actual interview status
+            is_confirmed: interview.adopter_response === true || interview.status === 'confirmed',
+            interview_status: interview.status,
+            interview_response: interview.adopter_response
+          }
+        }
+      }
+
+      return event
+    }))
+
+    return NextResponse.json(transformedData)
   } catch (error) {
     console.error('Error in calendar events GET:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
