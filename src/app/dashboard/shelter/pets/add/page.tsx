@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,20 +9,39 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
-import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, ArrowRight, CheckCircle, ImagePlus, Loader2, Save, X, Upload, Sparkles } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import {
+  ArrowLeft,
+  CheckCircle,
+  ImagePlus,
+  Loader2,
+  Save,
+  X,
+  Sparkles,
+  PawPrint,
+  Heart,
+  Shield,
+  Home,
+  Star,
+  Camera,
+  Dog,
+  Cat,
+  Activity,
+  Zap,
+  Calendar,
+  MoreHorizontal
+} from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { imageUploadService } from "@/lib/utils/image-upload"
 import { toast } from "sonner"
+import Link from "next/link"
 
 export default function AddPetPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("basic")
+  const [activeSection, setActiveSection] = useState("basic")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formProgress, setFormProgress] = useState(25)
   const [showSuccess, setShowSuccess] = useState(false)
   const [images, setImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
@@ -54,6 +71,16 @@ export default function AddPetPage() {
     story: "",
   })
 
+  const sections = [
+    { id: "basic", label: "Basic Info", icon: PawPrint, color: "teal" },
+    { id: "physical", label: "Physical", icon: Activity, color: "blue" },
+    { id: "health", label: "Health", icon: Shield, color: "green" },
+    { id: "behavior", label: "Behavior", icon: Home, color: "purple" },
+    { id: "story", label: "Photos & Story", icon: Heart, color: "pink" }
+  ]
+
+  const getCurrentSection = () => sections.find(s => s.id === activeSection) || sections[0]
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setPetData((prev) => ({ ...prev, [name]: value }))
@@ -71,29 +98,9 @@ export default function AddPetPage() {
     setPetData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-
-    // Update progress based on tab
-    switch (value) {
-      case "basic":
-        setFormProgress(25)
-        break
-      case "physical":
-        setFormProgress(50)
-        break
-      case "health":
-        setFormProgress(75)
-        break
-      case "media":
-        setFormProgress(100)
-        break
-    }
-  }
-
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
-    
+
     if (files.length === 0) return
 
     // Validate images
@@ -119,15 +126,15 @@ export default function AddPetPage() {
           return { url: previewUrl, isUploaded: false }
         })
       )
-      
+
       setImagePreviews(prev => [...prev, ...newPreviews])
 
       // Upload images to server
       const uploadedUrls = await imageUploadService.uploadImages(files)
-      
+
       // Update images state with uploaded URLs
       setImages(prev => [...prev, ...uploadedUrls])
-      
+
       // Update previews to mark as uploaded
       setImagePreviews(prev => {
         const updated = [...prev]
@@ -145,7 +152,7 @@ export default function AddPetPage() {
     } catch (error) {
       console.error('Upload failed:', error)
       toast.error('Failed to upload images. Please try again.')
-      
+
       // Remove failed previews
       setImagePreviews(prev => prev.slice(0, prev.length - files.length))
     } finally {
@@ -157,16 +164,16 @@ export default function AddPetPage() {
 
   const removeImage = (index: number) => {
     const preview = imagePreviews[index]
-    
+
     // Remove from previews
     setImagePreviews((prev) => prev.filter((_, i) => i !== index))
-    
+
     // If the image was uploaded, also remove from images array
     if (preview?.isUploaded) {
       const imageUrl = preview.url
       setImages((prev) => prev.filter(url => url !== imageUrl))
     }
-    
+
     toast.success('Image removed')
   }
 
@@ -177,7 +184,7 @@ export default function AddPetPage() {
     }
 
     setIsEnhancingStory(true)
-    
+
     try {
       const response = await fetch('/api/enhance-story', {
         method: 'POST',
@@ -198,18 +205,16 @@ export default function AddPetPage() {
         })
       })
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.error || 'Failed to enhance story')
+      if (response.ok) {
+        const result = await response.json()
+        setPetData(prev => ({ ...prev, story: result.enhancedStory }))
+        toast.success('Story enhanced with AI successfully!')
+      } else {
+        throw new Error('Failed to enhance story')
       }
-
-      const { enhancedStory } = await response.json()
-      
-      setPetData(prev => ({ ...prev, story: enhancedStory }))
-      toast.success('Story enhanced successfully!')
     } catch (error) {
       console.error('Error enhancing story:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to enhance story. Please try again.')
+      toast.error('Failed to enhance story. Please try again.')
     } finally {
       setIsEnhancingStory(false)
     }
@@ -217,12 +222,19 @@ export default function AddPetPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Basic validation
+    if (!petData.name || !petData.description || !petData.age || !petData.gender) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       // Import the pets service
       const { petsService } = await import('@/lib/services/pets')
-      
+
       // Prepare the data for submission
       const petSubmissionData = {
         name: petData.name,
@@ -258,518 +270,586 @@ export default function AddPetPage() {
     } catch (error) {
       setIsSubmitting(false)
       console.error('Error creating pet:', error)
-      // Import toast dynamically to show error
-      const { toast } = await import('sonner')
       toast.error('Failed to create pet. Please try again.')
     }
   }
 
-  return (
+  const getFormProgress = () => {
+    const totalFields = 8 // Essential fields
+    let completedFields = 0
+
+    if (petData.name) completedFields++
+    if (petData.description) completedFields++
+    if (petData.age) completedFields++
+    if (petData.gender) completedFields++
+    if (petData.type) completedFields++
+    if (petData.breed) completedFields++
+    if (images.length > 0) completedFields++
+    if (petData.story) completedFields++
+
+    return Math.round((completedFields / totalFields) * 100)
+  }
+
+  const renderBasicInfo = () => (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Add New Pet</h1>
-          <p className="text-muted-foreground">Add a new pet to your shelter for adoption</p>
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Star className="h-5 w-5 text-teal-500 mr-2" />
+          Essential Information
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-sm font-medium text-gray-700">Pet Name *</Label>
+            <Input
+              id="name"
+              name="name"
+              value={petData.name}
+              onChange={handleInputChange}
+              placeholder="e.g., Buddy, Luna, Max"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="type" className="text-sm font-medium text-gray-700">Pet Type *</Label>
+            <Select value={petData.type} onValueChange={(value) => handleSelectChange("type", value)} required>
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                <SelectValue placeholder="Select pet type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dog">🐕 Dog</SelectItem>
+                <SelectItem value="cat">🐱 Cat</SelectItem>
+                <SelectItem value="rabbit">🐰 Rabbit</SelectItem>
+                <SelectItem value="bird">🐦 Bird</SelectItem>
+                <SelectItem value="hamster">🐹 Hamster</SelectItem>
+                <SelectItem value="guinea_pig">🐹 Guinea Pig</SelectItem>
+                <SelectItem value="reptile">🦎 Reptile</SelectItem>
+                <SelectItem value="fish">🐠 Fish</SelectItem>
+                <SelectItem value="other">🐾 Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="breed" className="text-sm font-medium text-gray-700">Breed</Label>
+            <Input
+              id="breed"
+              name="breed"
+              value={petData.breed}
+              onChange={handleInputChange}
+              placeholder="e.g., Golden Retriever, Persian, Mixed"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="age" className="text-sm font-medium text-gray-700">Age *</Label>
+            <Select value={petData.age} onValueChange={(value) => handleSelectChange("age", value)} required>
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                <SelectValue placeholder="Select age range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="puppy">🐶 Puppy/Kitten (0-1 year)</SelectItem>
+                <SelectItem value="young">🐕 Young (1-3 years)</SelectItem>
+                <SelectItem value="adult">🐕‍🦺 Adult (3-7 years)</SelectItem>
+                <SelectItem value="senior">🐕‍🦺 Senior (7+ years)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+
+        <div className="space-y-3 mt-6">
+          <Label className="text-sm font-medium text-gray-700">Gender *</Label>
+          <RadioGroup
+            value={petData.gender}
+            onValueChange={(value) => handleRadioChange("gender", value)}
+            className="flex flex-row space-x-6"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="male" id="male" className="text-teal-500" />
+              <Label htmlFor="male" className="text-sm text-gray-700">Male</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="female" id="female" className="text-teal-500" />
+              <Label htmlFor="female" className="text-sm text-gray-700">Female</Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        <div className="space-y-2 mt-6">
+          <Label htmlFor="description" className="text-sm font-medium text-gray-700">Short Description *</Label>
+          <Textarea
+            id="description"
+            name="description"
+            value={petData.description}
+            onChange={handleInputChange}
+            placeholder="A brief, appealing description of the pet's personality and traits..."
+            rows={3}
+            className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+            required
+          />
+          <p className="text-xs text-gray-500">
+            This will be the main description potential adopters see first.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderPhysicalInfo = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Activity className="h-5 w-5 text-blue-500 mr-2" />
+          Physical Characteristics
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="size" className="text-sm font-medium text-gray-700">Size</Label>
+            <Select value={petData.size} onValueChange={(value) => handleSelectChange("size", value)}>
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                <SelectValue placeholder="Select size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="small">Small (0-25 lbs)</SelectItem>
+                <SelectItem value="medium">Medium (26-60 lbs)</SelectItem>
+                <SelectItem value="large">Large (61-100 lbs)</SelectItem>
+                <SelectItem value="extra_large">Extra Large (100+ lbs)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="weight" className="text-sm font-medium text-gray-700">Weight (kg)</Label>
+            <Input
+              id="weight"
+              name="weight"
+              type="number"
+              value={petData.weight}
+              onChange={handleInputChange}
+              placeholder="e.g., 25"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="color" className="text-sm font-medium text-gray-700">Color/Markings</Label>
+            <Input
+              id="color"
+              name="color"
+              value={petData.color}
+              onChange={handleInputChange}
+              placeholder="e.g., Golden, Black & White, Tabby"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderHealthInfo = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Shield className="h-5 w-5 text-green-500 mr-2" />
+          Health Information
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="vaccinated"
+              checked={petData.vaccinated}
+              onCheckedChange={(checked) => handleCheckboxChange("vaccinated", checked as boolean)}
+              className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+            />
+            <Label htmlFor="vaccinated" className="text-sm font-medium text-gray-700">Vaccinated</Label>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="neutered"
+              checked={petData.neutered}
+              onCheckedChange={(checked) => handleCheckboxChange("neutered", checked as boolean)}
+              className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+            />
+            <Label htmlFor="neutered" className="text-sm font-medium text-gray-700">Spayed/Neutered</Label>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="microchipped"
+              checked={petData.microchipped}
+              onCheckedChange={(checked) => handleCheckboxChange("microchipped", checked as boolean)}
+              className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+            />
+            <Label htmlFor="microchipped" className="text-sm font-medium text-gray-700">Microchipped</Label>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <div className="flex items-center space-x-3 mb-4">
+            <Checkbox
+              id="specialNeeds"
+              checked={petData.specialNeeds}
+              onCheckedChange={(checked) => handleCheckboxChange("specialNeeds", checked as boolean)}
+              className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+            />
+            <Label htmlFor="specialNeeds" className="text-sm font-medium text-gray-700">This pet has special needs</Label>
+          </div>
+
+          {petData.specialNeeds && (
+            <div className="space-y-2">
+              <Label htmlFor="specialNeedsDescription" className="text-sm font-medium text-gray-700">Special Needs Description</Label>
+              <Textarea
+                id="specialNeedsDescription"
+                name="specialNeedsDescription"
+                value={petData.specialNeedsDescription}
+                onChange={handleInputChange}
+                placeholder="Describe any special medical needs, dietary requirements, or care instructions..."
+                rows={3}
+                className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderBehaviorInfo = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Home className="h-5 w-5 text-purple-500 mr-2" />
+          Behavioral Information
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="houseTrained"
+              checked={petData.houseTrained}
+              onCheckedChange={(checked) => handleCheckboxChange("houseTrained", checked as boolean)}
+              className="data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+            />
+            <Label htmlFor="houseTrained" className="text-sm font-medium text-gray-700">House Trained</Label>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="goodWithKids"
+              checked={petData.goodWithKids}
+              onCheckedChange={(checked) => handleCheckboxChange("goodWithKids", checked as boolean)}
+              className="data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+            />
+            <Label htmlFor="goodWithKids" className="text-sm font-medium text-gray-700">Good with Children</Label>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="goodWithDogs"
+              checked={petData.goodWithDogs}
+              onCheckedChange={(checked) => handleCheckboxChange("goodWithDogs", checked as boolean)}
+              className="data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+            />
+            <Label htmlFor="goodWithDogs" className="text-sm font-medium text-gray-700">Good with Dogs</Label>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+            <Checkbox
+              id="goodWithCats"
+              checked={petData.goodWithCats}
+              onCheckedChange={(checked) => handleCheckboxChange("goodWithCats", checked as boolean)}
+              className="data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
+            />
+            <Label htmlFor="goodWithCats" className="text-sm font-medium text-gray-700">Good with Cats</Label>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderStoryAndPhotos = () => (
+    <div className="space-y-6">
+      {/* Photo Upload */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Camera className="h-5 w-5 text-pink-500 mr-2" />
+          Pet Photos
+        </h3>
+
+        {/* Image Upload Area */}
+        <div
+          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-teal-400 transition-colors cursor-pointer"
+          onClick={() => {
+            const input = document.getElementById('image-upload') as HTMLInputElement
+            input?.click()
+          }}
+        >
+          <input
+            id="image-upload"
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="sr-only"
+            disabled={isUploading}
+          />
+          <ImagePlus className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <div className="text-sm font-medium text-teal-600 hover:text-teal-500 mb-2">
+            {isUploading ? "Uploading..." : "Click to upload photos"}
+          </div>
+          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB each (max 5 photos)</p>
+        </div>
+
+        {/* Image Previews */}
+        {imagePreviews.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="relative group">
+                <div className="aspect-square overflow-hidden rounded-lg border border-gray-200">
+                  <img
+                    src={preview.url}
+                    alt={`Pet photo ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {!preview.isUploaded && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => removeImage(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {showSuccess ? (
-        <Alert className="bg-green-50 border-green-200">
-          <CheckCircle className="h-5 w-5 text-green-500" />
-          <AlertTitle className="text-green-800">Success!</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Pet has been successfully added to your shelter. Redirecting to pets list...
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <>
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Add Pet Information</CardTitle>
-              <CardDescription>Fill out the details below to add a new pet for adoption</CardDescription>
-              <div className="mt-2">
-                <Progress value={formProgress} className="h-2" indicatorClassName="bg-teal-500" />
-                <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                  <span>Basic Info</span>
-                  <span>Physical</span>
-                  <span>Health & Behavior</span>
-                  <span>Photos & Story</span>
-                </div>
+      {/* Pet Story */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900 flex items-center">
+            <Heart className="h-5 w-5 text-pink-500 mr-2" />
+            Pet's Story
+          </h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={enhanceStoryWithAI}
+            disabled={isEnhancingStory || !petData.story.trim()}
+            className="border-purple-200 text-purple-600 hover:bg-purple-50"
+          >
+            {isEnhancingStory ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enhancing...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Enhance with AI
+              </>
+            )}
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          <Textarea
+            id="story"
+            name="story"
+            value={petData.story}
+            onChange={handleInputChange}
+            placeholder="Share this pet's unique story, personality, likes, dislikes, and what makes them special..."
+            rows={6}
+            className="resize-none border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+          />
+          <p className="text-xs text-gray-500">
+            A compelling story helps potential adopters connect emotionally with the pet.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case "basic": return renderBasicInfo()
+      case "physical": return renderPhysicalInfo()
+      case "health": return renderHealthInfo()
+      case "behavior": return renderBehaviorInfo()
+      case "story": return renderStoryAndPhotos()
+      default: return renderBasicInfo()
+    }
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
+      {/* Left Sidebar - Navigation & Preview */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <Link href="/dashboard/shelter/pets">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Pets
+              </Button>
+            </Link>
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Pet Preview */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="text-center mb-4">
+            <Avatar className="h-24 w-24 mx-auto mb-3 border-4 border-white shadow-lg">
+              <AvatarImage
+                src={imagePreviews.length > 0 ? imagePreviews[0].url : "/placeholder.svg"}
+                alt={petData.name || "New Pet"}
+                className="object-cover"
+              />
+              <AvatarFallback className="text-2xl bg-teal-100 text-teal-600">
+                {petData.name ? petData.name[0] : '?'}
+              </AvatarFallback>
+            </Avatar>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
+              {petData.name || "New Pet"}
+            </h1>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              {petData.type === 'dog' ? (
+                <Dog className="h-4 w-4 text-gray-500" />
+              ) : petData.type === 'cat' ? (
+                <Cat className="h-4 w-4 text-gray-500" />
+              ) : (
+                <PawPrint className="h-4 w-4 text-gray-500" />
+              )}
+              <span className="text-gray-600 capitalize">{petData.type}</span>
+              {petData.breed && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-600">{petData.breed}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-gray-600">Form Progress</span>
+              <span className="text-xs text-gray-500">{getFormProgress()}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-teal-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${getFormProgress()}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-2">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">FORM SECTIONS</h3>
+            {sections.map((section) => {
+              const Icon = section.icon
+              const isActive = activeSection === section.id
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all ${
+                    isActive
+                      ? 'bg-teal-50 border border-teal-200 text-teal-700 shadow-sm'
+                      : 'hover:bg-gray-50 text-gray-700 border border-transparent'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-teal-500' : 'text-gray-400'}`} />
+                  <span className="text-sm font-medium">{section.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </ScrollArea>
+
+        {/* Submit Button */}
+        <div className="p-4 border-t border-gray-200">
+          {showSuccess ? (
+            <Alert className="border-green-200 bg-green-50 mb-4">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Pet Added Successfully!</AlertTitle>
+              <AlertDescription className="text-green-700">
+                Redirecting you to the pets page...
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !petData.name || !petData.description}
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding Pet...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Add Pet
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Right Content Area */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Content Header */}
+        <div className="border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {React.createElement(getCurrentSection().icon, {
+                className: `h-6 w-6 text-${getCurrentSection().color}-500`
+              })}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">{getCurrentSection().label}</h2>
+                <p className="text-gray-600">
+                  {activeSection === "basic" && "Essential information about the pet"}
+                  {activeSection === "physical" && "Physical characteristics and appearance"}
+                  {activeSection === "health" && "Health status and medical information"}
+                  {activeSection === "behavior" && "Behavioral traits and compatibility"}
+                  {activeSection === "story" && "Photos and personal story"}
+                </p>
               </div>
-            </CardHeader>
-          </Card>
+            </div>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid grid-cols-4">
-                <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                <TabsTrigger value="physical">Physical</TabsTrigger>
-                <TabsTrigger value="health">Health & Behavior</TabsTrigger>
-                <TabsTrigger value="media">Photos & Story</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="basic">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                    <CardDescription>Enter the basic details about the pet</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="name">
-                          Pet Name <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="name"
-                          name="name"
-                          placeholder="Enter pet name"
-                          value={petData.name}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>
-                          Pet Type <span className="text-red-500">*</span>
-                        </Label>
-                        <RadioGroup
-                          defaultValue={petData.type}
-                          onValueChange={(value) => handleRadioChange("type", value)}
-                          className="flex flex-wrap gap-4"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="dog" id="dog" />
-                            <Label htmlFor="dog">Dog</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="cat" id="cat" />
-                            <Label htmlFor="cat">Cat</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="rabbit" id="rabbit" />
-                            <Label htmlFor="rabbit">Rabbit</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="bird" id="bird" />
-                            <Label htmlFor="bird">Bird</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="other" id="other" />
-                            <Label htmlFor="other">Other</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="breed">Breed</Label>
-                        <Input
-                          id="breed"
-                          name="breed"
-                          placeholder="Enter breed"
-                          value={petData.breed}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="age">
-                          Age <span className="text-red-500">*</span>
-                        </Label>
-                        <Select onValueChange={(value) => handleSelectChange("age", value)} defaultValue={petData.age}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select age" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="baby">Baby (0-6 months)</SelectItem>
-                            <SelectItem value="young">Young (6 months-2 years)</SelectItem>
-                            <SelectItem value="adult">Adult (2-8 years)</SelectItem>
-                            <SelectItem value="senior">Senior (8+ years)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>
-                        Gender <span className="text-red-500">*</span>
-                      </Label>
-                      <RadioGroup
-                        defaultValue={petData.gender}
-                        onValueChange={(value) => handleRadioChange("gender", value)}
-                        className="flex space-x-4"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="male" id="male" />
-                          <Label htmlFor="male">Male</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="female" id="female" />
-                          <Label htmlFor="female">Female</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="unknown" id="unknown" />
-                          <Label htmlFor="unknown">Unknown</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={() => router.back()}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => handleTabChange("physical")}>
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="physical">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Physical Characteristics</CardTitle>
-                    <CardDescription>Describe the physical attributes of the pet</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="size">Size</Label>
-                        <Select
-                          onValueChange={(value) => handleSelectChange("size", value)}
-                          defaultValue={petData.size}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select size" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="small">Small</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="large">Large</SelectItem>
-                            <SelectItem value="xlarge">Extra Large</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="weight">Weight (kg)</Label>
-                        <Input
-                          id="weight"
-                          name="weight"
-                          type="number"
-                          placeholder="Enter weight in kg"
-                          value={petData.weight}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="color">Color</Label>
-                      <Input
-                        id="color"
-                        name="color"
-                        placeholder="Enter color(s)"
-                        value={petData.color}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="specialNeeds"
-                          checked={petData.specialNeeds}
-                          onCheckedChange={(checked) => handleCheckboxChange("specialNeeds", checked as boolean)}
-                        />
-                        <Label htmlFor="specialNeeds">This pet has special needs</Label>
-                      </div>
-
-                      {petData.specialNeeds && (
-                        <div className="mt-2">
-                          <Label htmlFor="specialNeedsDescription">Special Needs Description</Label>
-                          <Textarea
-                            id="specialNeedsDescription"
-                            name="specialNeedsDescription"
-                            placeholder="Describe special needs or requirements"
-                            value={petData.specialNeedsDescription}
-                            onChange={handleInputChange}
-                            className="mt-1"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={() => handleTabChange("basic")}>
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                    <Button onClick={() => handleTabChange("health")}>
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="health">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Health & Behavior</CardTitle>
-                    <CardDescription>Provide information about the pet's health and behavior</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Medical Information</Label>
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="vaccinated"
-                                checked={petData.vaccinated}
-                                onCheckedChange={(checked) => handleCheckboxChange("vaccinated", checked as boolean)}
-                              />
-                              <Label htmlFor="vaccinated">Vaccinated</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="neutered"
-                                checked={petData.neutered}
-                                onCheckedChange={(checked) => handleCheckboxChange("neutered", checked as boolean)}
-                              />
-                              <Label htmlFor="neutered">Spayed/Neutered</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="microchipped"
-                                checked={petData.microchipped}
-                                onCheckedChange={(checked) => handleCheckboxChange("microchipped", checked as boolean)}
-                              />
-                              <Label htmlFor="microchipped">Microchipped</Label>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Behavior & Training</Label>
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id="houseTrained"
-                                checked={petData.houseTrained}
-                                onCheckedChange={(checked) => handleCheckboxChange("houseTrained", checked as boolean)}
-                              />
-                              <Label htmlFor="houseTrained">House Trained</Label>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      <div className="space-y-2">
-                        <Label>Good With</Label>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="goodWithKids"
-                              checked={petData.goodWithKids}
-                              onCheckedChange={(checked) => handleCheckboxChange("goodWithKids", checked as boolean)}
-                            />
-                            <Label htmlFor="goodWithKids">Kids</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="goodWithDogs"
-                              checked={petData.goodWithDogs}
-                              onCheckedChange={(checked) => handleCheckboxChange("goodWithDogs", checked as boolean)}
-                            />
-                            <Label htmlFor="goodWithDogs">Dogs</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id="goodWithCats"
-                              checked={petData.goodWithCats}
-                              onCheckedChange={(checked) => handleCheckboxChange("goodWithCats", checked as boolean)}
-                            />
-                            <Label htmlFor="goodWithCats">Cats</Label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={() => handleTabChange("physical")}>
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                    <Button onClick={() => handleTabChange("media")}>
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="media">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Photos & Story</CardTitle>
-                    <CardDescription>Upload photos and share the pet's story</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Pet Photos</Label>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                        {imagePreviews.map((preview, index) => (
-                          <div key={index} className="relative rounded-md overflow-hidden border h-40">
-                            <img
-                              src={preview.url}
-                              alt={`Pet image ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                            {!preview.isUploaded && (
-                              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin text-white" />
-                              </div>
-                            )}
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="absolute top-2 right-2 h-6 w-6"
-                              onClick={() => removeImage(index)}
-                              disabled={!preview.isUploaded}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-
-                        {imagePreviews.length < 5 && (
-                          <div className="relative">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={handleImageUpload}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                              disabled={isUploading}
-                            />
-                            <div className="border border-dashed rounded-md flex flex-col items-center justify-center h-40 hover:bg-muted/50 transition-colors">
-                              {isUploading ? (
-                                <>
-                                  <Loader2 className="h-10 w-10 text-muted-foreground mb-2 animate-spin" />
-                                  <p className="text-sm text-muted-foreground">Uploading...</p>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                                  <p className="text-sm text-muted-foreground">Click to upload photos</p>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-xs text-muted-foreground">
-                          Upload up to 5 photos (JPG, PNG, WEBP). Max 5MB each. First photo will be the main display image.
-                        </p>
-                        <p className="text-xs text-muted-foreground font-medium">
-                          {imagePreviews.length}/5 photos
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="description">
-                        Short Description <span className="text-red-500">*</span>
-                      </Label>
-                      <Textarea
-                        id="description"
-                        name="description"
-                        placeholder="Brief description for listings (max 150 characters)"
-                        value={petData.description}
-                        onChange={handleInputChange}
-                        maxLength={150}
-                        required
-                      />
-                      <div className="text-xs text-right text-muted-foreground">{petData.description.length}/150</div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="story">Pet's Story</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={enhanceStoryWithAI}
-                          disabled={isEnhancingStory || !petData.story.trim()}
-                          className="text-xs"
-                        >
-                          {isEnhancingStory ? (
-                            <>
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                              Enhancing...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="mr-1 h-3 w-3" />
-                              Enhance with AI
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      <Textarea
-                        id="story"
-                        name="story"
-                        placeholder="Share this pet's background, personality, and any special stories. Write a short story and click 'Enhance with AI' to make it more engaging!"
-                        value={petData.story}
-                        onChange={handleInputChange}
-                        className="min-h-[150px]"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        💡 Tip: Write a brief story about the pet, then use AI to make it more engaging and heartwarming for potential adopters.
-                      </p>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={() => handleTabChange("health")}>
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Pet
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </form>
-        </>
-      )}
+        {/* Scrollable Content */}
+        <ScrollArea className="flex-1 p-6">
+          {renderContent()}
+        </ScrollArea>
+      </div>
     </div>
   )
 }
