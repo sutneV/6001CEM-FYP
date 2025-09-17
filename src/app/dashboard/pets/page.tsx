@@ -372,7 +372,7 @@ export default function PetsPage() {
                             View Profile
                           </Button>
                         </Link>
-                        <Link href={`/apply/${pet.id}`} className="flex-1">
+                        <Link href={`/dashboard/pets/${pet.id}/apply`} className="flex-1">
                           <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply Now</Button>
                         </Link>
                       </div>
