@@ -1,18 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft,
   Check,
-  ChevronLeft,
-  ChevronRight,
+  CheckCircle,
   FileText,
   Heart,
   Home,
   Info,
+  Loader2,
+  MoreHorizontal,
   PawPrint,
   Save,
   User,
@@ -20,15 +20,17 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DatePicker } from "@/components/ui/date-picker"
 import { toast } from "sonner"
@@ -36,86 +38,17 @@ import { useAuth } from "@/contexts/AuthContext"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
 import { applicationsService } from "@/lib/services/applications"
 
-// Animation variants
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6 },
-  },
-}
-
-const slideIn = {
-  hidden: { opacity: 0, x: 50 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: { duration: 0.5 },
-  },
-  exit: {
-    opacity: 0,
-    x: -50,
-    transition: { duration: 0.3 },
-  },
-}
-
-// Form steps configuration
-const formSteps = [
-  {
-    id: "personal",
-    title: "Personal Information",
-    description: "Tell us about yourself",
-    icon: User,
-    fields: ["firstName", "lastName", "email", "phone", "dateOfBirth", "occupation"],
-  },
-  {
-    id: "living",
-    title: "Living Situation",
-    description: "About your home and lifestyle",
-    icon: Home,
-    fields: ["housingType", "ownRent", "address", "landlordPermission", "yardType", "householdSize"],
-  },
-  {
-    id: "experience",
-    title: "Pet Experience",
-    description: "Your history with pets",
-    icon: PawPrint,
-    fields: ["previousPets", "currentPets", "petExperience", "veterinarian"],
-  },
-  {
-    id: "lifestyle",
-    title: "Lifestyle & Preferences",
-    description: "How a pet fits into your life",
-    icon: Heart,
-    fields: ["workSchedule", "exerciseCommitment", "travelFrequency", "petPreferences"],
-  },
-  {
-    id: "household",
-    title: "Household Members",
-    description: "Who lives with you",
-    icon: Users,
-    fields: ["householdMembers", "allergies", "childrenAges"],
-  },
-  {
-    id: "agreement",
-    title: "Agreement & References",
-    description: "Final details and consent",
-    icon: FileText,
-    fields: ["references", "emergencyContact", "agreements"],
-  },
-]
-
 export default function PetApplicationPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
   const petId = params.id as string
-  
+
   const [pet, setPet] = useState<PetWithShelter | null>(null)
   const [loading, setLoading] = useState(true)
-  const [currentStep, setCurrentStep] = useState(0)
+  const [activeSection, setActiveSection] = useState("personal")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
   const [formData, setFormData] = useState({
     // Personal Information
     firstName: "",
@@ -153,10 +86,19 @@ export default function PetApplicationPage() {
     // Agreement
     references: "",
     emergencyContact: "",
-    agreements: [],
+    agreements: [] as number[],
   })
 
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const sections = [
+    { id: "personal", label: "Personal Info", icon: User, color: "teal" },
+    { id: "living", label: "Living Situation", icon: Home, color: "blue" },
+    { id: "experience", label: "Pet Experience", icon: PawPrint, color: "amber" },
+    { id: "lifestyle", label: "Lifestyle", icon: Heart, color: "pink" },
+    { id: "household", label: "Household", icon: Users, color: "indigo" },
+    { id: "agreement", label: "Agreement", icon: FileText, color: "emerald" }
+  ]
+
+  const getCurrentSection = () => sections.find(s => s.id === activeSection) || sections[0]
 
   // Pre-populate user data if available
   useEffect(() => {
@@ -198,17 +140,65 @@ export default function PetApplicationPage() {
     }))
   }
 
-  const nextStep = () => {
-    if (currentStep < formSteps.length - 1) {
-      setCurrentStep(currentStep + 1)
+  // Helper functions for form validation
+  const isFieldFilled = (field: string) => {
+    const value = formData[field as keyof typeof formData]
+    if (field === 'dateOfBirth') {
+      return !!value
     }
+    if (field === 'agreements') {
+      return Array.isArray(value) && value.length >= 6
+    }
+    return value !== undefined && value !== null && value.toString().trim() !== ''
   }
 
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
+  const getSectionProgress = (sectionId: string) => {
+    const section = sections.find(s => s.id === sectionId)
+    if (!section) return 0
+
+    let fields: string[] = []
+    switch (sectionId) {
+      case "personal":
+        fields = ["firstName", "lastName", "email", "phone", "dateOfBirth", "occupation"]
+        break
+      case "living":
+        fields = ["housingType", "ownRent", "address", "yardType", "householdSize"]
+        if (formData.ownRent === "rent") {
+          fields.push("landlordPermission")
+        }
+        break
+      case "experience":
+        fields = ["previousPets", "currentPets", "veterinarian"]
+        break
+      case "lifestyle":
+        fields = ["workSchedule", "exerciseCommitment", "travelFrequency", "petPreferences"]
+        break
+      case "household":
+        fields = ["householdMembers", "allergies"]
+        break
+      case "agreement":
+        fields = ["references", "emergencyContact", "agreements"]
+        break
     }
+
+    const filledFields = fields.filter(field => isFieldFilled(field))
+    return fields.length > 0 ? (filledFields.length / fields.length) * 100 : 0
   }
+
+  const getFormProgress = () => {
+    const totalSections = sections.length
+    let completedSections = 0
+
+    sections.forEach(section => {
+      if (getSectionProgress(section.id) === 100) {
+        completedSections++
+      }
+    })
+
+    return Math.round((completedSections / totalSections) * 100)
+  }
+
+  const canSubmit = sections.every(section => getSectionProgress(section.id) === 100)
 
   const submitApplication = async () => {
     if (!user) {
@@ -221,56 +211,13 @@ export default function PetApplicationPage() {
       return
     }
 
-    // Validate required fields
-    const requiredFields = {
-      firstName: "First Name",
-      lastName: "Last Name", 
-      email: "Email",
-      phone: "Phone",
-      dateOfBirth: "Date of Birth",
-      occupation: "Occupation",
-      housingType: "Housing Type",
-      ownRent: "Own/Rent",
-      address: "Address",
-      yardType: "Yard Type",
-      householdSize: "Household Size",
-      previousPets: "Previous Pets",
-      currentPets: "Current Pets",
-      workSchedule: "Work Schedule",
-      exerciseCommitment: "Exercise Commitment",
-      travelFrequency: "Travel Frequency",
-      petPreferences: "Pet Preferences",
-      householdMembers: "Household Members",
-      allergies: "Allergies",
-      references: "References",
-      emergencyContact: "Emergency Contact"
-    }
-
-    const missingFields = []
-    for (const [field, label] of Object.entries(requiredFields)) {
-      const value = formData[field as keyof typeof formData]
-      if (field === 'dateOfBirth') {
-        if (!value) {
-          missingFields.push(label)
-        }
-      } else if (!value || value.toString().trim() === '') {
-        missingFields.push(label)
-      }
-    }
-
-    if (missingFields.length > 0) {
-      toast.error(`Please fill in the following required fields: ${missingFields.join(', ')}`)
-      return
-    }
-
-    // Validate agreements
-    if (!formData.agreements || formData.agreements.length < 6) {
-      toast.error("Please agree to all application terms before submitting")
+    if (!canSubmit) {
+      toast.error("Please complete all sections before submitting")
       return
     }
 
     setIsSubmitting(true)
-    
+
     try {
       await applicationsService.submitApplication(
         {
@@ -283,7 +230,12 @@ export default function PetApplicationPage() {
       )
 
       toast.success('Application submitted successfully!')
-      setIsSubmitted(true)
+      setShowSuccess(true)
+
+      // Redirect after success message
+      setTimeout(() => {
+        router.push("/dashboard/applications")
+      }, 2000)
     } catch (error) {
       console.error('Error submitting application:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to submit application')
@@ -312,7 +264,522 @@ export default function PetApplicationPage() {
     }
   }
 
-  const progress = ((currentStep + 1) / formSteps.length) * 100
+  const renderPersonalInfo = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <User className="h-5 w-5 text-teal-500 mr-2" />
+          Personal Information
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">First Name *</Label>
+            <Input
+              id="firstName"
+              value={formData.firstName}
+              onChange={(e) => updateFormData("firstName", e.target.value)}
+              placeholder="Enter your first name"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">Last Name *</Label>
+            <Input
+              id="lastName"
+              value={formData.lastName}
+              onChange={(e) => updateFormData("lastName", e.target.value)}
+              placeholder="Enter your last name"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address *</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => updateFormData("email", e.target.value)}
+              placeholder="your.email@example.com"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="text-sm font-medium text-gray-700">Phone Number *</Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => updateFormData("phone", e.target.value)}
+              placeholder="+60 12-345 6789"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dateOfBirth" className="text-sm font-medium text-gray-700">Date of Birth *</Label>
+            <DatePicker
+              id="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={(date) => updateFormData("dateOfBirth", date)}
+              placeholder="Select your date of birth"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="occupation" className="text-sm font-medium text-gray-700">Occupation *</Label>
+            <Input
+              id="occupation"
+              value={formData.occupation}
+              onChange={(e) => updateFormData("occupation", e.target.value)}
+              placeholder="Your job title"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderLivingSituation = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Home className="h-5 w-5 text-blue-500 mr-2" />
+          Living Situation
+        </h3>
+
+        <div className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Housing Type *</Label>
+              <Select
+                value={formData.housingType}
+                onValueChange={(value) => updateFormData("housingType", value)}
+              >
+                <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                  <SelectValue placeholder="Select housing type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="apartment">Apartment/Condo</SelectItem>
+                  <SelectItem value="house">House</SelectItem>
+                  <SelectItem value="townhouse">Townhouse</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Do you own or rent? *</Label>
+              <RadioGroup
+                value={formData.ownRent}
+                onValueChange={(value) => updateFormData("ownRent", value)}
+                className="flex flex-row space-x-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="own" id="own" className="text-teal-500" />
+                  <Label htmlFor="own" className="text-sm text-gray-700">Own</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rent" id="rent" className="text-teal-500" />
+                  <Label htmlFor="rent" className="text-sm text-gray-700">Rent</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address" className="text-sm font-medium text-gray-700">Address *</Label>
+            <Textarea
+              id="address"
+              value={formData.address}
+              onChange={(e) => updateFormData("address", e.target.value)}
+              placeholder="Your full address in Penang"
+              rows={3}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          {formData.ownRent === "rent" && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Do you have landlord permission for pets? *</Label>
+              <RadioGroup
+                value={formData.landlordPermission}
+                onValueChange={(value) => updateFormData("landlordPermission", value)}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="yes" id="landlord-yes" className="text-teal-500" />
+                  <Label htmlFor="landlord-yes" className="text-sm text-gray-700">Yes, I have written permission</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="pending" id="landlord-pending" className="text-teal-500" />
+                  <Label htmlFor="landlord-pending" className="text-sm text-gray-700">I will get permission before adoption</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="no" id="landlord-no" className="text-teal-500" />
+                  <Label htmlFor="landlord-no" className="text-sm text-gray-700">No restrictions on pets</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Yard/Outdoor Space *</Label>
+              <Select
+                value={formData.yardType}
+                onValueChange={(value) => updateFormData("yardType", value)}
+              >
+                <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                  <SelectValue placeholder="Select yard type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fenced-large">Large fenced yard</SelectItem>
+                  <SelectItem value="fenced-small">Small fenced yard</SelectItem>
+                  <SelectItem value="unfenced">Unfenced yard</SelectItem>
+                  <SelectItem value="balcony">Balcony only</SelectItem>
+                  <SelectItem value="none">No outdoor space</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="householdSize" className="text-sm font-medium text-gray-700">Number of people in household *</Label>
+              <Input
+                id="householdSize"
+                type="number"
+                min="1"
+                value={formData.householdSize}
+                onChange={(e) => updateFormData("householdSize", e.target.value)}
+                placeholder="e.g., 2"
+                className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+                required
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderPetExperience = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <PawPrint className="h-5 w-5 text-amber-500 mr-2" />
+          Pet Experience
+        </h3>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Have you owned pets before? *</Label>
+            <RadioGroup
+              value={formData.previousPets}
+              onValueChange={(value) => updateFormData("previousPets", value)}
+              className="flex flex-row space-x-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="yes" id="prev-yes" className="text-teal-500" />
+                <Label htmlFor="prev-yes" className="text-sm text-gray-700">Yes</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="no" id="prev-no" className="text-teal-500" />
+                <Label htmlFor="prev-no" className="text-sm text-gray-700">No, this will be my first pet</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {formData.previousPets === "yes" && (
+            <div className="space-y-2">
+              <Label htmlFor="petExperience" className="text-sm font-medium text-gray-700">Tell us about your previous pets</Label>
+              <Textarea
+                id="petExperience"
+                value={formData.petExperience}
+                onChange={(e) => updateFormData("petExperience", e.target.value)}
+                placeholder="What types of pets have you had? How long did you care for them? What happened to them?"
+                rows={4}
+                className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Do you currently have any pets? *</Label>
+            <RadioGroup
+              value={formData.currentPets}
+              onValueChange={(value) => updateFormData("currentPets", value)}
+              className="flex flex-row space-x-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="yes" id="current-yes" className="text-teal-500" />
+                <Label htmlFor="current-yes" className="text-sm text-gray-700">Yes</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="no" id="current-no" className="text-teal-500" />
+                <Label htmlFor="current-no" className="text-sm text-gray-700">No</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="veterinarian" className="text-sm font-medium text-gray-700">
+              Do you have a veterinarian in Penang? *
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="ml-1 h-4 w-4 inline text-gray-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>We can recommend local vets if you don't have one yet</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
+            <Textarea
+              id="veterinarian"
+              value={formData.veterinarian}
+              onChange={(e) => updateFormData("veterinarian", e.target.value)}
+              placeholder="Vet clinic name and location, or 'No, please recommend one'"
+              rows={2}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderLifestyle = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Heart className="h-5 w-5 text-pink-500 mr-2" />
+          Lifestyle & Preferences
+        </h3>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="workSchedule" className="text-sm font-medium text-gray-700">Describe your work schedule *</Label>
+            <Textarea
+              id="workSchedule"
+              value={formData.workSchedule}
+              onChange={(e) => updateFormData("workSchedule", e.target.value)}
+              placeholder="e.g., Work from home, 9-5 office job, shift work, etc."
+              rows={3}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">How much time can you dedicate to pet exercise daily? *</Label>
+            <Select
+              value={formData.exerciseCommitment}
+              onValueChange={(value) => updateFormData("exerciseCommitment", value)}
+            >
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                <SelectValue placeholder="Select exercise commitment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30min">Less than 30 minutes</SelectItem>
+                <SelectItem value="1hour">30 minutes to 1 hour</SelectItem>
+                <SelectItem value="2hours">1-2 hours</SelectItem>
+                <SelectItem value="more">More than 2 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">How often do you travel? *</Label>
+            <Select
+              value={formData.travelFrequency}
+              onValueChange={(value) => updateFormData("travelFrequency", value)}
+            >
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
+                <SelectValue placeholder="Select travel frequency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rarely">Rarely (few times a year)</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="frequently">Very frequently</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="petPreferences" className="text-sm font-medium text-gray-700">
+              What are you looking for in {pet?.name}? *
+            </Label>
+            <Textarea
+              id="petPreferences"
+              value={formData.petPreferences}
+              onChange={(e) => updateFormData("petPreferences", e.target.value)}
+              placeholder={`Why are you interested in adopting ${pet?.name}? What drew you to this specific pet?`}
+              rows={4}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderHousehold = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <Users className="h-5 w-5 text-indigo-500 mr-2" />
+          Household Members
+        </h3>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="householdMembers" className="text-sm font-medium text-gray-700">
+              Tell us about everyone who lives in your home *
+            </Label>
+            <Textarea
+              id="householdMembers"
+              value={formData.householdMembers}
+              onChange={(e) => updateFormData("householdMembers", e.target.value)}
+              placeholder="Ages and relationship to you (e.g., spouse, children, roommates, etc.)"
+              rows={3}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Does anyone in your household have pet allergies? *</Label>
+            <RadioGroup
+              value={formData.allergies}
+              onValueChange={(value) => updateFormData("allergies", value)}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="no" id="allergies-no" className="text-teal-500" />
+                <Label htmlFor="allergies-no" className="text-sm text-gray-700">No allergies</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="mild" id="allergies-mild" className="text-teal-500" />
+                <Label htmlFor="allergies-mild" className="text-sm text-gray-700">Mild allergies (manageable)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="severe" id="allergies-severe" className="text-teal-500" />
+                <Label htmlFor="allergies-severe" className="text-sm text-gray-700">Severe allergies</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="childrenAges" className="text-sm font-medium text-gray-700">If you have children, what are their ages?</Label>
+            <Input
+              id="childrenAges"
+              value={formData.childrenAges}
+              onChange={(e) => updateFormData("childrenAges", e.target.value)}
+              placeholder="e.g., 5, 8, 12 years old or 'No children'"
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderAgreement = () => (
+    <div className="space-y-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+          <FileText className="h-5 w-5 text-emerald-500 mr-2" />
+          References & Agreement
+        </h3>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="references" className="text-sm font-medium text-gray-700">Personal References *</Label>
+            <Textarea
+              id="references"
+              value={formData.references}
+              onChange={(e) => updateFormData("references", e.target.value)}
+              placeholder="Please provide 2 personal references (name, relationship, phone number)"
+              rows={4}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="emergencyContact" className="text-sm font-medium text-gray-700">Emergency Contact *</Label>
+            <Textarea
+              id="emergencyContact"
+              value={formData.emergencyContact}
+              onChange={(e) => updateFormData("emergencyContact", e.target.value)}
+              placeholder="Name, relationship, and phone number of someone who can care for your pet in emergencies"
+              rows={3}
+              className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          <div className="space-y-4">
+            <Label className="text-base font-medium text-gray-700">Please read and agree to the following: *</Label>
+            <div className="space-y-3">
+              {[
+                "I understand that pet adoption is a lifetime commitment (10-15+ years)",
+                "I agree to provide proper veterinary care, including annual check-ups and vaccinations",
+                "I will not declaw cats or crop ears/tails of dogs",
+                "I agree to return the pet to the shelter if I can no longer care for them",
+                "I understand that a home visit may be required before adoption",
+                "All information provided in this application is true and accurate",
+              ].map((agreement, index) => (
+                <div key={index} className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg">
+                  <Checkbox
+                    id={`agreement-${index}`}
+                    checked={formData.agreements.includes(index)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        updateFormData("agreements", [...formData.agreements, index])
+                      } else {
+                        updateFormData(
+                          "agreements",
+                          formData.agreements.filter((i: number) => i !== index),
+                        )
+                      }
+                    }}
+                    className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                  />
+                  <Label htmlFor={`agreement-${index}`} className="text-sm leading-5 text-gray-700">
+                    {agreement}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case "personal": return renderPersonalInfo()
+      case "living": return renderLivingSituation()
+      case "experience": return renderPetExperience()
+      case "lifestyle": return renderLifestyle()
+      case "household": return renderHousehold()
+      case "agreement": return renderAgreement()
+      default: return renderPersonalInfo()
+    }
+  }
 
   if (!user) {
     return (
@@ -364,628 +831,188 @@ export default function PetApplicationPage() {
     )
   }
 
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="max-w-md w-full"
-        >
-          <Card className="text-center">
-            <CardContent className="p-8">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100"
-              >
-                <Check className="h-8 w-8 text-green-600" />
-              </motion.div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h1>
-              <p className="text-gray-600 mb-6">
-                Thank you for your interest in adopting {pet.name}. We've received your application and will review it within
-                2-3 business days.
-              </p>
-              <div className="space-y-4">
-                <div className="rounded-lg bg-teal-50 p-4 text-left">
-                  <h3 className="font-medium text-teal-900 mb-2">What happens next?</h3>
-                  <ul className="text-sm text-teal-700 space-y-1">
-                    <li>• Application review (2-3 days)</li>
-                    <li>• Phone interview if approved</li>
-                    <li>• Meet & greet with {pet.name}</li>
-                    <li>• Home visit (if required)</li>
-                    <li>• Final approval and adoption</li>
-                  </ul>
-                </div>
-                <div className="flex gap-2">
-                  <Link href="/dashboard" className="flex-1">
-                    <Button className="w-full bg-teal-500 hover:bg-teal-600">Go to Dashboard</Button>
-                  </Link>
-                  <Link href="/dashboard/applications" className="flex-1">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      View Applications
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto max-w-4xl px-4 py-8 md:px-6">
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="space-y-8">
-          {/* Header with Pet Info */}
-          <div className="flex items-center gap-4 mb-6">
+    <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
+      {/* Left Sidebar - Navigation & Preview */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-3">
             <Link href={`/dashboard/pets/${pet.id}`}>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to {pet.name}
               </Button>
             </Link>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Adoption Application for {pet.name}</h1>
-              <p className="text-gray-600">{pet.breed} • {pet.age} • {pet.shelter.name}</p>
-            </div>
-          </div>
-
-          {/* Progress Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">
-                  Step {currentStep + 1} of {formSteps.length}
-                </h2>
-                <p className="text-gray-500">{formSteps[currentStep].description}</p>
-              </div>
-              <Badge variant="outline" className="text-teal-700 border-teal-200 bg-teal-100">
-                {Math.round(progress)}% Complete
-              </Badge>
-            </div>
-            <Progress value={progress} className="h-2 bg-gray-100" indicatorClassName="bg-teal-500" />
-
-            {/* Step Indicators */}
-            <div className="flex justify-between">
-              {formSteps.map((step, index) => {
-                const IconComponent = step.icon
-                return (
-                  <div key={step.id} className="flex flex-col items-center">
-                    <motion.div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
-                        index <= currentStep
-                          ? "border-teal-500 bg-teal-500 text-white"
-                          : "border-gray-300 bg-white text-gray-400"
-                      }`}
-                      whileHover={{ scale: 1.1 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      <IconComponent className="h-5 w-5" />
-                    </motion.div>
-                    <span className="mt-2 text-xs font-medium text-center max-w-[80px]">{step.title}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Form Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {(() => {
-                  const IconComponent = formSteps[currentStep].icon
-                  return <IconComponent className="h-5 w-5 text-teal-500" />
-                })()}
-                {formSteps[currentStep].title}
-              </CardTitle>
-              <CardDescription>{formSteps[currentStep].description}</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  variants={slideIn}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="space-y-6"
-                >
-                  {/* Step 1: Personal Information */}
-                  {currentStep === 0 && (
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">
-                          First Name <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="firstName"
-                          value={formData.firstName}
-                          onChange={(e) => updateFormData("firstName", e.target.value)}
-                          placeholder="Enter your first name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName">
-                          Last Name <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="lastName"
-                          value={formData.lastName}
-                          onChange={(e) => updateFormData("lastName", e.target.value)}
-                          placeholder="Enter your last name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">
-                          Email Address <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => updateFormData("email", e.target.value)}
-                          placeholder="your.email@example.com"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">
-                          Phone Number <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="phone"
-                          value={formData.phone}
-                          onChange={(e) => updateFormData("phone", e.target.value)}
-                          placeholder="+60 12-345 6789"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="dateOfBirth">
-                          Date of Birth <span className="text-red-500">*</span>
-                        </Label>
-                        <DatePicker
-                          id="dateOfBirth"
-                          value={formData.dateOfBirth}
-                          onChange={(date) => updateFormData("dateOfBirth", date)}
-                          placeholder="Select your date of birth"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="occupation">
-                          Occupation <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="occupation"
-                          value={formData.occupation}
-                          onChange={(e) => updateFormData("occupation", e.target.value)}
-                          placeholder="Your job title"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: Living Situation */}
-                  {currentStep === 1 && (
-                    <div className="space-y-6">
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>
-                            Housing Type <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={formData.housingType}
-                            onValueChange={(value) => updateFormData("housingType", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select housing type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="apartment">Apartment/Condo</SelectItem>
-                              <SelectItem value="house">House</SelectItem>
-                              <SelectItem value="townhouse">Townhouse</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>
-                            Do you own or rent? <span className="text-red-500">*</span>
-                          </Label>
-                          <RadioGroup
-                            value={formData.ownRent}
-                            onValueChange={(value) => updateFormData("ownRent", value)}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="own" id="own" />
-                              <Label htmlFor="own">Own</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="rent" id="rent" />
-                              <Label htmlFor="rent">Rent</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="address">
-                          Address <span className="text-red-500">*</span>
-                        </Label>
-                        <Textarea
-                          id="address"
-                          value={formData.address}
-                          onChange={(e) => updateFormData("address", e.target.value)}
-                          placeholder="Your full address in Penang"
-                          rows={3}
-                        />
-                      </div>
-                      {formData.ownRent === "rent" && (
-                        <div className="space-y-2">
-                          <Label>
-                            Do you have landlord permission for pets? <span className="text-red-500">*</span>
-                          </Label>
-                          <RadioGroup
-                            value={formData.landlordPermission}
-                            onValueChange={(value) => updateFormData("landlordPermission", value)}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="yes" id="landlord-yes" />
-                              <Label htmlFor="landlord-yes">Yes, I have written permission</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="pending" id="landlord-pending" />
-                              <Label htmlFor="landlord-pending">I will get permission before adoption</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="no" id="landlord-no" />
-                              <Label htmlFor="landlord-no">No restrictions on pets</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-                      )}
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>
-                            Yard/Outdoor Space <span className="text-red-500">*</span>
-                          </Label>
-                          <Select
-                            value={formData.yardType}
-                            onValueChange={(value) => updateFormData("yardType", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select yard type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="fenced-large">Large fenced yard</SelectItem>
-                              <SelectItem value="fenced-small">Small fenced yard</SelectItem>
-                              <SelectItem value="unfenced">Unfenced yard</SelectItem>
-                              <SelectItem value="balcony">Balcony only</SelectItem>
-                              <SelectItem value="none">No outdoor space</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="householdSize">
-                            Number of people in household <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="householdSize"
-                            type="number"
-                            min="1"
-                            value={formData.householdSize}
-                            onChange={(e) => updateFormData("householdSize", e.target.value)}
-                            placeholder="e.g., 2"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 3: Pet Experience */}
-                  {currentStep === 2 && (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <Label>
-                          Have you owned pets before? <span className="text-red-500">*</span>
-                        </Label>
-                        <RadioGroup
-                          value={formData.previousPets}
-                          onValueChange={(value) => updateFormData("previousPets", value)}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="yes" id="prev-yes" />
-                            <Label htmlFor="prev-yes">Yes</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="no" id="prev-no" />
-                            <Label htmlFor="prev-no">No, this will be my first pet</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      {formData.previousPets === "yes" && (
-                        <div className="space-y-2">
-                          <Label htmlFor="petExperience">Tell us about your previous pets</Label>
-                          <Textarea
-                            id="petExperience"
-                            value={formData.petExperience}
-                            onChange={(e) => updateFormData("petExperience", e.target.value)}
-                            placeholder="What types of pets have you had? How long did you care for them? What happened to them?"
-                            rows={4}
-                          />
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        <Label>
-                          Do you currently have any pets? <span className="text-red-500">*</span>
-                        </Label>
-                        <RadioGroup
-                          value={formData.currentPets}
-                          onValueChange={(value) => updateFormData("currentPets", value)}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="yes" id="current-yes" />
-                            <Label htmlFor="current-yes">Yes</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="no" id="current-no" />
-                            <Label htmlFor="current-no">No</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="veterinarian">
-                          Do you have a veterinarian in Penang?
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="ml-1 h-4 w-4 inline text-gray-400" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>We can recommend local vets if you don't have one yet</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Textarea
-                          id="veterinarian"
-                          value={formData.veterinarian}
-                          onChange={(e) => updateFormData("veterinarian", e.target.value)}
-                          placeholder="Vet clinic name and location, or 'No, please recommend one'"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 4: Lifestyle & Preferences */}
-                  {currentStep === 3 && (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="workSchedule">
-                          Describe your work schedule <span className="text-red-500">*</span>
-                        </Label>
-                        <Textarea
-                          id="workSchedule"
-                          value={formData.workSchedule}
-                          onChange={(e) => updateFormData("workSchedule", e.target.value)}
-                          placeholder="e.g., Work from home, 9-5 office job, shift work, etc."
-                          rows={3}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="exerciseCommitment">
-                          How much time can you dedicate to pet exercise daily? <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={formData.exerciseCommitment}
-                          onValueChange={(value) => updateFormData("exerciseCommitment", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select exercise commitment" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="30min">Less than 30 minutes</SelectItem>
-                            <SelectItem value="1hour">30 minutes to 1 hour</SelectItem>
-                            <SelectItem value="2hours">1-2 hours</SelectItem>
-                            <SelectItem value="more">More than 2 hours</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="travelFrequency">
-                          How often do you travel? <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={formData.travelFrequency}
-                          onValueChange={(value) => updateFormData("travelFrequency", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select travel frequency" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="rarely">Rarely (few times a year)</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="frequently">Very frequently</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="petPreferences">
-                          What are you looking for in {pet.name}? <span className="text-red-500">*</span>
-                        </Label>
-                        <Textarea
-                          id="petPreferences"
-                          value={formData.petPreferences}
-                          onChange={(e) => updateFormData("petPreferences", e.target.value)}
-                          placeholder={`Why are you interested in adopting ${pet.name}? What drew you to this specific pet?`}
-                          rows={4}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 5: Household Members */}
-                  {currentStep === 4 && (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="householdMembers">
-                          Tell us about everyone who lives in your home <span className="text-red-500">*</span>
-                        </Label>
-                        <Textarea
-                          id="householdMembers"
-                          value={formData.householdMembers}
-                          onChange={(e) => updateFormData("householdMembers", e.target.value)}
-                          placeholder="Ages and relationship to you (e.g., spouse, children, roommates, etc.)"
-                          rows={3}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>
-                          Does anyone in your household have pet allergies? <span className="text-red-500">*</span>
-                        </Label>
-                        <RadioGroup
-                          value={formData.allergies}
-                          onValueChange={(value) => updateFormData("allergies", value)}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="no" id="allergies-no" />
-                            <Label htmlFor="allergies-no">No allergies</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="mild" id="allergies-mild" />
-                            <Label htmlFor="allergies-mild">Mild allergies (manageable)</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="severe" id="allergies-severe" />
-                            <Label htmlFor="allergies-severe">Severe allergies</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="childrenAges">If you have children, what are their ages?</Label>
-                        <Input
-                          id="childrenAges"
-                          value={formData.childrenAges}
-                          onChange={(e) => updateFormData("childrenAges", e.target.value)}
-                          placeholder="e.g., 5, 8, 12 years old or 'No children'"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 6: Agreement & References */}
-                  {currentStep === 5 && (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="references">
-                          Personal References <span className="text-red-500">*</span>
-                        </Label>
-                        <Textarea
-                          id="references"
-                          value={formData.references}
-                          onChange={(e) => updateFormData("references", e.target.value)}
-                          placeholder="Please provide 2 personal references (name, relationship, phone number)"
-                          rows={4}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="emergencyContact">
-                          Emergency Contact <span className="text-red-500">*</span>
-                        </Label>
-                        <Textarea
-                          id="emergencyContact"
-                          value={formData.emergencyContact}
-                          onChange={(e) => updateFormData("emergencyContact", e.target.value)}
-                          placeholder="Name, relationship, and phone number of someone who can care for your pet in emergencies"
-                          rows={3}
-                        />
-                      </div>
-                      <div className="space-y-4">
-                        <Label className="text-base font-medium">
-                          Please read and agree to the following: <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="space-y-3">
-                          {[
-                            "I understand that pet adoption is a lifetime commitment (10-15+ years)",
-                            "I agree to provide proper veterinary care, including annual check-ups and vaccinations",
-                            "I will not declaw cats or crop ears/tails of dogs",
-                            "I agree to return the pet to the shelter if I can no longer care for them",
-                            "I understand that a home visit may be required before adoption",
-                            "All information provided in this application is true and accurate",
-                          ].map((agreement, index) => (
-                            <div key={index} className="flex items-start space-x-2">
-                              <Checkbox
-                                id={`agreement-${index}`}
-                                checked={formData.agreements.includes(index)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    updateFormData("agreements", [...formData.agreements, index])
-                                  } else {
-                                    updateFormData(
-                                      "agreements",
-                                      formData.agreements.filter((i: number) => i !== index),
-                                    )
-                                  }
-                                }}
-                              />
-                              <Label htmlFor={`agreement-${index}`} className="text-sm leading-5">
-                                {agreement}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={prevStep} disabled={currentStep === 0} className="gap-2 bg-transparent">
-              <ChevronLeft className="h-4 w-4" />
-              Previous
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" className="gap-2 bg-transparent" onClick={saveDraft}>
+          </div>
+        </div>
+
+        {/* Pet Preview */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="text-center mb-4">
+            <Avatar className="h-24 w-24 mx-auto mb-3 border-4 border-white shadow-lg">
+              <AvatarImage
+                src={pet.images && pet.images.length > 0 ? pet.images[0] : "/placeholder.svg"}
+                alt={pet.name}
+                className="object-cover"
+              />
+              <AvatarFallback className="text-2xl bg-teal-100 text-teal-600">
+                {pet.name[0]}
+              </AvatarFallback>
+            </Avatar>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
+              Adopting {pet.name}
+            </h1>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <PawPrint className="h-4 w-4 text-gray-500" />
+              <span className="text-gray-600 capitalize">{pet.type}</span>
+              {pet.breed && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-600">{pet.breed}</span>
+                </>
+              )}
+            </div>
+            <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+              {pet.shelter.name}
+            </Badge>
+          </div>
+
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-medium text-gray-600">Application Progress</span>
+              <span className="text-xs text-gray-500">{getFormProgress()}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-teal-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${getFormProgress()}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-2">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">APPLICATION SECTIONS</h3>
+            {sections.map((section) => {
+              const Icon = section.icon
+              const isActive = activeSection === section.id
+              const progress = getSectionProgress(section.id)
+              const isComplete = progress === 100
+
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all ${
+                    isActive
+                      ? 'bg-teal-50 border border-teal-200 text-teal-700 shadow-sm'
+                      : 'hover:bg-gray-50 text-gray-700 border border-transparent'
+                  }`}
+                >
+                  <div className={`p-1 rounded ${
+                    isComplete
+                      ? 'bg-green-100 text-green-600'
+                      : isActive
+                        ? 'bg-teal-100 text-teal-600'
+                        : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Icon className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{section.label}</div>
+                    <div className="text-xs text-gray-500">
+                      {isComplete ? "Complete" : `${Math.round(progress)}% complete`}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </ScrollArea>
+
+        {/* Action Buttons */}
+        <div className="p-4 border-t border-gray-200">
+          {showSuccess ? (
+            <Alert className="border-green-200 bg-green-50 mb-4">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Application Submitted!</AlertTitle>
+              <AlertDescription className="text-green-700">
+                Redirecting you to your applications...
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-2">
+              <Button
+                onClick={saveDraft}
+                variant="outline"
+                className="w-full gap-2"
+                size="sm"
+              >
                 <Save className="h-4 w-4" />
                 Save Draft
               </Button>
-              {currentStep === formSteps.length - 1 ? (
-                <Button
-                  onClick={submitApplication}
-                  className="bg-teal-500 hover:bg-teal-600 gap-2"
-                  disabled={formData.agreements.length < 6 || isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      Submit Application
-                      <Check className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Button onClick={nextStep} className="bg-teal-500 hover:bg-teal-600 gap-2">
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                onClick={submitApplication}
+                disabled={!canSubmit || isSubmitting}
+                className="w-full gap-2 bg-teal-500 hover:bg-teal-600"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Submit Application
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Content Area */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Content Header */}
+        <div className="border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {React.createElement(getCurrentSection().icon, {
+                className: `h-6 w-6 text-${getCurrentSection().color}-500`
+              })}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">{getCurrentSection().label}</h2>
+                <p className="text-gray-600">
+                  {activeSection === "personal" && "Tell us about yourself"}
+                  {activeSection === "living" && "About your home and lifestyle"}
+                  {activeSection === "experience" && "Your history with pets"}
+                  {activeSection === "lifestyle" && "How a pet fits into your life"}
+                  {activeSection === "household" && "Who lives with you"}
+                  {activeSection === "agreement" && "Final details and consent"}
+                </p>
+              </div>
             </div>
           </div>
-        </motion.div>
-      </main>
+        </div>
+
+        {/* Scrollable Content */}
+        <ScrollArea className="flex-1 p-6">
+          {renderContent()}
+        </ScrollArea>
+      </div>
     </div>
   )
 }
