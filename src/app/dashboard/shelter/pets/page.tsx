@@ -1,24 +1,51 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, Filter, Download, MoreHorizontal, Edit, Eye, Trash2, Loader2 } from "lucide-react"
+import {
+  Plus,
+  Search,
+  Filter,
+  Download,
+  MoreHorizontal,
+  Edit,
+  Eye,
+  Trash2,
+  Loader2,
+  PawPrint,
+  Heart,
+  Check,
+  Activity,
+  TrendingUp,
+  Calendar,
+  Users,
+  Star,
+  Dog,
+  Cat
+} from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
 
 const statusColors = {
-  available: "bg-green-100 text-green-800",
-  adopted: "bg-blue-100 text-blue-800",
-  pending: "bg-yellow-100 text-yellow-800",
+  available: "bg-green-100 text-green-800 border-green-200",
+  adopted: "bg-blue-100 text-blue-800 border-blue-200",
+  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+}
+
+const typeIcons = {
+  dog: Dog,
+  cat: Cat,
+  rabbit: PawPrint,
+  bird: PawPrint,
+  other: PawPrint,
 }
 
 export default function ShelterPetsPage() {
@@ -29,6 +56,7 @@ export default function ShelterPetsPage() {
   const [pets, setPets] = useState<PetWithShelter[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState("grid") // grid or list
 
   // Fetch pets on component mount
   useEffect(() => {
@@ -65,14 +93,6 @@ export default function ShelterPetsPage() {
     pending: pets.filter((p) => p.status === "pending").length,
   }
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedPets(filteredPets.map((pet) => pet.id))
-    } else {
-      setSelectedPets([])
-    }
-  }
-
   const handleSelectPet = (petId: string, checked: boolean) => {
     if (checked) {
       setSelectedPets([...selectedPets, petId])
@@ -99,87 +119,191 @@ export default function ShelterPetsPage() {
     }
   }
 
+  const clearFilters = () => {
+    setSearchTerm("")
+    setTypeFilter("all")
+    setStatusFilter("all")
+    setSelectedPets([])
+  }
+
+  const renderPetCard = (pet: PetWithShelter) => {
+    const TypeIcon = typeIcons[pet.type as keyof typeof typeIcons] || PawPrint
+    const isSelected = selectedPets.includes(pet.id)
+
+    return (
+      <Card
+        key={pet.id}
+        className={`cursor-pointer transition-all hover:shadow-md ${
+          isSelected ? 'ring-2 ring-teal-500 bg-teal-50' : ''
+        }`}
+        onClick={() => handleSelectPet(pet.id, !isSelected)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start gap-4">
+            <Avatar className="h-16 w-16 border-2 border-white shadow-sm">
+              <AvatarImage
+                src={pet.images && pet.images.length > 0 ? pet.images[0] : "/placeholder.svg"}
+                alt={pet.name}
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-teal-100 text-teal-600">
+                {pet.name[0]}
+              </AvatarFallback>
+            </Avatar>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-gray-900 truncate">{pet.name}</h3>
+                <div className="flex items-center gap-2">
+                  <TypeIcon className="h-4 w-4 text-gray-500" />
+                  <Badge className={statusColors[pet.status as keyof typeof statusColors]}>
+                    {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-sm text-gray-600">
+                <p>{pet.breed || 'Mixed breed'} • {pet.age} • {pet.gender}</p>
+                {pet.description && (
+                  <p className="line-clamp-2 text-gray-500">{pet.description}</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex gap-1">
+                  {pet.vaccinated && <Badge variant="outline" className="text-xs">Vaccinated</Badge>}
+                  {pet.neutered && <Badge variant="outline" className="text-xs">Spayed/Neutered</Badge>}
+                  {pet.houseTrained && <Badge variant="outline" className="text-xs">House Trained</Badge>}
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      disabled={deleting === pet.id}
+                    >
+                      {deleting === pet.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MoreHorizontal className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/dashboard/shelter/pets/${pet.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/dashboard/shelter/pets/${pet.id}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Pet
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeletePet(pet.id)
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Pet
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Pet Management</h1>
-          <p className="text-muted-foreground">Manage your shelter's pets and their adoption status</p>
+    <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
+      {/* Left Sidebar - Stats & Filters */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl font-bold text-gray-900">Pet Management</h1>
+            <Link href="/dashboard/shelter/pets/add">
+              <Button size="sm" className="bg-teal-500 hover:bg-teal-600">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Pet
+              </Button>
+            </Link>
+          </div>
+          <p className="text-sm text-gray-600">Manage your shelter's pets and their adoption status</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Link href="/dashboard/shelter/pets/add">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Pet
-            </Button>
-          </Link>
+
+        {/* Statistics */}
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-sm font-medium text-gray-500 mb-3">OVERVIEW</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-teal-100 rounded">
+                  <PawPrint className="h-4 w-4 text-teal-600" />
+                </div>
+                <span className="text-sm font-medium">Total Pets</span>
+              </div>
+              <span className="text-lg font-bold text-gray-900">{stats.total}</span>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-green-100 rounded">
+                  <Heart className="h-4 w-4 text-green-600" />
+                </div>
+                <span className="text-sm font-medium">Available</span>
+              </div>
+              <span className="text-lg font-bold text-green-600">{stats.available}</span>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-blue-100 rounded">
+                  <Check className="h-4 w-4 text-blue-600" />
+                </div>
+                <span className="text-sm font-medium">Adopted</span>
+              </div>
+              <span className="text-lg font-bold text-blue-600">{stats.adopted}</span>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-yellow-100 rounded">
+                  <Activity className="h-4 w-4 text-yellow-600" />
+                </div>
+                <span className="text-sm font-medium">Pending</span>
+              </div>
+              <span className="text-lg font-bold text-yellow-600">{stats.pending}</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">All pets in shelter</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.available}</div>
-            <p className="text-xs text-muted-foreground">Ready for adoption</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Adopted</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.adopted}</div>
-            <p className="text-xs text-muted-foreground">Successfully placed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <p className="text-xs text-muted-foreground">Awaiting approval</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters and Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pet List</CardTitle>
-          <CardDescription>Manage and track all pets in your shelter</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
+        {/* Filters */}
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-sm font-medium text-gray-500 mb-3">FILTERS</h3>
+          <div className="space-y-3">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search pets by name or breed..."
+                placeholder="Search pets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
               />
             </div>
+
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
                 <SelectValue placeholder="Pet Type" />
               </SelectTrigger>
               <SelectContent>
@@ -188,10 +312,12 @@ export default function ShelterPetsPage() {
                 <SelectItem value="cat">Cats</SelectItem>
                 <SelectItem value="rabbit">Rabbits</SelectItem>
                 <SelectItem value="bird">Birds</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="border-gray-300 focus:border-teal-500 focus:ring-teal-500">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -201,152 +327,129 @@ export default function ShelterPetsPage() {
                 <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
+
             <Button
               variant="outline"
-              onClick={() => {
-                setSearchTerm("")
-                setTypeFilter("all")
-                setStatusFilter("all")
-              }}
+              onClick={clearFilters}
+              className="w-full border-gray-300 hover:bg-gray-50"
             >
               <Filter className="h-4 w-4 mr-2" />
-              Clear
+              Clear Filters
             </Button>
           </div>
+        </div>
 
-          {/* Bulk Actions */}
-          {selectedPets.length > 0 && (
-            <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-lg">
-              <span className="text-sm text-blue-700">
-                {selectedPets.length} pet{selectedPets.length > 1 ? "s" : ""} selected
-              </span>
-              <Button size="sm" variant="outline">
+        {/* Selected Actions */}
+        {selectedPets.length > 0 && (
+          <div className="p-4 border-b border-gray-200 bg-blue-50">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">
+              {selectedPets.length} pet{selectedPets.length > 1 ? "s" : ""} selected
+            </h3>
+            <div className="space-y-2">
+              <Button size="sm" variant="outline" className="w-full">
                 Update Status
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
                 Delete Selected
               </Button>
             </div>
-          )}
-
-          {/* Pet Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedPets.length === filteredPets.length && filteredPets.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Pet</TableHead>
-                  <TableHead>Type & Breed</TableHead>
-                  <TableHead>Age</TableHead>
-                  <TableHead>Gender</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date Added</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                      <p className="text-muted-foreground mt-2">Loading pets...</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPets.map((pet) => (
-                    <TableRow key={pet.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedPets.includes(pet.id)}
-                          onCheckedChange={(checked) => handleSelectPet(pet.id, checked as boolean)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage 
-                              src={pet.images && pet.images.length > 0 ? pet.images[0] : "/placeholder.svg"} 
-                              alt={pet.name} 
-                            />
-                            <AvatarFallback>{pet.name[0]}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{pet.name}</div>
-                            <div className="text-sm text-muted-foreground">{pet.description}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium capitalize">{pet.type}</div>
-                          <div className="text-sm text-muted-foreground">{pet.breed || 'Mixed breed'}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="capitalize">{pet.age}</TableCell>
-                      <TableCell className="capitalize">{pet.gender}</TableCell>
-                      <TableCell>
-                        <Badge className={statusColors[pet.status as keyof typeof statusColors]}>
-                          {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{new Date(pet.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              className="h-8 w-8 p-0" 
-                              disabled={deleting === pet.id}
-                            >
-                              {deleting === pet.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <MoreHorizontal className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/shelter/pets/${pet.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/shelter/pets/${pet.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Pet
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onClick={() => handleDeletePet(pet.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Pet
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
           </div>
+        )}
 
-          {filteredPets.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No pets found matching your criteria.</p>
+        {/* Quick Actions */}
+        <div className="p-4 mt-auto">
+          <Button variant="outline" className="w-full gap-2 mb-2">
+            <Download className="h-4 w-4" />
+            Export Data
+          </Button>
+          <Button variant="outline" className="w-full gap-2">
+            <TrendingUp className="h-4 w-4" />
+            View Analytics
+          </Button>
+        </div>
+      </div>
+
+      {/* Right Content Area */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Content Header */}
+        <div className="border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-teal-100 text-teal-600">
+                <PawPrint className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Your Pets</h2>
+                <p className="text-gray-600">
+                  {loading ? "Loading..." : `${filteredPets.length} of ${pets.length} pets`}
+                  {selectedPets.length > 0 && ` • ${selectedPets.length} selected`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant={activeView === "grid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveView("grid")}
+                className={activeView === "grid" ? "bg-teal-500 hover:bg-teal-600" : ""}
+              >
+                Grid
+              </Button>
+              <Button
+                variant={activeView === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveView("list")}
+                className={activeView === "list" ? "bg-teal-500 hover:bg-teal-600" : ""}
+              >
+                List
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <ScrollArea className="flex-1 p-6">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mb-4 text-teal-500" />
+              <p className="text-muted-foreground">Loading pets...</p>
+            </div>
+          ) : filteredPets.length === 0 ? (
+            <div className="flex h-60 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-4">
+                <PawPrint className="h-6 w-6 text-gray-400" />
+              </div>
+              <h3 className="font-medium text-gray-900 mb-2">No pets found</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {pets.length === 0
+                  ? "Get started by adding your first pet to the shelter."
+                  : "Try adjusting your filters or search criteria to find more pets."
+                }
+              </p>
+              {pets.length === 0 ? (
+                <Link href="/dashboard/shelter/pets/add">
+                  <Button className="bg-teal-500 hover:bg-teal-600">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Pet
+                  </Button>
+                </Link>
+              ) : (
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className={activeView === "grid"
+              ? "grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
+              : "space-y-3"
+            }>
+              {filteredPets.map(renderPetCard)}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </ScrollArea>
+      </div>
     </div>
   )
 }

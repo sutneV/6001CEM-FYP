@@ -323,10 +323,6 @@ export default function AddPetPage() {
                 <SelectItem value="cat">🐱 Cat</SelectItem>
                 <SelectItem value="rabbit">🐰 Rabbit</SelectItem>
                 <SelectItem value="bird">🐦 Bird</SelectItem>
-                <SelectItem value="hamster">🐹 Hamster</SelectItem>
-                <SelectItem value="guinea_pig">🐹 Guinea Pig</SelectItem>
-                <SelectItem value="reptile">🦎 Reptile</SelectItem>
-                <SelectItem value="fish">🐠 Fish</SelectItem>
                 <SelectItem value="other">🐾 Other</SelectItem>
               </SelectContent>
             </Select>
@@ -351,7 +347,7 @@ export default function AddPetPage() {
                 <SelectValue placeholder="Select age range" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="puppy">🐶 Puppy/Kitten (0-1 year)</SelectItem>
+                <SelectItem value="baby">🐶 Baby/Puppy/Kitten (0-1 year)</SelectItem>
                 <SelectItem value="young">🐕 Young (1-3 years)</SelectItem>
                 <SelectItem value="adult">🐕‍🦺 Adult (3-7 years)</SelectItem>
                 <SelectItem value="senior">🐕‍🦺 Senior (7+ years)</SelectItem>
@@ -417,7 +413,7 @@ export default function AddPetPage() {
                 <SelectItem value="small">Small (0-25 lbs)</SelectItem>
                 <SelectItem value="medium">Medium (26-60 lbs)</SelectItem>
                 <SelectItem value="large">Large (61-100 lbs)</SelectItem>
-                <SelectItem value="extra_large">Extra Large (100+ lbs)</SelectItem>
+                <SelectItem value="xlarge">Extra Large (100+ lbs)</SelectItem>
               </SelectContent>
             </Select>
           </div>
