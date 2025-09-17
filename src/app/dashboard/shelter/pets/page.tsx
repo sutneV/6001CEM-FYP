@@ -442,8 +442,8 @@ export default function ShelterPetsPage() {
             </div>
           ) : (
             <div className={activeView === "grid"
-              ? "grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
-              : "space-y-3"
+              ? "grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 p-1"
+              : "space-y-3 p-1"
             }>
               {filteredPets.map(renderPetCard)}
             </div>
