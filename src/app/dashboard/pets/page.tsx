@@ -304,7 +304,7 @@ export default function PetsPage() {
   return (
     <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
       {/* Left Sidebar - Stats & Filters */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="mb-3">
@@ -597,7 +597,7 @@ export default function PetsPage() {
         )}
 
         {/* Clear Filters */}
-        <div className="p-4 mt-auto">
+        <div className="p-4">
           <Button
             variant="outline"
             onClick={clearFilters}

@@ -227,7 +227,7 @@ export default function ShelterPetsPage() {
   return (
     <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
       {/* Left Sidebar - Stats & Filters */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
@@ -357,7 +357,7 @@ export default function ShelterPetsPage() {
         )}
 
         {/* Quick Actions */}
-        <div className="p-4 mt-auto">
+        <div className="p-4">
           <Button variant="outline" className="w-full gap-2 mb-2">
             <Download className="h-4 w-4" />
             Export Data
