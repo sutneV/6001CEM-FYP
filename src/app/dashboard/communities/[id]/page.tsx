@@ -18,7 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2, Send } from "lucide-react"
+import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2, Send, Settings, Crown, UserMinus } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useCommunities, type Community } from "@/hooks/useCommunities"
@@ -62,6 +62,98 @@ export default function CommunityPostsPage() {
   const [showComments, setShowComments] = useState<{[postId: string]: boolean}>({})
   const [newComment, setNewComment] = useState<{[postId: string]: string}>({})
   const [commentsLoading, setCommentsLoading] = useState<{[postId: string]: boolean}>({})
+
+  // Member management states
+  const [members, setMembers] = useState<any[]>([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [isMembersOpen, setIsMembersOpen] = useState(false)
+  const [removingMember, setRemovingMember] = useState<string | null>(null)
+
+  const fetchMembers = async () => {
+    if (!(community?.isOwner || (community?.ownerId && user?.id === community.ownerId))) return
+
+    try {
+      setMembersLoading(true)
+
+      const headers: HeadersInit = {}
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/members`, {
+        headers,
+      })
+
+      if (!response.ok) {
+        throw new Error(`Members API Error: ${response.status} ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse members JSON:', parseError)
+        console.error('Members response was:', responseText)
+        throw new Error('Invalid JSON response from members API')
+      }
+
+      if (data.success) {
+        setMembers(data.data)
+      } else {
+        throw new Error(data.error || 'Failed to fetch members')
+      }
+    } catch (error) {
+      console.error('Error fetching members:', error)
+      toast.error('Failed to load members')
+    } finally {
+      setMembersLoading(false)
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) || !confirm('Are you sure you want to remove this member?')) return
+
+    try {
+      setRemovingMember(memberId)
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/members/${memberId}`, {
+        method: 'DELETE',
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Remove member from list
+        setMembers(prev => prev.filter(member => member.id !== memberId))
+
+        // Update community member count
+        setCommunity(prev => prev ? {
+          ...prev,
+          memberCount: prev.memberCount - 1
+        } : null)
+
+        toast.success('Member removed successfully')
+      } else {
+        throw new Error(data.error || 'Failed to remove member')
+      }
+    } catch (error) {
+      console.error('Error removing member:', error)
+      toast.error('Failed to remove member')
+    } finally {
+      setRemovingMember(null)
+    }
+  }
 
   const handleLike = async (postId: string) => {
     if (!user) return
@@ -493,7 +585,19 @@ export default function CommunityPostsPage() {
         headers,
       })
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(`Posts API Error: ${response.status} ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse posts JSON:', parseError)
+        console.error('Posts response was:', responseText)
+        throw new Error('Invalid JSON response from posts API')
+      }
 
       if (data.success) {
         setPosts(data.data)
@@ -535,7 +639,19 @@ export default function CommunityPostsPage() {
         headers,
       })
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(`Events API Error: ${response.status} ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse events JSON:', parseError)
+        console.error('Events response was:', responseText)
+        throw new Error('Invalid JSON response from events API')
+      }
 
       if (data.success) {
         setEvents(data.data)
@@ -575,7 +691,21 @@ export default function CommunityPostsPage() {
           headers,
         })
 
-        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} ${response.statusText}`)
+        }
+
+        const responseText = await response.text()
+        console.log('Raw API response:', responseText)
+
+        let data
+        try {
+          data = JSON.parse(responseText)
+        } catch (parseError) {
+          console.error('Failed to parse JSON:', parseError)
+          console.error('Response was:', responseText)
+          throw new Error('Invalid JSON response from server')
+        }
 
         if (data.success) {
           setCommunity(data.data)
@@ -718,6 +848,114 @@ export default function CommunityPostsPage() {
 
       {/* Action Buttons */}
       <div className="flex gap-3 mb-8">
+        {/* Community Management Button (Owner Only) */}
+        {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
+          <Dialog open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={fetchMembers}>
+                <Settings className="h-4 w-4 mr-2" />
+                Manage Members
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-yellow-500" />
+                  Manage Community Members
+                </DialogTitle>
+                <DialogDescription>
+                  View and manage members of {community.name}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {membersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    <span>Loading members...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {members.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No members found
+                      </div>
+                    ) : (
+                      members.map((member) => {
+                        const memberName = `${member.firstName} ${member.lastName}`
+                        const memberInitials = `${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()
+                        const joinedDate = new Date(member.joinedAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+
+                        return (
+                          <div
+                            key={member.id}
+                            className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src="/placeholder.svg" />
+                                <AvatarFallback>{memberInitials}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{memberName}</span>
+                                  {member.role === 'shelter' && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Shelter
+                                    </Badge>
+                                  )}
+                                  {member.id === community.ownerId && (
+                                    <Badge className="text-xs bg-yellow-100 text-yellow-800">
+                                      <Crown className="h-3 w-3 mr-1" />
+                                      Owner
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-sm text-gray-500">
+                                  Joined {joinedDate}
+                                </span>
+                              </div>
+                            </div>
+                            {member.id !== community.ownerId && member.id !== user?.id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveMember(member.id)}
+                                disabled={removingMember === member.id}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                {removingMember === member.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <UserMinus className="h-4 w-4 mr-1" />
+                                    Remove
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <span className="text-sm text-gray-500">
+                    Total: {members.length} member{members.length !== 1 ? 's' : ''}
+                  </span>
+                  <Button variant="outline" onClick={() => setIsMembersOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
           <DialogTrigger asChild>
             <Button className="bg-teal-500 hover:bg-teal-600 text-white">

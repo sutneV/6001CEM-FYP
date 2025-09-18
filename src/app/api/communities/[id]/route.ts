@@ -63,6 +63,7 @@ export async function GET(
         ...community[0],
         isMember,
         memberRole,
+        isOwner: user ? community[0].ownerId === user.userId : false,
       },
     })
   } catch (error) {
