@@ -122,14 +122,15 @@ export default function PetDetailsPage() {
   return (
     <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
       {/* Left Sidebar - Pet Gallery & Quick Actions */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-72 lg:w-80 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-3 lg:p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <Link href="/dashboard/shelter/pets">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Pets
+              <Button variant="ghost" size="sm" className="text-xs lg:text-sm">
+                <ArrowLeft className="h-4 w-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Back to Pets</span>
+                <span className="sm:hidden">Back</span>
               </Button>
             </Link>
             <Button variant="ghost" size="sm">
@@ -139,26 +140,26 @@ export default function PetDetailsPage() {
         </div>
 
         {/* Pet Photo & Basic Info */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-3 lg:p-4 border-b border-gray-200">
           <div className="text-center mb-4">
-            <Avatar className="h-32 w-32 mx-auto mb-4 border-4 border-white shadow-lg">
+            <Avatar className="h-24 w-24 lg:h-32 lg:w-32 mx-auto mb-3 lg:mb-4 border-4 border-white shadow-lg">
               <AvatarImage
                 src={pet.images && Array.isArray(pet.images) && pet.images.length > 0 ? pet.images[0] : "/placeholder.svg"}
                 alt={pet.name}
                 className="object-cover"
               />
-              <AvatarFallback className="text-4xl bg-teal-100 text-teal-600">{pet.name[0]}</AvatarFallback>
+              <AvatarFallback className="text-2xl lg:text-4xl bg-teal-100 text-teal-600">{pet.name[0]}</AvatarFallback>
             </Avatar>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">{pet.name}</h1>
-            <div className="flex items-center justify-center gap-2 mb-3">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-1">{pet.name}</h1>
+            <div className="flex items-center justify-center gap-1 lg:gap-2 mb-3 text-sm lg:text-base">
               {pet.type === 'dog' ? (
-                <Dog className="h-4 w-4 text-gray-500" />
+                <Dog className="h-3 w-3 lg:h-4 lg:w-4 text-gray-500" />
               ) : (
-                <Cat className="h-4 w-4 text-gray-500" />
+                <Cat className="h-3 w-3 lg:h-4 lg:w-4 text-gray-500" />
               )}
               <span className="text-gray-600 capitalize">{pet.type}</span>
               <span className="text-gray-400">•</span>
-              <span className="text-gray-600">{pet.breed || 'Mixed breed'}</span>
+              <span className="text-gray-600 truncate">{pet.breed || 'Mixed breed'}</span>
             </div>
             <Badge className={`${statusColors[pet.status as keyof typeof statusColors]} rounded-full px-4 py-1`}>
               <CheckCircle className="h-3 w-3 mr-1" />
@@ -168,33 +169,33 @@ export default function PetDetailsPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-3">Quick Stats</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm">
-              <Calendar className="h-4 w-4 text-teal-500 flex-shrink-0" />
+        <div className="p-3 lg:p-4 border-b border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-2 lg:mb-3 text-sm lg:text-base">Quick Stats</h3>
+          <div className="space-y-2 lg:space-y-3">
+            <div className="flex items-center gap-2 lg:gap-3 text-xs lg:text-sm">
+              <Calendar className="h-3 w-3 lg:h-4 lg:w-4 text-teal-500 flex-shrink-0" />
               <div>
                 <p className="font-medium text-gray-700">Age</p>
                 <p className="text-gray-500 capitalize">{pet.age}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Activity className="h-4 w-4 text-teal-500 flex-shrink-0" />
+            <div className="flex items-center gap-2 lg:gap-3 text-xs lg:text-sm">
+              <Activity className="h-3 w-3 lg:h-4 lg:w-4 text-teal-500 flex-shrink-0" />
               <div>
                 <p className="font-medium text-gray-700">Gender</p>
                 <p className="text-gray-500 capitalize">{pet.gender}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              <PawPrint className="h-4 w-4 text-teal-500 flex-shrink-0" />
+            <div className="flex items-center gap-2 lg:gap-3 text-xs lg:text-sm">
+              <PawPrint className="h-3 w-3 lg:h-4 lg:w-4 text-teal-500 flex-shrink-0" />
               <div>
                 <p className="font-medium text-gray-700">Size</p>
                 <p className="text-gray-500 capitalize">{pet.size || 'Not specified'}</p>
               </div>
             </div>
             {pet.weight && (
-              <div className="flex items-center gap-3 text-sm">
-                <Zap className="h-4 w-4 text-teal-500 flex-shrink-0" />
+              <div className="flex items-center gap-2 lg:gap-3 text-xs lg:text-sm">
+                <Zap className="h-3 w-3 lg:h-4 lg:w-4 text-teal-500 flex-shrink-0" />
                 <div>
                   <p className="font-medium text-gray-700">Weight</p>
                   <p className="text-gray-500">{pet.weight} kg</p>
@@ -205,41 +206,45 @@ export default function PetDetailsPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
+        <div className="p-3 lg:p-4 border-b border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-2 lg:mb-3 text-sm lg:text-base">Actions</h3>
           <div className="space-y-2">
             <Link href={`/dashboard/shelter/pets/${petId}/edit`} className="block">
-              <Button className="w-full justify-start bg-teal-500 hover:bg-teal-600 text-white">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Pet Information
+              <Button className="w-full justify-start bg-teal-500 hover:bg-teal-600 text-white text-xs lg:text-sm">
+                <Edit className="h-3 w-3 lg:h-4 lg:w-4 mr-1 lg:mr-2" />
+                <span className="hidden lg:inline">Edit Pet Information</span>
+                <span className="lg:hidden">Edit Pet</span>
               </Button>
             </Link>
-            <Button className="w-full justify-start" variant="outline">
-              <Users className="h-4 w-4 mr-2" />
-              View Applications
+            <Button className="w-full justify-start text-xs lg:text-sm" variant="outline">
+              <Users className="h-3 w-3 lg:h-4 lg:w-4 mr-1 lg:mr-2" />
+              <span className="hidden lg:inline">View Applications</span>
+              <span className="lg:hidden">Applications</span>
             </Button>
-            <Button className="w-full justify-start" variant="outline">
-              <Heart className="h-4 w-4 mr-2" />
-              Add to Featured
+            <Button className="w-full justify-start text-xs lg:text-sm" variant="outline">
+              <Heart className="h-3 w-3 lg:h-4 lg:w-4 mr-1 lg:mr-2" />
+              <span className="hidden lg:inline">Add to Featured</span>
+              <span className="lg:hidden">Featured</span>
             </Button>
             <Button
-              className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 text-xs lg:text-sm"
               variant="outline"
               onClick={handleDeletePet}
               disabled={deleting}
             >
               {deleting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-3 w-3 lg:h-4 lg:w-4 mr-1 lg:mr-2 animate-spin" />
               ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3 w-3 lg:h-4 lg:w-4 mr-1 lg:mr-2" />
               )}
-              Delete Pet
+              <span className="hidden lg:inline">Delete Pet</span>
+              <span className="lg:hidden">Delete</span>
             </Button>
           </div>
         </div>
 
         {/* Timestamps */}
-        <div className="p-4 text-xs text-gray-500 space-y-2">
+        <div className="p-3 lg:p-4 text-xs text-gray-500 space-y-2">
           <div className="flex items-center gap-2">
             <Clock className="h-3 w-3" />
             <span>Added {new Date(pet.createdAt).toLocaleDateString('en-US', {
