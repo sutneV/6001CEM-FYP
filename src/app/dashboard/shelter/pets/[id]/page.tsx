@@ -120,9 +120,10 @@ export default function PetDetailsPage() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
-      {/* Left Sidebar - Pet Gallery & Quick Actions */}
-      <div className="w-full lg:w-80 xl:w-96 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col lg:max-h-full">
+    <div className="h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
+      <div className="lg:flex lg:h-full">
+        {/* Left Sidebar - Pet Gallery & Quick Actions */}
+        <div className="lg:w-80 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 lg:overflow-y-auto lg:max-h-full">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
@@ -140,41 +141,37 @@ export default function PetDetailsPage() {
 
         {/* Pet Photo & Basic Info */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex lg:block items-center lg:text-center gap-4 lg:gap-0 mb-4">
-            <Avatar className="h-20 w-20 lg:h-32 lg:w-32 lg:mx-auto mb-0 lg:mb-4 border-4 border-white shadow-lg flex-shrink-0">
+          <div className="text-center mb-4">
+            <Avatar className="h-24 w-24 lg:h-32 lg:w-32 mx-auto mb-4 border-4 border-white shadow-lg">
               <AvatarImage
                 src={pet.images && Array.isArray(pet.images) && pet.images.length > 0 ? pet.images[0] : "/placeholder.svg"}
                 alt={pet.name}
                 className="object-cover"
               />
-              <AvatarFallback className="text-xl lg:text-4xl bg-teal-100 text-teal-600">{pet.name[0]}</AvatarFallback>
+              <AvatarFallback className="text-2xl lg:text-4xl bg-teal-100 text-teal-600">{pet.name[0]}</AvatarFallback>
             </Avatar>
-            <div className="flex-1 lg:flex-none">
-              <h1 className="text-lg lg:text-2xl font-bold text-gray-900 mb-1">{pet.name}</h1>
-              <div className="flex lg:justify-center items-center gap-2 mb-3 text-sm">
-                {pet.type === 'dog' ? (
-                  <Dog className="h-4 w-4 text-gray-500" />
-                ) : (
-                  <Cat className="h-4 w-4 text-gray-500" />
-                )}
-                <span className="text-gray-600 capitalize">{pet.type}</span>
-                <span className="text-gray-400">•</span>
-                <span className="text-gray-600 truncate">{pet.breed || 'Mixed breed'}</span>
-              </div>
-              <div className="lg:flex lg:justify-center">
-                <Badge className={`${statusColors[pet.status as keyof typeof statusColors]} rounded-full px-4 py-1`}>
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
-                </Badge>
-              </div>
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-1">{pet.name}</h1>
+            <div className="flex justify-center items-center gap-2 mb-3 text-sm">
+              {pet.type === 'dog' ? (
+                <Dog className="h-4 w-4 text-gray-500" />
+              ) : (
+                <Cat className="h-4 w-4 text-gray-500" />
+              )}
+              <span className="text-gray-600 capitalize">{pet.type}</span>
+              <span className="text-gray-400">•</span>
+              <span className="text-gray-600">{pet.breed || 'Mixed breed'}</span>
             </div>
+            <Badge className={`${statusColors[pet.status as keyof typeof statusColors]} rounded-full px-4 py-1`}>
+              <CheckCircle className="h-3 w-3 mr-1" />
+              {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
+            </Badge>
           </div>
         </div>
 
         {/* Quick Stats */}
         <div className="p-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-900 mb-3">Quick Stats</h3>
-          <div className="grid grid-cols-2 lg:block gap-3 lg:space-y-3">
+          <div className="space-y-3">
             <div className="flex items-center gap-3 text-sm">
               <Calendar className="h-4 w-4 text-teal-500 flex-shrink-0" />
               <div>
@@ -211,25 +208,23 @@ export default function PetDetailsPage() {
         {/* Quick Actions */}
         <div className="p-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
-          <div className="grid grid-cols-2 lg:block gap-2 lg:space-y-2">
-            <Link href={`/dashboard/shelter/pets/${petId}/edit`} className="block lg:col-span-2">
+          <div className="space-y-2">
+            <Link href={`/dashboard/shelter/pets/${petId}/edit`} className="block">
               <Button className="w-full justify-start bg-teal-500 hover:bg-teal-600 text-white">
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Pet
+                Edit Pet Information
               </Button>
             </Link>
             <Button className="w-full justify-start" variant="outline">
               <Users className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline lg:inline">Applications</span>
-              <span className="sm:hidden lg:hidden">Apps</span>
+              View Applications
             </Button>
             <Button className="w-full justify-start" variant="outline">
               <Heart className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline lg:inline">Featured</span>
-              <span className="sm:hidden lg:hidden">Star</span>
+              Add to Featured
             </Button>
             <Button
-              className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 lg:col-span-2"
+              className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
               variant="outline"
               onClick={handleDeletePet}
               disabled={deleting}
@@ -245,7 +240,7 @@ export default function PetDetailsPage() {
         </div>
 
         {/* Timestamps */}
-        <div className="p-4 text-xs text-gray-500 space-y-2 lg:block hidden">
+        <div className="p-4 text-xs text-gray-500 space-y-2">
           <div className="flex items-center gap-2">
             <Clock className="h-3 w-3" />
             <span>Added {new Date(pet.createdAt).toLocaleDateString('en-US', {
@@ -263,22 +258,23 @@ export default function PetDetailsPage() {
             })}</span>
           </div>
         </div>
-      </div>
-
-      {/* Right Content Area */}
-      <div className="flex-1 flex flex-col bg-white">
-        {/* Content Header */}
-        <div className="border-b border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Pet Information</h2>
-              <p className="text-gray-600">Complete details and characteristics</p>
-            </div>
-          </div>
         </div>
 
-        {/* Scrollable Content */}
-        <ScrollArea className="flex-1 p-6">
+        {/* Right Content Area */}
+        <div className="flex-1 bg-white lg:overflow-hidden">
+          <div className="lg:h-full lg:flex lg:flex-col">
+          {/* Content Header */}
+          <div className="border-b border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">Pet Information</h2>
+                <p className="text-gray-600">Complete details and characteristics</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Scrollable Content */}
+          <ScrollArea className="flex-1 p-6">
           <div className="space-y-6">
             {/* Description Card */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 shadow-sm">
@@ -472,7 +468,9 @@ export default function PetDetailsPage() {
               </div>
             )}
           </div>
-        </ScrollArea>
+          </ScrollArea>
+          </div>
+        </div>
       </div>
     </div>
   )
