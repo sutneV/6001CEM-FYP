@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Menu,
   MapPin,
+  Bot,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -69,6 +70,7 @@ export default function DashboardLayout({
     { name: "Event Map", icon: MapPin, href: "/dashboard/event-map" },
     { name: "Calendar", icon: Calendar, href: "/dashboard/calendar" },
     { name: "Resources", icon: FileText, href: "/dashboard/resources" },
+    { name: "AI Assistant", icon: Bot, href: "/dashboard/ai-assistant" },
   ]
 
   const secondaryNavItems = [
@@ -244,6 +246,7 @@ export default function DashboardLayout({
                pathname === "/dashboard/event-map" ? "Event Map" :
                pathname === "/dashboard/calendar" ? "Calendar" :
                pathname === "/dashboard/resources" ? "Resources" :
+               pathname === "/dashboard/ai-assistant" ? "AI Assistant" :
                pathname === "/dashboard/profile" ? "Profile" :
                pathname === "/dashboard/settings" ? "Settings" :
                "Dashboard"}

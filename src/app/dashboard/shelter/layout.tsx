@@ -22,6 +22,7 @@ import {
   Building,
   Menu,
   MapPin,
+  Bot,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -67,6 +68,7 @@ export default function ShelterLayout({
     { name: "Calendar", icon: Calendar, href: "/dashboard/shelter/calendar" },
     { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
     { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
+    { name: "AI Assistant", icon: Bot, href: "/dashboard/shelter/ai-assistant" },
   ]
 
   const secondaryNavItems = [
@@ -233,12 +235,13 @@ export default function ShelterLayout({
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-semibold">
-              {pathname === "/dashboard/shelter" ? "Shelter Dashboard" : 
+              {pathname === "/dashboard/shelter" ? "Shelter Dashboard" :
                pathname === "/dashboard/shelter/pets" ? "Pet Management" :
                pathname === "/dashboard/shelter/applications" ? "Applications" :
                pathname === "/dashboard/shelter/communities" ? "Communities" :
                pathname === "/dashboard/shelter/calendar" ? "Calendar" :
                pathname === "/dashboard/shelter/events" ? "Events" :
+               pathname === "/dashboard/shelter/ai-assistant" ? "AI Assistant" :
                pathname === "/dashboard/event-map" ? "Event Map" :
                "Shelter Portal"}
             </h1>
