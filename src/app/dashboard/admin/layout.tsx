@@ -20,6 +20,7 @@ import {
   Shield,
   Activity,
   Menu,
+  Database,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -55,6 +56,7 @@ export default function AdminLayout({
     { name: "Analytics", icon: BarChart3, href: "/dashboard/admin/analytics" },
     { name: "Reports", icon: FileText, href: "/dashboard/admin/reports" },
     { name: "System Health", icon: Activity, href: "/dashboard/admin/system" },
+    { name: "AI Knowledge Base", icon: Database, href: "/dashboard/admin/ai-knowledge-base" },
   ]
 
   const secondaryNavItems = [
@@ -213,7 +215,7 @@ export default function AdminLayout({
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-semibold">
-              {pathname === "/dashboard/admin" ? "Admin Dashboard" : 
+              {pathname === "/dashboard/admin" ? "Admin Dashboard" :
                pathname === "/dashboard/admin/users" ? "User Management" :
                pathname === "/dashboard/admin/shelters" ? "Shelter Management" :
                pathname === "/dashboard/admin/pets" ? "Pet Management" :
@@ -221,6 +223,7 @@ export default function AdminLayout({
                pathname === "/dashboard/admin/analytics" ? "Analytics" :
                pathname === "/dashboard/admin/reports" ? "Reports" :
                pathname === "/dashboard/admin/system" ? "System Health" :
+               pathname === "/dashboard/admin/ai-knowledge-base" ? "AI Knowledge Base" :
                "Admin Panel"}
             </h1>
           </div>
