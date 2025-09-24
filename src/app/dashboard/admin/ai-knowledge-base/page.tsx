@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,14 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import {
   Select,
   SelectContent,
@@ -56,155 +48,102 @@ import {
   ChevronDown,
   ChevronRight,
   Settings,
-  X
+  X,
+  Loader2
 } from "lucide-react"
-
-interface Document {
-  id: string
-  title: string
-  content: string
-  type: 'faq' | 'guide' | 'policy' | 'manual'
-  status: 'indexed' | 'processing' | 'error'
-  chunks: number
-  lastUpdated: Date
-  size: string
-  folderId: string
-}
-
-interface DocumentFolder {
-  id: string
-  name: string
-  description: string
-  icon: string
-  isOpen: boolean
-  documents: Document[]
-}
-
-interface KnowledgeStats {
-  totalDocuments: number
-  totalChunks: number
-  indexedDocuments: number
-  processingDocuments: number
-  errorDocuments: number
-  storageUsed: string
-}
+import {
+  getFolders,
+  getDocuments,
+  createFolder,
+  createDocument,
+  updateDocument,
+  deleteDocument,
+  updateFolder,
+  reindexDocument,
+  getKnowledgeStats,
+  getDocumentChunks,
+  createDocumentChunks,
+  getDocument,
+  type DocumentFolder,
+  type Document,
+  type DocumentChunk,
+  type KnowledgeStats
+} from "@/lib/supabase/documents"
+import {
+  parseFiles,
+  isSupportedFileType,
+  getFileTypeDisplayName,
+  formatFileSize
+} from "@/lib/utils/file-parser"
+import {
+  generateBatchEmbeddings,
+  generateEmbedding
+} from "@/lib/utils/embeddings"
 
 export default function AIKnowledgeBasePage() {
-  const [folders, setFolders] = useState<DocumentFolder[]>([
-    {
-      id: 'adoption',
-      name: 'Adoption Guides',
-      description: 'Pet adoption processes and requirements',
-      icon: '🏠',
-      isOpen: true,
-      documents: [
-        {
-          id: '1',
-          title: 'Pet Adoption Process',
-          content: 'A comprehensive guide on pet adoption procedures...',
-          type: 'guide',
-          status: 'indexed',
-          chunks: 45,
-          lastUpdated: new Date('2024-01-15'),
-          size: '64 KB',
-          folderId: 'adoption'
-        },
-        {
-          id: '2',
-          title: 'Pre-adoption Checklist',
-          content: 'Essential checklist for potential adopters...',
-          type: 'guide',
-          status: 'indexed',
-          chunks: 28,
-          lastUpdated: new Date('2024-01-12'),
-          size: '42 KB',
-          folderId: 'adoption'
-        }
-      ]
-    },
-    {
-      id: 'petcare',
-      name: 'Pet Care',
-      description: 'Health and wellness information',
-      icon: '🏥',
-      isOpen: false,
-      documents: [
-        {
-          id: '3',
-          title: 'Basic Pet Health Care',
-          content: 'Essential health care information for pets...',
-          type: 'manual',
-          status: 'processing',
-          chunks: 67,
-          lastUpdated: new Date('2024-01-10'),
-          size: '89 KB',
-          folderId: 'petcare'
-        },
-        {
-          id: '4',
-          title: 'Emergency Pet Care',
-          content: 'Emergency procedures and first aid for pets...',
-          type: 'manual',
-          status: 'error',
-          chunks: 0,
-          lastUpdated: new Date('2024-01-08'),
-          size: '56 KB',
-          folderId: 'petcare'
-        }
-      ]
-    },
-    {
-      id: 'policies',
-      name: 'Policies & Procedures',
-      description: 'Internal policies and guidelines',
-      icon: '📋',
-      isOpen: false,
-      documents: [
-        {
-          id: '5',
-          title: 'Volunteer Guidelines',
-          content: 'Guidelines for volunteer management and training...',
-          type: 'policy',
-          status: 'indexed',
-          chunks: 35,
-          lastUpdated: new Date('2024-01-08'),
-          size: '52 KB',
-          folderId: 'policies'
-        }
-      ]
-    },
-    {
-      id: 'training',
-      name: 'Training Materials',
-      description: 'Staff and volunteer training resources',
-      icon: '🎓',
-      isOpen: false,
-      documents: []
-    }
-  ])
-
-  const [stats] = useState<KnowledgeStats>({
-    totalDocuments: 15,
-    totalChunks: 342,
-    indexedDocuments: 12,
-    processingDocuments: 2,
-    errorDocuments: 1,
-    storageUsed: '2.4 MB'
+  // State management
+  const [folders, setFolders] = useState<DocumentFolder[]>([])
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [documentChunks, setDocumentChunks] = useState<DocumentChunk[]>([])
+  const [stats, setStats] = useState<KnowledgeStats>({
+    totalDocuments: 0,
+    totalChunks: 0,
+    indexedDocuments: 0,
+    processingDocuments: 0,
+    errorDocuments: 0,
+    storageUsed: '0 KB'
   })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // UI state
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [isAddFolderDialogOpen, setIsAddFolderDialogOpen] = useState(false)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [uploadFolder, setUploadFolder] = useState("adoption")
+  const [uploadFolder, setUploadFolder] = useState("")
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set())
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const [newFolder, setNewFolder] = useState({
     name: "",
-    description: "",
-    icon: "📁"
+    description: ""
   })
 
+  // Load data on mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const [foldersData, documentsData, statsData] = await Promise.all([
+        getFolders(),
+        getDocuments(),
+        getKnowledgeStats()
+      ])
+
+      setFolders(foldersData)
+      setDocuments(documentsData)
+      setStats(statsData)
+
+      // Set first folder as default upload folder
+      if (foldersData.length > 0) {
+        setUploadFolder(foldersData[0].id)
+      }
+    } catch (err) {
+      console.error('Error loading data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Helper functions
   const getStatusColor = (status: Document['status']) => {
     switch (status) {
       case 'indexed':
@@ -218,122 +157,265 @@ export default function AIKnowledgeBasePage() {
     }
   }
 
-  const getTypeColor = (type: Document['type']) => {
-    switch (type) {
-      case 'guide':
-        return 'bg-blue-100 text-blue-800'
-      case 'manual':
-        return 'bg-purple-100 text-purple-800'
-      case 'policy':
-        return 'bg-orange-100 text-orange-800'
-      case 'faq':
-        return 'bg-teal-100 text-teal-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
+  const getDocumentsForFolder = (folderId: string) => {
+    return documents.filter(doc => doc.folder_id === folderId)
   }
 
+  const getFilteredDocuments = (folderId: string) => {
+    const folderDocs = getDocumentsForFolder(folderId)
+    if (!searchQuery) return folderDocs
+    return folderDocs.filter(doc =>
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }
+
+  const formatFileSize = (sizeKb: number) => {
+    return sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
+  }
+
+  // Event handlers
   const toggleFolder = (folderId: string) => {
-    setFolders(prev => prev.map(folder =>
-      folder.id === folderId
-        ? { ...folder, isOpen: !folder.isOpen }
-        : folder
-    ))
-  }
-
-  const selectDocument = (document: Document) => {
-    setSelectedDocument(document)
-  }
-
-  const handleDocumentSelect = (id: string) => {
-    const document = folders.flatMap(f => f.documents).find(d => d.id === id)
-    if (document) {
-      setSelectedDocument(document)
-    }
-  }
-
-  const handleDeleteDocument = (id: string) => {
-    setFolders(prev => prev.map(folder => ({
-      ...folder,
-      documents: folder.documents.filter(doc => doc.id !== id)
-    })))
-
-    if (selectedDocument?.id === id) {
-      setSelectedDocument(null)
-    }
-  }
-
-  const handleReindexDocument = (id: string) => {
-    setFolders(prev => prev.map(folder => ({
-      ...folder,
-      documents: folder.documents.map(doc =>
-        doc.id === id
-          ? { ...doc, status: 'processing' as const }
-          : doc
-      )
-    })))
-  }
-
-  const handleAddFolder = () => {
-    const newFolderData: DocumentFolder = {
-      id: Date.now().toString(),
-      name: newFolder.name,
-      description: newFolder.description,
-      icon: newFolder.icon,
-      isOpen: false,
-      documents: []
-    }
-
-    setFolders(prev => [...prev, newFolderData])
-
-    setNewFolder({
-      name: "",
-      description: "",
-      icon: "📁"
+    setOpenFolders(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId)
+      } else {
+        newSet.add(folderId)
+      }
+      return newSet
     })
-    setIsAddFolderDialogOpen(false)
+  }
+
+  const selectDocument = async (document: Document) => {
+    setSelectedDocument(document)
+
+    // Load chunks for the selected document
+    try {
+      const chunks = await getDocumentChunks(document.id)
+      setDocumentChunks(chunks)
+    } catch (err) {
+      console.error('Error loading document chunks:', err)
+      setDocumentChunks([])
+    }
+  }
+
+  const handleDeleteDocument = async (id: string) => {
+    try {
+      await deleteDocument(id)
+      setDocuments(prev => prev.filter(doc => doc.id !== id))
+
+      if (selectedDocument?.id === id) {
+        setSelectedDocument(null)
+      }
+
+      // Refresh stats
+      const newStats = await getKnowledgeStats()
+      setStats(newStats)
+    } catch (err) {
+      console.error('Error deleting document:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete document')
+    }
+  }
+
+  const handleReindexDocument = async (id: string) => {
+    try {
+      const updatedDoc = await reindexDocument(id)
+      setDocuments(prev => prev.map(doc =>
+        doc.id === id ? updatedDoc : doc
+      ))
+
+      if (selectedDocument?.id === id) {
+        setSelectedDocument(updatedDoc)
+      }
+    } catch (err) {
+      console.error('Error reindexing document:', err)
+      setError(err instanceof Error ? err.message : 'Failed to reindex document')
+    }
+  }
+
+  const handleAddFolder = async () => {
+    try {
+      const newFolderData = await createFolder(newFolder.name, newFolder.description)
+      setFolders(prev => [...prev, newFolderData])
+
+      setNewFolder({ name: "", description: "" })
+      setIsAddFolderDialogOpen(false)
+    } catch (err) {
+      console.error('Error creating folder:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create folder')
+    }
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files) {
-      setSelectedFiles(Array.from(files))
+      // Filter only supported files
+      const supportedFiles = Array.from(files).filter(file => {
+        if (!isSupportedFileType(file)) {
+          console.warn(`Unsupported file type: ${file.name}`)
+          return false
+        }
+        return true
+      })
+
+      setSelectedFiles(supportedFiles)
+
+      // Show warning if some files were filtered out
+      if (supportedFiles.length !== files.length) {
+        const unsupportedCount = files.length - supportedFiles.length
+        setError(`${unsupportedCount} file(s) were not added due to unsupported format`)
+        // Clear error after 3 seconds
+        setTimeout(() => setError(null), 3000)
+      }
     }
   }
 
-  const detectFileType = (filename: string): Document['type'] => {
-    const lower = filename.toLowerCase()
-    if (lower.includes('faq') || lower.includes('question')) return 'faq'
-    if (lower.includes('manual') || lower.includes('handbook')) return 'manual'
-    if (lower.includes('policy') || lower.includes('procedure')) return 'policy'
-    return 'guide'
-  }
+  const handleBulkUpload = async () => {
+    try {
+      setError(null)
+      setUploadingFiles(true)
+      setUploadProgress('Parsing files...')
 
-  const handleBulkUpload = () => {
-    const newDocs: Document[] = selectedFiles.map((file, index) => ({
-      id: (Date.now() + index).toString(),
-      title: file.name.replace(/\.[^/.]+$/, ""),
-      content: `Content from ${file.name}`,
-      type: detectFileType(file.name),
-      status: 'processing' as const,
-      chunks: 0,
-      lastUpdated: new Date(),
-      size: `${Math.round(file.size / 1024)} KB`,
-      folderId: uploadFolder
-    }))
+      // Parse all files first
+      const parsedFiles = await parseFiles(selectedFiles)
 
-    setFolders(prev => prev.map(folder =>
-      folder.id === uploadFolder
-        ? { ...folder, documents: [...folder.documents, ...newDocs] }
-        : folder
-    ))
+      if (parsedFiles.length === 0) {
+        throw new Error('No files could be processed')
+      }
 
-    setSelectedFiles([])
-    setIsUploadDialogOpen(false)
+      // Create documents and their chunks
+      const newDocs: Document[] = []
+
+      for (const parsedFile of parsedFiles) {
+        try {
+          // Create the document first
+          const newDoc = await createDocument({
+            title: parsedFile.title,
+            content: parsedFile.content,
+            status: 'processing',
+            chunks: parsedFile.chunks.length,
+            size_kb: Math.round(parsedFile.size / 1024),
+            folder_id: uploadFolder,
+            embedding: null
+          })
+
+          // Create document chunks with embeddings
+          if (parsedFile.chunks.length > 0) {
+            try {
+              // Generate embeddings for all chunks
+              console.log(`Generating embeddings for ${parsedFile.chunks.length} chunks...`)
+              const chunkEmbeddings = await generateBatchEmbeddings(parsedFile.chunks)
+
+              // Generate document-level embedding from full content
+              const documentEmbedding = await generateEmbedding(parsedFile.content.slice(0, 8000))
+
+              const chunkData = parsedFile.chunks.map((chunkText, index) => ({
+                document_id: newDoc.id,
+                chunk_text: chunkText,
+                chunk_index: index,
+                token_count: Math.ceil(chunkText.length / 4), // Rough token estimate
+                embedding: chunkEmbeddings[index]
+              }))
+
+              await createDocumentChunks(chunkData)
+
+              // Update document with document-level embedding
+              await updateDocument(newDoc.id, {
+                status: 'indexed',
+                embedding: documentEmbedding
+              })
+
+              console.log(`Successfully created ${chunkData.length} chunks with embeddings`)
+            } catch (embeddingError) {
+              console.error(`Error generating embeddings for ${parsedFile.title}:`, embeddingError)
+
+              // Create chunks without embeddings as fallback
+              const chunkData = parsedFile.chunks.map((chunkText, index) => ({
+                document_id: newDoc.id,
+                chunk_text: chunkText,
+                chunk_index: index,
+                token_count: Math.ceil(chunkText.length / 4),
+                embedding: null
+              }))
+
+              await createDocumentChunks(chunkData)
+
+              // Update document status to error due to embedding failure
+              await updateDocument(newDoc.id, {
+                status: 'error'
+              })
+            }
+          }
+
+          // Get final document state after all updates
+          const finalDoc = await getDocument(newDoc.id)
+          if (finalDoc) {
+            newDocs.push(finalDoc)
+          }
+        } catch (docError) {
+          console.error(`Error creating document for ${parsedFile.title}:`, docError)
+          // Continue with other files
+        }
+      }
+
+      setDocuments(prev => [...prev, ...newDocs])
+
+      // Refresh stats
+      const newStats = await getKnowledgeStats()
+      setStats(newStats)
+
+      setSelectedFiles([])
+      setIsUploadDialogOpen(false)
+
+      // Show success message if some files failed to parse
+      if (parsedFiles.length < selectedFiles.length) {
+        const failedCount = selectedFiles.length - parsedFiles.length
+        console.warn(`${failedCount} file(s) could not be processed`)
+      }
+    } catch (err) {
+      console.error('Error uploading files:', err)
+      setError(err instanceof Error ? err.message : 'Failed to upload files')
+    } finally {
+      setUploadingFiles(false)
+    }
   }
 
   const removeSelectedFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden">
+        <div className="flex items-center justify-center w-full">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading knowledge base...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden">
+        <div className="flex items-center justify-center w-full">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={loadData} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -380,7 +462,7 @@ export default function AIKnowledgeBasePage() {
                         <div className="space-y-1 text-center">
                           <Upload className="mx-auto h-12 w-12 text-gray-400" />
                           <div className="flex text-sm text-gray-600">
-                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-teal-500">
+                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500">
                               <span>Upload files</span>
                               <input
                                 id="file-upload"
@@ -397,6 +479,9 @@ export default function AIKnowledgeBasePage() {
                           <p className="text-xs text-gray-500">
                             PDF, DOC, DOCX, TXT, MD up to 10MB each
                           </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            PDF files will be processed to extract text content
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -408,8 +493,14 @@ export default function AIKnowledgeBasePage() {
                             <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                               <div className="flex items-center gap-2">
                                 <FileText className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{file.name}</span>
-                                <span className="text-xs text-gray-500">({Math.round(file.size / 1024)} KB)</span>
+                                <div className="flex-1">
+                                  <span className="text-sm font-medium">{file.name}</span>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <span>{getFileTypeDisplayName(file)}</span>
+                                    <span>•</span>
+                                    <span>{formatFileSize(file.size)}</span>
+                                  </div>
+                                </div>
                               </div>
                               <Button
                                 variant="ghost"
@@ -424,6 +515,14 @@ export default function AIKnowledgeBasePage() {
                         </div>
                       </div>
                     )}
+                    {uploadingFiles && uploadProgress && (
+                      <div className="mt-4">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
+                          <span className="text-sm font-medium text-teal-700">{uploadProgress}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
@@ -431,10 +530,17 @@ export default function AIKnowledgeBasePage() {
                     </Button>
                     <Button
                       onClick={handleBulkUpload}
-                      disabled={selectedFiles.length === 0}
+                      disabled={selectedFiles.length === 0 || uploadingFiles}
                       className="bg-teal-500 hover:bg-teal-600"
                     >
-                      Upload {selectedFiles.length} Files
+                      {uploadingFiles ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing Files...
+                        </>
+                      ) : (
+                        `Upload ${selectedFiles.length} File${selectedFiles.length === 1 ? '' : 's'}`
+                      )}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -508,12 +614,12 @@ export default function AIKnowledgeBasePage() {
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
                   onClick={() => toggleFolder(folder.id)}
                 >
-                  {folder.isOpen ? (
+                  {openFolders.has(folder.id) ? (
                     <ChevronDown className="h-4 w-4 text-gray-400" />
                   ) : (
                     <ChevronRight className="h-4 w-4 text-gray-400" />
                   )}
-                  {folder.isOpen ? (
+                  {openFolders.has(folder.id) ? (
                     <FolderOpen className="h-4 w-4 text-teal-500" />
                   ) : (
                     <FolderClosed className="h-4 w-4 text-gray-400" />
@@ -526,56 +632,51 @@ export default function AIKnowledgeBasePage() {
                       {folder.description}
                     </p>
                     <p className="text-xs text-gray-400 truncate">
-                      {folder.documents.length} documents
+                      {getDocumentsForFolder(folder.id).length} documents
                     </p>
                   </div>
                 </div>
 
-                {folder.isOpen && (
+                {openFolders.has(folder.id) && (
                   <div className="ml-6 mt-1 space-y-1">
-                    {folder.documents
-                      .filter(doc =>
-                        searchQuery === "" ||
-                        doc.title.toLowerCase().includes(searchQuery.toLowerCase())
-                      )
-                      .map((doc) => (
-                        <motion.div
-                          key={doc.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className={`group flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                            selectedDocument?.id === doc.id
-                              ? "bg-teal-50 border border-teal-200"
-                              : "hover:bg-gray-50"
-                          }`}
-                          onClick={() => selectDocument(doc)}
-                        >
-                          <File className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {doc.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge className={`text-xs ${getStatusColor(doc.status)}`}>
-                                {doc.status}
-                              </Badge>
-                            </div>
+                    {getFilteredDocuments(folder.id).map((doc) => (
+                      <motion.div
+                        key={doc.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={`group flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                          selectedDocument?.id === doc.id
+                            ? "bg-teal-50 border border-teal-200"
+                            : "hover:bg-gray-50"
+                        }`}
+                        onClick={() => selectDocument(doc)}
+                      >
+                        <File className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {doc.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge className={`text-xs ${getStatusColor(doc.status)}`}>
+                              {doc.status}
+                            </Badge>
                           </div>
-                          <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteDocument(doc.id)
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </motion.div>
-                      ))}
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteDocument(doc.id)
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -595,8 +696,7 @@ export default function AIKnowledgeBasePage() {
                 <div>
                   <h2 className="font-semibold text-gray-900">{selectedDocument.title}</h2>
                   <p className="text-sm text-gray-600">
-                    {selectedDocument.type.charAt(0).toUpperCase() + selectedDocument.type.slice(1)} •
-                    Last updated {selectedDocument.lastUpdated.toLocaleDateString()}
+                    Last updated {formatDate(selectedDocument.last_updated)}
                   </p>
                 </div>
               </div>
@@ -668,7 +768,7 @@ export default function AIKnowledgeBasePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-600">File Size</p>
-                        <p className="text-2xl font-bold text-gray-900">{selectedDocument.size}</p>
+                        <p className="text-2xl font-bold text-gray-900">{formatFileSize(selectedDocument.size_kb)}</p>
                       </div>
                       <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
                         <FileText className="h-4 w-4 text-purple-600" />
@@ -704,16 +804,16 @@ export default function AIKnowledgeBasePage() {
                       <span className="ml-2 font-mono">{selectedDocument.id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-medium">Type:</span>
-                      <span className="ml-2">{selectedDocument.type}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="font-medium">Last Updated:</span>
-                      <span className="ml-2">{selectedDocument.lastUpdated.toLocaleString()}</span>
+                      <span className="ml-2">{new Date(selectedDocument.last_updated).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Chunks:</span>
                       <span className="ml-2">{selectedDocument.chunks} segments</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Has Embedding:</span>
+                      <span className="ml-2">{selectedDocument.embedding ? 'Yes' : 'No'}</span>
                     </div>
                   </div>
                   {selectedDocument.status === 'indexed' && (
@@ -744,6 +844,71 @@ export default function AIKnowledgeBasePage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Document Chunks */}
+              {selectedDocument.chunks > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Document Chunks ({selectedDocument.chunks})</CardTitle>
+                    <CardDescription>
+                      Text chunks ready for vector similarity search
+                      {documentChunks.length > 0 && ` • ${documentChunks.length} loaded`}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {documentChunks.length > 0 ? (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {documentChunks.map((chunk, index) => (
+                          <div key={chunk.id} className="border rounded-lg p-3 bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  Chunk {chunk.chunk_index + 1}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {chunk.token_count} tokens
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {chunk.embedding ? '✓ Embedded' : '○ No embedding'}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {chunk.chunk_text.length} chars
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              {chunk.chunk_text.substring(0, 300)}
+                              {chunk.chunk_text.length > 300 && (
+                                <span className="text-gray-400">... ({chunk.chunk_text.length - 300} more chars)</span>
+                              )}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Loading chunks...</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* No Chunks Message */}
+              {selectedDocument.chunks === 0 && (
+                <Card className="border-yellow-200 bg-yellow-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 text-yellow-700">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">No chunks created</span>
+                    </div>
+                    <p className="text-sm text-yellow-600 mt-1">
+                      This document hasn't been chunked yet. Try reindexing to create chunks for better search performance.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
@@ -779,9 +944,6 @@ export default function AIKnowledgeBasePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{stats.totalDocuments}</div>
-                      <p className="text-xs text-muted-foreground">
-                        +2 from last month
-                      </p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -798,9 +960,6 @@ export default function AIKnowledgeBasePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{stats.totalChunks}</div>
-                      <p className="text-xs text-muted-foreground">
-                        Vector embeddings ready
-                      </p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -817,9 +976,6 @@ export default function AIKnowledgeBasePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{stats.processingDocuments}</div>
-                      <p className="text-xs text-muted-foreground">
-                        Currently indexing
-                      </p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -836,9 +992,6 @@ export default function AIKnowledgeBasePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{stats.storageUsed}</div>
-                      <p className="text-xs text-muted-foreground">
-                        of 100MB limit
-                      </p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -857,14 +1010,14 @@ export default function AIKnowledgeBasePage() {
                     </div>
                   </div>
                 </Card>
-                <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+                <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer" onClick={loadData}>
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 rounded-lg">
                       <RefreshCw className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <div className="font-medium text-sm">Rebuild Index</div>
-                      <div className="text-xs text-gray-500">Refresh database</div>
+                      <div className="font-medium text-sm">Refresh Data</div>
+                      <div className="text-xs text-gray-500">Reload from database</div>
                     </div>
                   </div>
                 </Card>
@@ -891,44 +1044,6 @@ export default function AIKnowledgeBasePage() {
                   </div>
                 </Card>
               </div>
-
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Recent Activity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Pet Adoption Process indexed</p>
-                        <p className="text-xs text-gray-500">2 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                        <Clock className="h-4 w-4 text-yellow-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Basic Pet Health Care processing</p>
-                        <p className="text-xs text-gray-500">5 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
-                        <Upload className="h-4 w-4 text-teal-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">3 new documents uploaded</p>
-                        <p className="text-xs text-gray-500">1 day ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>
