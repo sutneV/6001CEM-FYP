@@ -1,7 +1,10 @@
 /**
  * File parsing utilities for different document types
  * Handles PDF, TXT, MD, DOC, DOCX files with proper text extraction
+ * Uses LlamaParse for intelligent PDF parsing with semantic understanding
  */
+
+import { LlamaParse } from 'llama-parse'
 
 // Dynamic import to avoid SSR issues with PDF.js
 let pdfjs: any = null
@@ -29,9 +32,44 @@ export interface ParsedDocument {
 }
 
 /**
- * Parse PDF file and extract text content
+ * Parse PDF file using LlamaParse for intelligent semantic parsing
  */
-async function parsePDF(file: File): Promise<string> {
+async function parsePDFWithLlamaParse(file: File): Promise<string> {
+  try {
+    // Use server-side API route for LlamaParse processing
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch('/api/parse-document', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (!response.ok) {
+      console.warn('LlamaParse API failed, falling back to basic parsing')
+      return parsePDFBasic(file)
+    }
+
+    const result = await response.json()
+
+    if (result.success && result.content) {
+      console.log('LlamaParse succeeded, using intelligent parsing')
+      return result.content
+    } else {
+      console.warn('LlamaParse returned no content, falling back to basic parsing')
+      return parsePDFBasic(file)
+    }
+
+  } catch (error) {
+    console.warn('LlamaParse failed, falling back to basic PDF parsing:', error)
+    return parsePDFBasic(file)
+  }
+}
+
+/**
+ * Parse PDF file using basic PDF.js extraction (fallback method)
+ */
+async function parsePDFBasic(file: File): Promise<string> {
   try {
     // Initialize PDF.js dynamically
     const pdfjsLib = await initPDFJS()
@@ -212,8 +250,8 @@ export function getFileTypeDisplayName(file: File): string {
 }
 
 /**
- * Chunk text into smaller pieces for processing
- * This is useful for large documents that need to be split for embedding
+ * Chunk text intelligently based on content structure
+ * For markdown content (from LlamaParse), preserve semantic sections
  */
 export function chunkText(
   text: string,
@@ -224,6 +262,93 @@ export function chunkText(
     return [text]
   }
 
+  // Check if text is markdown (likely from LlamaParse)
+  const isMarkdown = text.includes('#') || text.includes('##') || text.includes('###')
+
+  if (isMarkdown) {
+    return chunkMarkdownText(text, chunkSize, overlap)
+  } else {
+    return chunkPlainText(text, chunkSize, overlap)
+  }
+}
+
+/**
+ * Chunk markdown text preserving semantic structure
+ */
+function chunkMarkdownText(
+  text: string,
+  chunkSize: number = 1000,
+  overlap: number = 200
+): string[] {
+  const lines = text.split('\n')
+  const chunks: string[] = []
+  let currentChunk = ''
+  let currentSection = ''
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Check if this is a header line
+    const isHeader = line.trim().startsWith('#')
+
+    // If we hit a header and current chunk is getting large, finalize it
+    if (isHeader && currentChunk.length > chunkSize * 0.7) {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim())
+      }
+      currentChunk = currentSection // Keep section context
+    }
+
+    // Update section context if this is a header
+    if (isHeader) {
+      currentSection = line + '\n'
+    }
+
+    // Add line to current chunk
+    currentChunk += line + '\n'
+
+    // If chunk is getting too large, try to split
+    if (currentChunk.length > chunkSize) {
+      // Look ahead for a good breaking point
+      let breakPoint = i
+      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+        if (lines[j].trim() === '' || lines[j].trim().startsWith('#')) {
+          breakPoint = j
+          break
+        }
+      }
+
+      // Create chunk up to break point
+      const chunkLines = lines.slice(Math.max(0, i - Math.floor(currentChunk.split('\n').length)), breakPoint)
+      const chunk = chunkLines.join('\n').trim()
+
+      if (chunk) {
+        chunks.push(chunk)
+      }
+
+      // Start new chunk with overlap and section context
+      const overlapLines = chunkLines.slice(-Math.floor(overlap / 50)) // Approximate overlap in lines
+      currentChunk = currentSection + overlapLines.join('\n') + '\n'
+      i = breakPoint - 1 // Adjust loop counter
+    }
+  }
+
+  // Add final chunk
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim())
+  }
+
+  return chunks.filter(chunk => chunk.length > 50) // Filter out very small chunks
+}
+
+/**
+ * Chunk plain text using sentence boundaries
+ */
+function chunkPlainText(
+  text: string,
+  chunkSize: number = 1000,
+  overlap: number = 200
+): string[] {
   const chunks: string[] = []
   let start = 0
 
@@ -269,7 +394,7 @@ export async function parseFile(file: File): Promise<ParsedDocument> {
   try {
     switch (extension) {
       case 'pdf':
-        content = await parsePDF(file)
+        content = await parsePDFWithLlamaParse(file)
         break
 
       case 'txt':

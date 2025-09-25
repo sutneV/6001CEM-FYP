@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { generateEmbedding } from '@/lib/utils/embeddings'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@supabase/supabase-js'
+
+// Create server-side Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -25,22 +30,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate embedding for the user's question
-    const questionEmbedding = await generateEmbedding(message)
+    // Generate embedding for the user's question directly with OpenAI
+    const embeddingResponse = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: message.replace(/\n/g, ' ').substring(0, 8000),
+    })
+    const questionEmbedding = embeddingResponse.data[0].embedding
 
     // Search for relevant document chunks using vector similarity
     const { data: relevantChunks, error: searchError } = await supabase
       .rpc('search_similar_chunks', {
         query_embedding: questionEmbedding,
-        match_threshold: 0.7,
-        match_count: 5
+        match_threshold: 0.15, // Balanced threshold allowing semantic matches
+        match_count: 5 
       })
 
     if (searchError) {
       console.error('Vector search error:', searchError)
     }
 
-    // Get document details for the relevant chunks
+    // Get document details for the relevant chunkswh
     let contextDocuments = []
     if (relevantChunks && relevantChunks.length > 0) {
       const documentIds = [...new Set(relevantChunks.map((chunk: any) => chunk.document_id))]
