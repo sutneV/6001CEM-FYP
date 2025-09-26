@@ -266,8 +266,8 @@ export default function PetsPage() {
           </div>
           <div className="mt-2 text-sm text-gray-500">
             <p>
-              {pet.breed || 'Mixed breed'} • {pet.gender}
-              {pet.size && ` • ${pet.size}`}
+              {pet.breed || 'Mixed Breed'} • {pet.gender.charAt(0).toUpperCase() + pet.gender.slice(1)}
+              {pet.size && ` • ${pet.size.charAt(0).toUpperCase() + pet.size.slice(1)}`}
             </p>
             <div className="mt-1 flex items-center gap-1">
               <MapPin className="h-3 w-3" />
@@ -630,12 +630,6 @@ export default function PetsPage() {
               </div>
             </div>
 
-            <Link href="/dashboard/shelter">
-              <Button variant="outline" className="gap-2">
-                Shelter Portal
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
           </div>
         </div>
 
