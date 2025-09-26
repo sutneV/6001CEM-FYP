@@ -458,31 +458,31 @@ export default function AIKnowledgeBasePage() {
                     </div>
                     <div>
                       <label className="text-sm font-medium">Select Files</label>
-                      <div className="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                        <div className="space-y-1 text-center">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="flex text-sm text-gray-600">
-                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500">
-                              <span>Upload files</span>
-                              <input
-                                id="file-upload"
-                                name="file-upload"
-                                type="file"
-                                className="sr-only"
-                                multiple
-                                accept=".txt,.pdf,.doc,.docx,.md"
-                                onChange={handleFileUpload}
-                              />
-                            </label>
-                            <p className="pl-1">or drag and drop</p>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            PDF, DOC, DOCX, TXT, MD up to 10MB each
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            PDF files will be processed to extract text content
-                          </p>
+                      <div
+                        className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-teal-400 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const input = document.getElementById('file-upload') as HTMLInputElement
+                          input?.click()
+                        }}
+                      >
+                        <input
+                          id="file-upload"
+                          type="file"
+                          multiple
+                          accept=".txt,.pdf,.doc,.docx,.md"
+                          onChange={handleFileUpload}
+                          className="sr-only"
+                        />
+                        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <div className="text-sm font-medium text-teal-600 hover:text-teal-500 mb-2">
+                          Click to upload files
                         </div>
+                        <p className="text-xs text-gray-500">
+                          PDF, DOC, DOCX, TXT, MD up to 10MB each
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          PDF files will be processed to extract text content
+                        </p>
                       </div>
                     </div>
                     {selectedFiles.length > 0 && (

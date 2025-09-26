@@ -135,11 +135,28 @@ export default function ShelterAIAssistantPage() {
     setNewMessage("")
     setIsTyping(true)
 
-    // Simulate AI response (replace with actual API call later)
-    setTimeout(() => {
+    try {
+      // Call the AI assistant API
+      const response = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: newMessage,
+          userRole: 'shelter'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response')
+      }
+
+      const data = await response.json()
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Thank you for your message! This is a placeholder response tailored for shelter management. The backend integration will be implemented in the next phase.",
+        content: data.response || "Sorry, I couldn't process your request right now. Please try again.",
         sender: 'ai',
         timestamp: new Date()
       }
@@ -153,8 +170,29 @@ export default function ShelterAIAssistantPage() {
             }
           : chat
       ))
+    } catch (error) {
+      console.error('Error getting AI response:', error)
+
+      // Show error message to user
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Sorry, I'm having trouble connecting right now. Please check your internet connection and try again.",
+        sender: 'ai',
+        timestamp: new Date()
+      }
+
+      setChatHistories(prev => prev.map(chat =>
+        chat.id === currentChatId
+          ? {
+              ...chat,
+              messages: [...chat.messages, errorMessage],
+              updatedAt: new Date()
+            }
+          : chat
+      ))
+    } finally {
       setIsTyping(false)
-    }, 1500)
+    }
   }
 
   const formatTime = (date: Date) => {
