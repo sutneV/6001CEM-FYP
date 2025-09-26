@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
 import {
   FileText,
   CheckCircle2,
@@ -27,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Animation variants
 const fadeIn = {
@@ -62,6 +64,102 @@ const popIn = {
 }
 
 export default function ShelterDashboardPage() {
+  const { user } = useAuth()
+  const [pets, setPets] = useState([])
+  const [isLoadingPets, setIsLoadingPets] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      fetchRecentPets()
+    }
+  }, [user])
+
+  const fetchRecentPets = async () => {
+    try {
+      setIsLoadingPets(true)
+
+      // Fetch all pets and filter by shelter on the client side
+      // since the shelter pets API uses different auth
+      const [petsResponse, applicationsResponse] = await Promise.all([
+        fetch('/api/pets', {
+          headers: {
+            'x-user-data': JSON.stringify(user),
+          },
+        }),
+        fetch('/api/applications', {
+          headers: {
+            'x-user-data': JSON.stringify(user),
+          },
+        })
+      ])
+
+      if (petsResponse.ok) {
+        const allPets = await petsResponse.json()
+
+        // Filter pets by the user's shelter
+        const shelterPets = user?.shelter?.id
+          ? allPets.filter(pet => pet.shelter?.id === user.shelter.id)
+          : []
+
+        const recentPets = shelterPets.slice(0, 4)
+
+        // Count applications per pet
+        let applicationCounts = {}
+        if (applicationsResponse.ok) {
+          const applications = await applicationsResponse.json()
+
+          applicationCounts = applications.reduce((counts, app) => {
+            // Check for different possible property names
+            const petId = app.petId || app.pet_id || app.pet?.id
+
+            if (petId) {
+              counts[petId] = (counts[petId] || 0) + 1
+            }
+            return counts
+          }, {})
+        }
+
+        // Add application counts to pets
+        const petsWithCounts = recentPets.map(pet => ({
+          ...pet,
+          applicationCount: applicationCounts[pet.id] || 0
+        }))
+
+        setPets(petsWithCounts)
+      }
+    } catch (error) {
+      console.error('Error fetching pets:', error)
+    } finally {
+      setIsLoadingPets(false)
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'available':
+        return 'bg-green-100 text-green-700'
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-700'
+      case 'adopted':
+        return 'bg-blue-100 text-blue-700'
+      default:
+        return 'bg-gray-100 text-gray-700'
+    }
+  }
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'available':
+        return 'Available'
+      case 'pending':
+        return 'Pending'
+      case 'adopted':
+        return 'Adopted'
+      default:
+        return status
+    }
+  }
+
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid gap-6">
       {/* Welcome Section */}
@@ -70,7 +168,9 @@ export default function ShelterDashboardPage() {
           <CardContent className="p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-2xl font-bold">Welcome back, SPCA Penang!</h2>
+                <h2 className="text-2xl font-bold">
+                  Welcome back, {user?.shelterName || user?.firstName ? (user.shelterName || `${user.firstName} ${user.lastName}`) : 'Shelter Admin'}!
+                </h2>
                 <p className="text-gray-500">Manage your pets and adoption applications</p>
               </div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -215,100 +315,94 @@ export default function ShelterDashboardPage() {
 
         {/* Pet Management */}
         <motion.section variants={fadeIn}>
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>Your Pets</CardTitle>
               <CardDescription>Manage your available pets</CardDescription>
             </CardHeader>
-            <CardContent>
-              <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
-                {[
-                  {
-                    name: "Buddy",
-                    breed: "Golden Retriever",
-                    age: "2 years",
-                    status: "available",
-                    applications: 5,
-                  },
-                  {
-                    name: "Whiskers",
-                    breed: "Siamese Cat",
-                    age: "1 year",
-                    status: "pending",
-                    applications: 3,
-                  },
-                  {
-                    name: "Max",
-                    breed: "Labrador",
-                    age: "3 years",
-                    status: "available",
-                    applications: 8,
-                  },
-                  {
-                    name: "Luna",
-                    breed: "Persian Cat",
-                    age: "2 years",
-                    status: "available",
-                    applications: 2,
-                  },
-                ].map((pet, index) => (
-                  <motion.div
-                    key={index}
-                    variants={popIn}
-                    whileHover={{ y: -2 }}
-                    className="flex gap-4 rounded-lg border p-3"
-                  >
-                    <div className="relative h-12 w-12 overflow-hidden rounded-lg">
-                      <Image
-                        src={`/placeholder.svg?height=48&width=48&text=${pet.name}`}
-                        alt={pet.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{pet.name}</h4>
-                      <p className="text-sm text-gray-500">
-                        {pet.breed} • {pet.age}
-                      </p>
-                      <p className="text-xs text-gray-400">{pet.applications} applications</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={pet.status === "available" ? "default" : "secondary"}
-                        className={
-                          pet.status === "available"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }
-                      >
-                        {pet.status}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Pet
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Camera className="mr-2 h-4 w-4" />
-                            Update Photos
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
+            <CardContent className="flex-1">
+              {isLoadingPets ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                    <p className="text-sm text-gray-500">Loading your pets...</p>
+                  </div>
+                </div>
+              ) : pets.length === 0 ? (
+                <div className="text-center py-8">
+                  <PawPrint className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No pets yet</h3>
+                  <p className="text-gray-500 mb-4">Start by adding your first pet to the system</p>
+                  <Button className="bg-teal-500 hover:bg-teal-600">
+                    Add New Pet
+                    <Plus className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
+                  {pets.map((pet, index) => (
+                    <motion.div
+                      key={pet.id}
+                      variants={popIn}
+                      whileHover={{ y: -2 }}
+                      className="flex gap-4 rounded-lg border p-3"
+                    >
+                      <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
+                        {pet.images && pet.images.length > 0 ? (
+                          <Image
+                            src={pet.images[0]}
+                            alt={pet.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <PawPrint className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{pet.name}</h4>
+                        <p className="text-sm text-gray-500">
+                          {pet.breed} • {pet.age}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {pet.applicationCount || 0} applications
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={pet.status === "available" ? "default" : "secondary"}
+                          className={getStatusColor(pet.status)}
+                        >
+                          {getStatusLabel(pet.status)}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Pet
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Camera className="mr-2 h-4 w-4" />
+                              Update Photos
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
             </CardContent>
             <CardFooter className="border-t bg-gray-50 px-6 py-3">
               <Link

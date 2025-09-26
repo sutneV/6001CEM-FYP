@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
 import {
   Calendar,
   ChevronRight,
@@ -22,6 +23,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Animation variants
 const fadeIn = {
@@ -57,6 +59,127 @@ const popIn = {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth()
+  const [applications, setApplications] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      fetchRecentApplications()
+    }
+  }, [user])
+
+  const fetchRecentApplications = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/applications?limit=2&orderBy=updatedAt', {
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Limit to 2 most recent applications
+        setApplications(data.slice(0, 2))
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800'
+      case 'under_review':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'interview_scheduled':
+      case 'meet_greet_scheduled':
+      case 'home_visit_scheduled':
+        return 'bg-blue-100 text-blue-800'
+      case 'pending_approval':
+        return 'bg-orange-100 text-orange-800'
+      case 'rejected':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'approved':
+        return 'Approved'
+      case 'under_review':
+        return 'In Review'
+      case 'interview_scheduled':
+        return 'Interview Scheduled'
+      case 'meet_greet_scheduled':
+        return 'Meet & Greet Scheduled'
+      case 'home_visit_scheduled':
+        return 'Home Visit Scheduled'
+      case 'pending_approval':
+        return 'Pending Approval'
+      case 'rejected':
+        return 'Rejected'
+      default:
+        return 'Draft'
+    }
+  }
+
+  const getProgressValue = (status) => {
+    switch (status) {
+      case 'submitted':
+        return 25
+      case 'under_review':
+        return 50
+      case 'interview_scheduled':
+      case 'meet_greet_scheduled':
+      case 'home_visit_scheduled':
+        return 75
+      case 'approved':
+        return 100
+      default:
+        return 0
+    }
+  }
+
+  const getProgressColor = (status) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-500'
+      case 'rejected':
+        return 'bg-red-500'
+      case 'interview_scheduled':
+      case 'meet_greet_scheduled':
+      case 'home_visit_scheduled':
+        return 'bg-blue-500'
+      case 'pending_approval':
+        return 'bg-orange-500'
+      case 'under_review':
+        return 'bg-yellow-500'
+      default:
+        return 'bg-teal-500'
+    }
+  }
+
+  const getProgressSteps = (status) => {
+    const allSteps = ['Application Submitted', 'Initial Review', 'Interview Process', 'Final Approval']
+    const progressValue = getProgressValue(status)
+
+    return allSteps.map((step, index) => {
+      const stepProgress = (index + 1) * 25
+      return {
+        label: step,
+        completed: stepProgress <= progressValue,
+        current: stepProgress === progressValue + 25 && progressValue < 100
+      }
+    })
+  }
+
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid gap-6">
       {/* Welcome Section */}
@@ -65,7 +188,9 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-2xl font-bold">Welcome back, Mei Ling!</h2>
+                <h2 className="text-2xl font-bold">
+                  Welcome back, {user?.firstName ? `${user.firstName} ${user.lastName}` : 'Pet Adopter'}!
+                </h2>
                 <p className="text-gray-500">Here's what's happening with your adoption journey.</p>
               </div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -87,107 +212,96 @@ export default function DashboardPage() {
             <CardDescription>Track the status of your pet adoption applications</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-16 w-16 overflow-hidden rounded-lg">
-                      <Image
-                        src="/placeholder.svg?height=64&width=64&text=Buddy"
-                        alt="Buddy"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Buddy - Golden Retriever</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>Application #APP-123456</span>
-                        <span>•</span>
-                        <span>Submitted on May 10, 2025</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Badge className="bg-yellow-500">In Review</Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Application Progress</span>
-                    <span className="font-medium">2 of 4 steps completed</span>
-                  </div>
-                  <Progress value={50} className="h-2 bg-gray-100" indicatorClassName="bg-teal-500" />
-                  <div className="grid grid-cols-4 text-xs">
-                    <div className="flex flex-col items-center">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500 text-white">
-                        <CheckCircle2 className="h-3 w-3" />
-                      </div>
-                      <span className="mt-1 text-center">Application Submitted</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500 text-white">
-                        <CheckCircle2 className="h-3 w-3" />
-                      </div>
-                      <span className="mt-1 text-center">Initial Review</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-500">
-                        <Clock className="h-3 w-3" />
-                      </div>
-                      <span className="mt-1 text-center">Home Visit</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-500">
-                        <PawPrint className="h-3 w-3" />
-                      </div>
-                      <span className="mt-1 text-center">Final Approval</span>
-                    </div>
-                  </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                  <p className="text-sm text-gray-500">Loading your applications...</p>
                 </div>
               </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-16 w-16 overflow-hidden rounded-lg">
-                      <Image
-                        src="/placeholder.svg?height=64&width=64&text=Whiskers"
-                        alt="Whiskers"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Whiskers - Siamese Cat</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>Application #APP-123789</span>
-                        <span>•</span>
-                        <span>Submitted on May 2, 2025</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Badge className="bg-green-500">Approved</Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Application Progress</span>
-                    <span className="font-medium">4 of 4 steps completed</span>
-                  </div>
-                  <Progress value={100} className="h-2 bg-gray-100" indicatorClassName="bg-green-500" />
-                  <div className="grid grid-cols-4 text-xs">
-                    {["Application Submitted", "Initial Review", "Home Visit", "Final Approval"].map(
-                      (step, i) => (
-                        <div key={i} className="flex flex-col items-center">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white">
-                            <CheckCircle2 className="h-3 w-3" />
-                          </div>
-                          <span className="mt-1 text-center">{step}</span>
+            ) : applications.length === 0 ? (
+              <div className="text-center py-8">
+                <PawPrint className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
+                <p className="text-gray-500 mb-4">Start your adoption journey by browsing available pets</p>
+                <Button className="bg-teal-500 hover:bg-teal-600">
+                  Browse Pets
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {applications.map((application, index) => (
+                  <div key={application.id} className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-gray-100">
+                          {application.pet?.images && application.pet.images.length > 0 ? (
+                            <Image
+                              src={application.pet.images[0]}
+                              alt={application.pet.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <PawPrint className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
                         </div>
-                      ),
-                    )}
+                        <div>
+                          <h3 className="font-semibold">
+                            {application.pet?.name} - {application.pet?.breed}
+                          </h3>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <span>Application #{application.id.slice(-8).toUpperCase()}</span>
+                            <span>•</span>
+                            <span>
+                              Updated {new Date(application.updatedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={getStatusColor(application.status)}>
+                        {getStatusLabel(application.status)}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Application Progress</span>
+                        <span className="font-medium">
+                          {getProgressSteps(application.status).filter(step => step.completed).length} of 4 steps completed
+                        </span>
+                      </div>
+                      <Progress
+                        value={getProgressValue(application.status)}
+                        className="h-2 bg-gray-100"
+                        indicatorClassName={getProgressColor(application.status)}
+                      />
+                      <div className="grid grid-cols-4 text-xs">
+                        {getProgressSteps(application.status).map((step, stepIndex) => (
+                          <div key={stepIndex} className="flex flex-col items-center">
+                            <div className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                              step.completed
+                                ? `${getProgressColor(application.status)} text-white`
+                                : 'bg-gray-200 text-gray-500'
+                            }`}>
+                              {step.completed ? (
+                                <CheckCircle2 className="h-3 w-3" />
+                              ) : (
+                                <Clock className="h-3 w-3" />
+                              )}
+                            </div>
+                            <span className="mt-1 text-center">{step.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {index < applications.length - 1 && <hr className="border-gray-200" />}
                   </div>
-                </div>
+                ))}
               </div>
-            </div>
+            )}
           </CardContent>
           <CardFooter className="border-t bg-gray-50 px-6 py-3">
             <Link
