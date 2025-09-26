@@ -140,6 +140,85 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    // Check for double booking conflicts
+    const startDateTime = new Date(`${scheduledDate}T${scheduledTime}`)
+    const endDateTime = new Date(startDateTime.getTime() + (durationMinutes || 60) * 60000)
+
+    // Check if there's already an existing interview at this time for this shelter
+    const { data: existingInterviews, error: conflictError } = await supabase
+      .from('interviews')
+      .select('id, scheduled_date, scheduled_time, duration_minutes, type, status')
+      .eq('shelter_id', shelter.id)
+      .eq('scheduled_date', scheduledDate)
+
+    if (conflictError) {
+      console.error('Error checking for conflicts:', conflictError)
+      console.error('Conflict query details:', {
+        shelterId: shelter.id,
+        scheduledDate,
+        query: 'interviews table with shelter_id and scheduled_date filters',
+        error: conflictError
+      })
+
+      // Log the full error for debugging
+      console.error('Full conflict error:', JSON.stringify(conflictError, null, 2))
+
+      return NextResponse.json({
+        error: 'Failed to check for scheduling conflicts',
+        details: conflictError.message || conflictError.toString(),
+        debugInfo: {
+          shelterId: shelter.id,
+          scheduledDate,
+          errorCode: conflictError.code
+        }
+      }, { status: 500 })
+    }
+
+    // Log the existing interviews for debugging
+    console.log('Found existing interviews:', existingInterviews)
+    console.log('Checking conflicts for:', { scheduledDate, scheduledTime, durationMinutes })
+
+    // Filter for active interviews only and check for time conflicts
+    const activeInterviews = existingInterviews?.filter(interview =>
+      interview.status === 'scheduled' || interview.status === 'confirmed'
+    ) || []
+
+    console.log('Active interviews after status filter:', activeInterviews)
+
+    const conflicts = activeInterviews.filter(interview => {
+      const existingStart = new Date(`${interview.scheduled_date}T${interview.scheduled_time}`)
+      const existingEnd = new Date(existingStart.getTime() + (interview.duration_minutes || 60) * 60000)
+
+      // Check if times overlap
+      const hasOverlap = (startDateTime < existingEnd && endDateTime > existingStart)
+
+      console.log('Checking overlap:', {
+        existing: `${interview.scheduled_time} (${interview.duration_minutes}min)`,
+        new: `${scheduledTime} (${durationMinutes}min)`,
+        hasOverlap
+      })
+
+      return hasOverlap
+    })
+
+    if (conflicts && conflicts.length > 0) {
+      const conflictDetails = conflicts.map(conflict => {
+        const conflictStart = new Date(`${conflict.scheduled_date}T${conflict.scheduled_time}`)
+        const conflictEnd = new Date(conflictStart.getTime() + (conflict.duration_minutes || 60) * 60000)
+        return {
+          type: conflict.type,
+          time: `${conflict.scheduled_time} - ${conflictEnd.toTimeString().slice(0, 5)}`,
+          petName: 'Pet' // Simplified since we removed the nested query
+        }
+      })
+
+      return NextResponse.json({
+        error: 'Time slot conflict detected',
+        conflicts: conflictDetails,
+        message: 'This time slot conflicts with existing appointments. Please choose a different time.'
+      }, { status: 409 })
+    }
+
     // Create interview
     const interviewData = {
       application_id: applicationId,

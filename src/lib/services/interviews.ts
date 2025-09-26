@@ -90,7 +90,16 @@ class InterviewsService {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.error || 'Failed to schedule interview')
+
+      // Handle conflict errors with detailed information
+      if (response.status === 409 && error.conflicts) {
+        const conflictDetails = error.conflicts
+          .map((conflict: any) => `${conflict.type} for ${conflict.petName} at ${conflict.time}`)
+          .join(', ')
+        throw new Error(`Time slot conflict detected: ${conflictDetails}. Please choose a different time.`)
+      }
+
+      throw new Error(error.error || error.message || 'Failed to schedule interview')
     }
 
     return response.json()

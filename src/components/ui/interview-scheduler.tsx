@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, Clock, MapPin, MessageSquare } from "lucide-react"
+import { Calendar as CalendarIcon, Clock, MapPin, MessageSquare, AlertTriangle, CheckCircle, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -38,9 +38,12 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
+import { useAuth } from "@/contexts/AuthContext"
 import * as z from "zod"
 
 const interviewFormSchema = z.object({
@@ -57,6 +60,28 @@ const interviewFormSchema = z.object({
 })
 
 type InterviewFormValues = z.infer<typeof interviewFormSchema>
+
+interface TimeSlot {
+  time: string
+  available: boolean
+  conflicts: Array<{
+    type: string
+    time: string
+    duration: number
+  }>
+}
+
+interface AvailabilityData {
+  date: string
+  duration: number
+  businessHours: {
+    start: string
+    end: string
+  }
+  timeSlots: TimeSlot[]
+  totalSlots: number
+  availableSlots: number
+}
 
 interface InterviewSchedulerProps {
   open: boolean
@@ -113,9 +138,14 @@ export function InterviewScheduler({
   onSchedule,
   isLoading = false,
 }: InterviewSchedulerProps) {
+  const { user } = useAuth()
   const [selectedType, setSelectedType] = useState<keyof typeof interviewTypes>(
     interviewType || "interview"
   )
+  const [availability, setAvailability] = useState<AvailabilityData | null>(null)
+  const [loadingAvailability, setLoadingAvailability] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>()
+  const [conflictError, setConflictError] = useState<string | null>(null)
 
   const form = useForm<InterviewFormValues>({
     resolver: zodResolver(interviewFormSchema),
@@ -127,24 +157,91 @@ export function InterviewScheduler({
     },
   })
 
+  // Fetch availability for selected date and duration
+  const fetchAvailability = async (date: Date, duration: string) => {
+    if (!user) {
+      console.error('User not authenticated')
+      return
+    }
+
+    try {
+      setLoadingAvailability(true)
+      const dateStr = format(date, 'yyyy-MM-dd')
+
+      const response = await fetch(`/api/interviews/availability?date=${dateStr}&duration=${duration}`, {
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch availability`)
+      }
+
+      const data = await response.json()
+      setAvailability(data)
+    } catch (error) {
+      console.error('Error fetching availability:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to check availability')
+      setAvailability(null)
+    } finally {
+      setLoadingAvailability(false)
+    }
+  }
+
+  // Watch for date and duration changes
+  const watchedDate = form.watch("date")
+  const watchedDuration = form.watch("duration")
+
+  useEffect(() => {
+    if (watchedDate && watchedDuration && open && user) {
+      fetchAvailability(watchedDate, watchedDuration)
+      setSelectedDate(watchedDate)
+    }
+  }, [watchedDate, watchedDuration, open, user])
+
   const handleTypeChange = (type: keyof typeof interviewTypes) => {
     setSelectedType(type)
     form.setValue("type", type)
     form.setValue("location", interviewTypes[type].defaultLocation)
     form.setValue("duration", interviewTypes[type].defaultDuration)
+
+    // Refetch availability with new duration
+    if (watchedDate && user) {
+      fetchAvailability(watchedDate, interviewTypes[type].defaultDuration)
+    }
   }
 
   const onSubmit = async (data: InterviewFormValues) => {
     try {
+      setConflictError(null)
       await onSchedule({ ...data, applicationId })
       form.reset()
+      setAvailability(null)
       onOpenChange(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error scheduling interview:", error)
+
+      // Handle conflict errors specifically
+      if (error.message && error.message.includes('Time slot conflict')) {
+        setConflictError(error.message)
+        // Refresh availability to show updated conflicts
+        if (data.date && user) {
+          fetchAvailability(data.date, data.duration)
+        }
+      } else {
+        toast.error(error.message || 'Failed to schedule interview')
+      }
     }
   }
 
   const currentTypeConfig = interviewTypes[selectedType]
+
+  // Don't render if user is not authenticated
+  if (!user) {
+    return null
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,32 +344,67 @@ export function InterviewScheduler({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Time</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select time">
-                            {field.value && (
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                {field.value}
+                    {loadingAvailability ? (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500 mx-auto mb-2"></div>
+                          <p className="text-sm text-gray-500">Checking availability...</p>
+                        </div>
+                      </div>
+                    ) : availability ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                          {availability.timeSlots.map((slot) => (
+                            <Button
+                              key={slot.time}
+                              type="button"
+                              variant={field.value === slot.time ? "default" : "outline"}
+                              size="sm"
+                              className={cn(
+                                "text-xs justify-center",
+                                !slot.available && "opacity-50 cursor-not-allowed",
+                                slot.available && field.value !== slot.time && "hover:bg-teal-50",
+                                field.value === slot.time && "bg-teal-500 text-white"
+                              )}
+                              disabled={!slot.available}
+                              onClick={() => field.onChange(slot.time)}
+                            >
+                              <div className="flex items-center gap-1">
+                                {slot.available ? (
+                                  <CheckCircle className="h-3 w-3" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                                {slot.time}
                               </div>
-                            )}
-                          </SelectValue>
-                        </SelectTrigger>
+                            </Button>
+                          ))}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {availability.availableSlots} of {availability.totalSlots} slots available
+                        </div>
+                        {availability.availableSlots === 0 && (
+                          <Alert>
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>
+                              No available time slots for the selected date and duration. Please choose a different date or shorter duration.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    ) : (
+                      <FormControl>
+                        <div className="text-center p-4 text-gray-500">
+                          <Clock className="h-8 w-8 mx-auto mb-2" />
+                          <p className="text-sm">Select a date to view available time slots</p>
+                        </div>
                       </FormControl>
-                      <SelectContent>
-                        {timeSlots.map((time) => (
-                          <SelectItem key={time} value={time}>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              {time}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    )}
                     <FormDescription>
-                      Choose an available time slot
+                      {availability ?
+                        "Green slots are available, red slots are already booked" :
+                        "Available time slots will appear after selecting a date"
+                      }
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -359,6 +491,16 @@ export function InterviewScheduler({
                 </FormItem>
               )}
             />
+
+            {/* Conflict Error Alert */}
+            {conflictError && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-700">
+                  {conflictError}
+                </AlertDescription>
+              </Alert>
+            )}
 
             <DialogFooter className="flex gap-2">
               <Button
