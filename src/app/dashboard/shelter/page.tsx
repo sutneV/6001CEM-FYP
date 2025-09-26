@@ -14,6 +14,12 @@ import {
   Users,
   Camera,
   PawPrint,
+  Clock,
+  Phone,
+  Heart,
+  Home,
+  AlertCircle,
+  XCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -67,10 +73,13 @@ export default function ShelterDashboardPage() {
   const { user } = useAuth()
   const [pets, setPets] = useState([])
   const [isLoadingPets, setIsLoadingPets] = useState(true)
+  const [applications, setApplications] = useState([])
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true)
 
   useEffect(() => {
     if (user) {
       fetchRecentPets()
+      fetchRecentApplications()
     }
   }, [user])
 
@@ -134,6 +143,27 @@ export default function ShelterDashboardPage() {
     }
   }
 
+  const fetchRecentApplications = async () => {
+    try {
+      setIsLoadingApplications(true)
+      const response = await fetch('/api/applications', {
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Limit to 4 most recent applications
+        setApplications(data.slice(0, 4))
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+    } finally {
+      setIsLoadingApplications(false)
+    }
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'available':
@@ -157,6 +187,91 @@ export default function ShelterDashboardPage() {
         return 'Adopted'
       default:
         return status
+    }
+  }
+
+  const getApplicationStatusConfig = (status) => {
+    switch (status) {
+      case "draft":
+        return {
+          label: "Draft",
+          color: "bg-gray-500",
+          textColor: "text-gray-700",
+          bgColor: "bg-gray-100",
+          icon: FileText,
+        }
+      case "submitted":
+        return {
+          label: "Submitted",
+          color: "bg-teal-500",
+          textColor: "text-teal-700",
+          bgColor: "bg-teal-100",
+          icon: FileText,
+        }
+      case "under_review":
+        return {
+          label: "Under Review",
+          color: "bg-yellow-500",
+          textColor: "text-yellow-700",
+          bgColor: "bg-yellow-100",
+          icon: Clock,
+        }
+      case "interview_scheduled":
+        return {
+          label: "Interview Scheduled",
+          color: "bg-blue-500",
+          textColor: "text-blue-700",
+          bgColor: "bg-blue-100",
+          icon: Phone,
+        }
+      case "meet_greet_scheduled":
+        return {
+          label: "Meet & Greet Scheduled",
+          color: "bg-purple-500",
+          textColor: "text-purple-700",
+          bgColor: "bg-purple-100",
+          icon: Heart,
+        }
+      case "home_visit_scheduled":
+        return {
+          label: "Home Visit Scheduled",
+          color: "bg-indigo-500",
+          textColor: "text-indigo-700",
+          bgColor: "bg-indigo-100",
+          icon: Home,
+        }
+      case "pending_approval":
+        return {
+          label: "Pending Approval",
+          color: "bg-orange-500",
+          textColor: "text-orange-700",
+          bgColor: "bg-orange-100",
+          icon: AlertCircle,
+        }
+      case "approved":
+        return {
+          label: "Approved",
+          color: "bg-green-500",
+          textColor: "text-green-700",
+          bgColor: "bg-green-100",
+          icon: CheckCircle2,
+        }
+      case "rejected":
+        return {
+          label: "Rejected",
+          color: "bg-red-500",
+          textColor: "text-red-700",
+          bgColor: "bg-red-100",
+          icon: XCircle,
+        }
+      default:
+        return {
+          label: status,
+          color: "bg-gray-500",
+          textColor: "text-gray-700",
+          bgColor: "bg-gray-100",
+          icon: FileText,
+        }
     }
   }
 
@@ -229,78 +344,63 @@ export default function ShelterDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Recent Applications */}
         <motion.section variants={fadeIn}>
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>Recent Applications</CardTitle>
               <CardDescription>Latest adoption applications for your pets</CardDescription>
             </CardHeader>
-            <CardContent>
-              <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
-                {[
-                  {
-                    applicant: "Sarah Chen",
-                    pet: "Buddy (Golden Retriever)",
-                    status: "pending",
-                    time: "2 hours ago",
-                    avatar: "SC",
-                  },
-                  {
-                    applicant: "Ahmad Rahman",
-                    pet: "Whiskers (Siamese Cat)",
-                    status: "approved",
-                    time: "5 hours ago",
-                    avatar: "AR",
-                  },
-                  {
-                    applicant: "Lim Wei Ming",
-                    pet: "Max (Labrador)",
-                    status: "interview",
-                    time: "1 day ago",
-                    avatar: "LW",
-                  },
-                  {
-                    applicant: "Priya Sharma",
-                    pet: "Luna (Persian Cat)",
-                    status: "pending",
-                    time: "2 days ago",
-                    avatar: "PS",
-                  },
-                ].map((application, index) => (
-                  <motion.div
-                    key={index}
-                    variants={popIn}
-                    whileHover={{ y: -2 }}
-                    className="flex gap-4 rounded-lg border p-3"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>{application.avatar}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{application.applicant}</h4>
-                      <p className="text-sm text-gray-500">{application.pet}</p>
-                      <p className="text-xs text-gray-400">{application.time}</p>
-                    </div>
-                    <Badge
-                      variant={
-                        application.status === "approved"
-                          ? "default"
-                          : application.status === "pending"
-                            ? "secondary"
-                            : "outline"
-                      }
-                      className={
-                        application.status === "approved"
-                          ? "bg-green-100 text-green-700"
-                          : application.status === "pending"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-blue-100 text-blue-700"
-                      }
-                    >
-                      {application.status}
-                    </Badge>
-                  </motion.div>
-                ))}
-              </motion.div>
+            <CardContent className="flex-1">
+              {isLoadingApplications ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                    <p className="text-sm text-gray-500">Loading applications...</p>
+                  </div>
+                </div>
+              ) : applications.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
+                  <p className="text-gray-500">Applications will appear here when adopters apply for your pets</p>
+                </div>
+              ) : (
+                <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
+                  {applications.map((application, index) => {
+                    const statusConfig = getApplicationStatusConfig(application.status)
+                    const StatusIcon = statusConfig.icon
+
+                    return (
+                      <motion.div
+                        key={application.id}
+                        variants={popIn}
+                        whileHover={{ y: -2 }}
+                        className="flex gap-4 rounded-lg border p-3"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback>
+                            {application.firstName?.charAt(0)}{application.lastName?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <h4 className="font-medium">
+                            {application.firstName} {application.lastName}
+                          </h4>
+                          <p className="text-sm text-gray-500">
+                            {application.pet?.name} ({application.pet?.breed})
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(application.updatedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <Badge className={`${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                          <StatusIcon className="mr-1 h-3 w-3" />
+                          {statusConfig.label}
+                        </Badge>
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+              )}
             </CardContent>
             <CardFooter className="border-t bg-gray-50 px-6 py-3">
               <Link

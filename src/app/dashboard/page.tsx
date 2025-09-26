@@ -262,7 +262,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                      <Badge className={getStatusColor(application.status)}>
+                      <Badge className={`text-xs ${getStatusColor(application.status)}`}>
                         {getStatusLabel(application.status)}
                       </Badge>
                     </div>
