@@ -34,7 +34,7 @@ export default function EditPetPage() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [images, setImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [imagePreviews, setImagePreviews] = useState<{ url: string; isUploaded: boolean }[]>([])
+  const [imagePreviews, setImagePreviews] = useState<{ url: string; isUploaded: boolean; file?: File }[]>([])
   const [isEnhancingStory, setIsEnhancingStory] = useState(false)
 
   // Form state
@@ -167,42 +167,19 @@ export default function EditPetPage() {
     setIsUploading(true)
 
     try {
-      // Create previews immediately for better UX
+      // Create previews immediately for better UX (don't upload yet)
       const newPreviews = await Promise.all(
         files.map(async (file) => {
           const previewUrl = await imageUploadService.createImagePreview(file)
-          return { url: previewUrl, isUploaded: false }
+          return { url: previewUrl, isUploaded: false, file: file } // Store the actual file
         })
       )
 
       setImagePreviews(prev => [...prev, ...newPreviews])
-
-      // Upload images to server
-      const uploadedUrls = await imageUploadService.uploadImages(files)
-
-      // Update images state with uploaded URLs
-      setImages(prev => [...prev, ...uploadedUrls])
-
-      // Update previews to mark as uploaded
-      setImagePreviews(prev => {
-        const updated = [...prev]
-        let uploadIndex = 0
-        for (let i = updated.length - newPreviews.length; i < updated.length; i++) {
-          if (!updated[i].isUploaded) {
-            updated[i] = { url: uploadedUrls[uploadIndex], isUploaded: true }
-            uploadIndex++
-          }
-        }
-        return updated
-      })
-
-      toast.success(`${files.length} image(s) uploaded successfully`)
+      toast.success(`${files.length} image(s) ready for upload`)
     } catch (error) {
-      console.error('Upload failed:', error)
-      toast.error('Failed to upload images. Please try again.')
-
-      // Remove failed previews
-      setImagePreviews(prev => prev.slice(0, prev.length - files.length))
+      console.error('Preview creation failed:', error)
+      toast.error('Failed to create image previews. Please try again.')
     } finally {
       setIsUploading(false)
       // Clear the input
@@ -216,8 +193,8 @@ export default function EditPetPage() {
     // Remove from previews
     setImagePreviews((prev) => prev.filter((_, i) => i !== index))
 
-    // If the image was uploaded, also remove from images array
-    if (preview?.isUploaded) {
+    // If the image was already uploaded (existing image), also remove from images array
+    if (preview?.isUploaded && !preview.file) {
       const imageUrl = preview.url
       setImages((prev) => prev.filter(url => url !== imageUrl))
     }
@@ -273,6 +250,20 @@ export default function EditPetPage() {
     setIsSubmitting(true)
 
     try {
+      // Upload new images first (only files that haven't been uploaded yet)
+      let finalImageUrls = [...images] // Start with existing images
+
+      const newFilesToUpload = imagePreviews
+        .filter(preview => !preview.isUploaded && preview.file)
+        .map(preview => preview.file!)
+
+      if (newFilesToUpload.length > 0) {
+        toast.info('Uploading new images...')
+        const uploadedUrls = await imageUploadService.uploadImages(newFilesToUpload)
+        finalImageUrls = [...finalImageUrls, ...uploadedUrls]
+        toast.success('Images uploaded successfully')
+      }
+
       // Prepare the data for submission
       const petSubmissionData = {
         name: petData.name,
@@ -285,7 +276,7 @@ export default function EditPetPage() {
         color: petData.color || null,
         description: petData.description,
         story: petData.story || null,
-        images: images,
+        images: finalImageUrls, // Use the combined list of existing + new images
         vaccinated: petData.vaccinated,
         neutered: petData.neutered,
         microchipped: petData.microchipped,
@@ -343,7 +334,7 @@ export default function EditPetPage() {
     if (petData.gender) completedFields++
     if (petData.type) completedFields++
     if (petData.breed) completedFields++
-    if (images.length > 0) completedFields++
+    if (imagePreviews.length > 0) completedFields++ // Check previews instead of uploaded images
     if (petData.story) completedFields++
 
     return Math.round((completedFields / totalFields) * 100)
@@ -676,7 +667,7 @@ export default function EditPetPage() {
                   alt={`Pet photo ${index + 1}`}
                   className="w-full h-32 object-cover rounded-lg border shadow-sm"
                 />
-                {!preview.isUploaded && (
+                {isUploading && !preview.isUploaded && (
                   <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
                     <Loader2 className="h-6 w-6 text-white animate-spin" />
                   </div>

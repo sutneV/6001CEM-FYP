@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
@@ -46,13 +46,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
 
-// Animation variants
+// Animation variants - optimized for performance
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6 },
+    transition: { duration: 0.3, ease: "easeOut" },
   },
 }
 
@@ -61,7 +61,21 @@ const staggerContainer = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.05, // Reduced from 0.1 for faster loading
+      delayChildren: 0.1,
+    },
+  },
+}
+
+// Optimized card animation variant
+const cardVariant = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
+      ease: "easeOut",
     },
   },
 }
@@ -219,15 +233,19 @@ export default function PetsPage() {
     shelters: [...new Set(pets.map(p => p.shelter.id))].length,
   }
 
-  const renderPetCard = (pet: PetWithShelter) => {
+  const renderPetCard = React.useCallback((pet: PetWithShelter) => {
     const compatibility = calculateCompatibility(pet)
     const TypeIcon = typeIcons[pet.type as keyof typeof typeIcons] || PawPrint
 
     return (
       <motion.div
         key={pet.id}
-        whileHover={{ y: -10 }}
-        className="overflow-hidden rounded-lg border bg-white shadow-sm hover:shadow-md transition-all cursor-pointer"
+        variants={cardVariant}
+        whileHover={{
+          y: -8,
+          transition: { duration: 0.2, ease: "easeOut" }
+        }}
+        className="overflow-hidden rounded-lg border bg-white shadow-sm hover:shadow-lg transition-shadow duration-200 cursor-pointer will-change-transform"
       >
         <div className="relative aspect-square">
           <Image
@@ -235,6 +253,9 @@ export default function PetsPage() {
             alt={pet.name}
             fill
             className="object-cover"
+            priority={false}
+            loading="lazy"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
           <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium">
             {compatibility}% Match
@@ -246,13 +267,19 @@ export default function PetsPage() {
             </Badge>
           </div>
           <motion.button
-            className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-500 hover:text-red-500"
+            className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-500 hover:text-red-500 will-change-transform"
             onClick={(e) => {
               e.preventDefault()
               toggleFavorite(pet.id)
             }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{
+              scale: 1.1,
+              transition: { duration: 0.15, ease: "easeOut" }
+            }}
+            whileTap={{
+              scale: 0.95,
+              transition: { duration: 0.1, ease: "easeOut" }
+            }}
           >
             <Heart className={`h-4 w-4 ${favorites.includes(pet.id) ? "fill-red-500 text-red-500" : ""}`} />
           </motion.button>
@@ -299,7 +326,7 @@ export default function PetsPage() {
         </CardContent>
       </motion.div>
     )
-  }
+  }, [favorites]) // Add dependency array for useCallback
 
   return (
     <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
@@ -659,6 +686,7 @@ export default function PetsPage() {
               initial="hidden"
               animate="visible"
               className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+              layout
             >
               {currentPets.map(renderPetCard)}
             </motion.div>
