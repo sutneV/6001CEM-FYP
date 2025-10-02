@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Send, Phone, Video, MoreVertical, Paperclip, Smile, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import { supabase } from "@/lib/db/config"
 
 interface ConversationWithDetails {
   id: string
@@ -76,6 +77,7 @@ export default function MessagesInterface() {
   const [sendingMessage, setSendingMessage] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const fetchConversations = useCallback(async () => {
     if (!user) return
@@ -202,6 +204,72 @@ export default function MessagesInterface() {
   useEffect(() => {
     fetchConversations()
   }, [fetchConversations])
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  // Subscribe to realtime messages
+  useEffect(() => {
+    if (!selectedConversation || !user) return
+
+    const channel = supabase
+      .channel(`messages:${selectedConversation}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${selectedConversation}`
+        },
+        async (payload) => {
+          const newMessage = payload.new as any
+
+          // Fetch sender details for the new message
+          try {
+            const response = await fetch(`/api/users/${newMessage.sender_id}`, {
+              headers: {
+                'x-user-data': JSON.stringify(user),
+              },
+            })
+
+            if (response.ok) {
+              const userData = await response.json()
+              const formattedMessage: MessageWithSender = {
+                id: newMessage.id,
+                conversationId: newMessage.conversation_id,
+                senderId: newMessage.sender_id,
+                content: newMessage.content,
+                status: newMessage.status,
+                readAt: newMessage.read_at,
+                createdAt: newMessage.created_at,
+                updatedAt: newMessage.updated_at,
+                sender: userData.user
+              }
+
+              // Only add if not already in messages (avoid duplicates from optimistic updates)
+              setMessages(prev => {
+                const exists = prev.some(msg => msg.id === formattedMessage.id)
+                if (exists) return prev
+                return [...prev, formattedMessage]
+              })
+
+              // Update conversation list to show new message
+              fetchConversations()
+            }
+          } catch (error) {
+            console.error('Error fetching sender details:', error)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedConversation, user, fetchConversations])
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -518,29 +586,32 @@ export default function MessagesInterface() {
                   </div>
                 </div>
               ) : messages.length > 0 ? (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
-                  >
+                <>
+                  {messages.map((message) => (
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
-                        message.senderId === user?.id 
-                          ? "bg-teal-500 text-white rounded-br-md" 
-                          : "bg-white border border-gray-200 rounded-bl-md"
-                      }`}
+                      key={message.id}
+                      className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
                     >
-                      <p className="text-sm">{message.content}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          message.senderId === user?.id ? "text-teal-100" : "text-gray-500"
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
+                          message.senderId === user?.id
+                            ? "bg-teal-500 text-white rounded-br-md"
+                            : "bg-white border border-gray-200 rounded-bl-md"
                         }`}
                       >
-                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                        <p className="text-sm">{message.content}</p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            message.senderId === user?.id ? "text-teal-100" : "text-gray-500"
+                          }`}
+                        >
+                          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                  <div ref={messagesEndRef} />
+                </>
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <p>No messages in this conversation yet</p>
