@@ -139,20 +139,44 @@ IMPORTANT: The knowledge base search didn't return any relevant documents for th
       content: message
     })
 
-    // Generate response using OpenAI
-    const completion = await openai.chat.completions.create({
+    // Generate streaming response using OpenAI
+    const stream = await openai.chat.completions.create({
       model: 'gpt-4',
       messages,
       max_tokens: 1000,
       temperature: 0.7,
+      stream: true,
     })
 
-    const response = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response.'
+    // Create a readable stream for the response
+    const encoder = new TextEncoder()
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || ''
+            if (content) {
+              controller.enqueue(encoder.encode(content))
+            }
+          }
 
-    return NextResponse.json({
-      response: response + (contextText ? sourceInfo : ''),
-      hasRelevantContext: Boolean(contextText),
-      sourceCount: relevantChunks?.length || 0
+          // Add source information at the end if we have context
+          if (contextText && sourceInfo) {
+            controller.enqueue(encoder.encode(sourceInfo))
+          }
+
+          controller.close()
+        } catch (error) {
+          controller.error(error)
+        }
+      },
+    })
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+      },
     })
 
   } catch (error) {

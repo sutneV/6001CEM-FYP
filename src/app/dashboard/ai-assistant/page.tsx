@@ -231,7 +231,6 @@ export default function AIAssistantPage() {
 
     const messageContent = newMessage
     setNewMessage("")
-    setIsTyping(true)
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -273,6 +272,26 @@ export default function AIAssistantPage() {
       console.error('Error saving user message:', error)
     }
 
+    // Create placeholder AI message for streaming
+    const aiMessageId = (Date.now() + 1).toString()
+    const aiMessage: Message = {
+      id: aiMessageId,
+      content: '',
+      sender: 'ai',
+      timestamp: new Date()
+    }
+
+    // Add empty AI message to start streaming into
+    setChatHistories(prev => prev.map(chat =>
+      chat.id === currentChatId
+        ? {
+            ...chat,
+            messages: [...chat.messages, aiMessage],
+            updatedAt: new Date()
+          }
+        : chat
+    ))
+
     try {
       // Prepare conversation history for context
       const conversationHistory = messages.map(msg => ({
@@ -280,7 +299,7 @@ export default function AIAssistantPage() {
         content: msg.content
       }))
 
-      // Call the RAG-enabled AI assistant API
+      // Call the streaming AI assistant API
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
         headers: {
@@ -288,7 +307,7 @@ export default function AIAssistantPage() {
         },
         body: JSON.stringify({
           message: messageContent,
-          userRole: 'adopter', // Adopter role for this dashboard
+          userRole: 'adopter',
           conversationHistory
         }),
       })
@@ -297,28 +316,37 @@ export default function AIAssistantPage() {
         throw new Error('Failed to get AI response')
       }
 
-      const data = await response.json()
+      // Read the streaming response
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let aiMessageContent = ''
 
-      const aiMessageContent = data.response || "Sorry, I couldn't generate a response at this time."
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: aiMessageContent,
-        sender: 'ai',
-        timestamp: new Date()
+          const chunk = decoder.decode(value, { stream: true })
+          aiMessageContent += chunk
+
+          // Update the AI message with streaming content
+          setChatHistories(prev => prev.map(chat =>
+            chat.id === currentChatId
+              ? {
+                  ...chat,
+                  messages: chat.messages.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: aiMessageContent }
+                      : msg
+                  ),
+                  updatedAt: new Date()
+                }
+              : chat
+          ))
+        }
       }
 
-      setChatHistories(prev => prev.map(chat =>
-        chat.id === currentChatId
-          ? {
-              ...chat,
-              messages: [...chat.messages, aiMessage],
-              updatedAt: new Date()
-            }
-          : chat
-      ))
-
-      // Save AI message to database
+      // Save complete AI message to database
       try {
         await fetch(`/api/ai-chat/${currentChatId}/messages`, {
           method: 'POST',
@@ -338,25 +366,20 @@ export default function AIAssistantPage() {
     } catch (error) {
       console.error('Error getting AI response:', error)
 
-      // Show error message to user
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
-        sender: 'ai',
-        timestamp: new Date()
-      }
-
+      // Update the placeholder message with error
       setChatHistories(prev => prev.map(chat =>
         chat.id === currentChatId
           ? {
               ...chat,
-              messages: [...chat.messages, errorMessage],
+              messages: chat.messages.map(msg =>
+                msg.id === aiMessageId
+                  ? { ...msg, content: "Sorry, I'm having trouble connecting right now. Please try again in a moment." }
+                  : msg
+              ),
               updatedAt: new Date()
             }
           : chat
       ))
-    } finally {
-      setIsTyping(false)
     }
   }
 
@@ -520,29 +543,6 @@ export default function AIAssistantPage() {
             </motion.div>
           ))}
 
-          {/* Typing indicator */}
-          {isTyping && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex justify-start"
-            >
-              <div className="flex gap-3 max-w-xs lg:max-w-md">
-                <Avatar className="h-8 w-8 flex-shrink-0">
-                  <AvatarFallback className="bg-teal-100 text-teal-600">
-                    <Bot className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
 
             <div ref={messagesEndRef} />
           </div>
@@ -567,7 +567,6 @@ export default function AIAssistantPage() {
                     handleSendMessage()
                   }
                 }}
-                disabled={isTyping}
               />
               <div className="flex items-end p-2">
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -578,7 +577,7 @@ export default function AIAssistantPage() {
           </div>
           <Button
             onClick={handleSendMessage}
-            disabled={!newMessage.trim() || isTyping}
+            disabled={!newMessage.trim()}
             className="bg-teal-500 hover:bg-teal-600 text-white"
             size="sm"
           >
