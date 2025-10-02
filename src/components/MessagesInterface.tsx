@@ -132,6 +132,9 @@ export default function MessagesInterface() {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sendingMessage) return
 
+    const messageContent = newMessage
+    setNewMessage("")
+
     try {
       setSendingMessage(true)
       const response = await fetch('/api/messages/send', {
@@ -142,7 +145,7 @@ export default function MessagesInterface() {
         },
         body: JSON.stringify({
           conversationId: selectedConversation,
-          content: newMessage,
+          content: messageContent,
         }),
       })
 
@@ -151,14 +154,38 @@ export default function MessagesInterface() {
       }
 
       const data = await response.json()
-      setMessages(prev => [...prev, data.message])
-      setNewMessage("")
-      
-      // Refresh conversations to update last message
-      fetchConversations()
+
+      // Optimistically add message to UI (Realtime will handle it for the other user)
+      setMessages(prev => {
+        const exists = prev.some(msg => msg.id === data.message.id)
+        if (exists) return prev
+        return [...prev, data.message]
+      })
+
+      // Update conversation list locally without refetching
+      setConversations(prev => prev.map(conv =>
+        conv.id === selectedConversation
+          ? {
+              ...conv,
+              lastMessage: {
+                id: data.message.id,
+                content: messageContent,
+                createdAt: data.message.createdAt
+              },
+              lastMessageAt: data.message.createdAt,
+              updatedAt: data.message.createdAt
+            }
+          : conv
+      ).sort((a, b) => {
+        const aTime = new Date(a.lastMessageAt || a.createdAt).getTime()
+        const bTime = new Date(b.lastMessageAt || b.createdAt).getTime()
+        return bTime - aTime
+      }))
     } catch (error) {
       console.error('Error sending message:', error)
       toast.error('Failed to send message')
+      // Restore the message input on error
+      setNewMessage(messageContent)
     } finally {
       setSendingMessage(false)
     }
@@ -256,8 +283,27 @@ export default function MessagesInterface() {
                 return [...prev, formattedMessage]
               })
 
-              // Update conversation list to show new message
-              fetchConversations()
+              // Update conversation list locally without refetching
+              setConversations(prev => prev.map(conv =>
+                conv.id === selectedConversation
+                  ? {
+                      ...conv,
+                      lastMessage: {
+                        id: newMessage.id,
+                        content: newMessage.content,
+                        createdAt: newMessage.created_at
+                      },
+                      lastMessageAt: newMessage.created_at,
+                      updatedAt: newMessage.created_at,
+                      // Increment unread count only if message is from other user and not currently viewing
+                      unreadCount: newMessage.sender_id !== user.id ? conv.unreadCount + 1 : 0
+                    }
+                  : conv
+              ).sort((a, b) => {
+                const aTime = new Date(a.lastMessageAt || a.createdAt).getTime()
+                const bTime = new Date(b.lastMessageAt || b.createdAt).getTime()
+                return bTime - aTime
+              }))
             }
           } catch (error) {
             console.error('Error fetching sender details:', error)
@@ -269,7 +315,7 @@ export default function MessagesInterface() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedConversation, user, fetchConversations])
+  }, [selectedConversation, user])
 
   // Close emoji picker when clicking outside
   useEffect(() => {
