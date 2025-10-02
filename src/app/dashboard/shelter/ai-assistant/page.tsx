@@ -9,6 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Bot, Building, Paperclip, Smile, MoreVertical, Plus, MessageSquare, Trash2, PanelLeftOpen, PanelLeftClose } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { motion } from "framer-motion"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
   id: string
@@ -530,7 +532,15 @@ export default function ShelterAIAssistantPage() {
                       : "bg-white border border-gray-200 rounded-bl-md"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  {message.sender === 'ai' ? (
+                    <div className="text-sm prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-teal-600 prose-code:text-teal-600 prose-pre:bg-gray-100">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  )}
                   <p
                     className={`text-xs mt-1 ${
                       message.sender === 'user' ? "text-teal-100" : "text-gray-500"

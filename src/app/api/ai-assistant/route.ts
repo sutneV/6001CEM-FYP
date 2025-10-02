@@ -141,7 +141,7 @@ IMPORTANT: The knowledge base search didn't return any relevant documents for th
 
     // Generate streaming response using OpenAI
     const stream = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o-mini',
       messages,
       max_tokens: 1000,
       temperature: 0.7,
