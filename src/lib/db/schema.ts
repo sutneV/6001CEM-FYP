@@ -236,6 +236,22 @@ export const favorites = pgTable('favorites', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const aiChatConversations = pgTable('ai_chat_conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull().default('New Chat'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const aiChatMessages = pgTable('ai_chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').notNull().references(() => aiChatConversations.id, { onDelete: 'cascade' }),
+  sender: varchar('sender', { length: 10 }).notNull(), // 'user' or 'ai'
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Shelter = typeof shelters.$inferSelect
@@ -266,3 +282,7 @@ export type CommunityEventParticipant = typeof communityEventParticipants.$infer
 export type NewCommunityEventParticipant = typeof communityEventParticipants.$inferInsert
 export type Favorite = typeof favorites.$inferSelect
 export type NewFavorite = typeof favorites.$inferInsert
+export type AiChatConversation = typeof aiChatConversations.$inferSelect
+export type NewAiChatConversation = typeof aiChatConversations.$inferInsert
+export type AiChatMessage = typeof aiChatMessages.$inferSelect
+export type NewAiChatMessage = typeof aiChatMessages.$inferInsert

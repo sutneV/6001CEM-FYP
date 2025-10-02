@@ -28,25 +28,11 @@ interface ChatHistory {
 export default function ShelterAIAssistantPage() {
   const { user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [chatHistories, setChatHistories] = useState<ChatHistory[]>([
-    {
-      id: '1',
-      title: 'Welcome Chat',
-      messages: [
-        {
-          id: '1',
-          content: "Hello! I'm your AI assistant for shelter management. I can help you with pet care advice, adoption processes, volunteer coordination, fundraising ideas, and shelter operations. How can I assist you today?",
-          sender: 'ai',
-          timestamp: new Date()
-        }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  ])
-  const [currentChatId, setCurrentChatId] = useState('1')
+  const [chatHistories, setChatHistories] = useState<ChatHistory[]>([])
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const currentChat = chatHistories.find(chat => chat.id === currentChatId)
@@ -60,63 +46,201 @@ export default function ShelterAIAssistantPage() {
     scrollToBottom()
   }, [messages])
 
-  const createNewChat = () => {
-    const newChatId = Date.now().toString()
-    const newChat: ChatHistory = {
-      id: newChatId,
-      title: 'New Chat',
-      messages: [
-        {
-          id: '1',
-          content: "Hello! I'm your AI assistant for shelter management. I can help you with pet care advice, adoption processes, volunteer coordination, fundraising ideas, and shelter operations. How can I assist you today?",
-          sender: 'ai',
-          timestamp: new Date()
-        }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    setChatHistories(prev => [newChat, ...prev])
-    setCurrentChatId(newChatId)
-  }
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations()
+  }, [user])
 
-  const deleteChat = (chatId: string) => {
-    if (chatHistories.length <= 1) return // Don't allow deleting the last chat
+  const loadConversations = async () => {
+    if (!user) return
 
-    setChatHistories(prev => prev.filter(chat => chat.id !== chatId))
+    try {
+      setLoading(true)
+      const response = await fetch('/api/ai-chat', {
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
 
-    if (currentChatId === chatId) {
-      // Switch to the first available chat
-      const remainingChats = chatHistories.filter(chat => chat.id !== chatId)
-      if (remainingChats.length > 0) {
-        setCurrentChatId(remainingChats[0].id)
+      if (!response.ok) throw new Error('Failed to load conversations')
+
+      const data = await response.json()
+      const formattedConversations = data.conversations.map((conv: any) => ({
+        id: conv.id,
+        title: conv.title,
+        messages: conv.messages.map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          timestamp: new Date(msg.createdAt)
+        })),
+        createdAt: new Date(conv.createdAt),
+        updatedAt: new Date(conv.updatedAt)
+      }))
+
+      setChatHistories(formattedConversations)
+
+      // Set current chat to the first one if available, or create one if none exist
+      if (formattedConversations.length > 0) {
+        setCurrentChatId(formattedConversations[0].id)
+        setLoading(false)
+      } else {
+        // Create initial conversation if none exist
+        await createNewChatOnLoad()
       }
+    } catch (error) {
+      console.error('Error loading conversations:', error)
+      // Create initial conversation on error
+      await createNewChatOnLoad()
     }
   }
 
-  const updateChatTitle = (chatId: string, firstUserMessage: string) => {
+  const createNewChatOnLoad = async () => {
+    if (!user) return
+
+    try {
+      const response = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify({ title: 'New Chat' }),
+      })
+
+      if (!response.ok) throw new Error('Failed to create conversation')
+
+      const data = await response.json()
+      const newChat: ChatHistory = {
+        id: data.conversation.id,
+        title: data.conversation.title,
+        messages: data.conversation.messages.map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          timestamp: new Date(msg.createdAt)
+        })),
+        createdAt: new Date(data.conversation.createdAt),
+        updatedAt: new Date(data.conversation.updatedAt)
+      }
+
+      setChatHistories([newChat])
+      setCurrentChatId(newChat.id)
+    } catch (error) {
+      console.error('Error creating chat:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createNewChat = async () => {
+    if (!user) return
+
+    try {
+      const response = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify({ title: 'New Chat' }),
+      })
+
+      if (!response.ok) throw new Error('Failed to create conversation')
+
+      const data = await response.json()
+      const newChat: ChatHistory = {
+        id: data.conversation.id,
+        title: data.conversation.title,
+        messages: data.conversation.messages.map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          timestamp: new Date(msg.createdAt)
+        })),
+        createdAt: new Date(data.conversation.createdAt),
+        updatedAt: new Date(data.conversation.updatedAt)
+      }
+
+      setChatHistories(prev => [newChat, ...prev])
+      setCurrentChatId(newChat.id)
+    } catch (error) {
+      console.error('Error creating chat:', error)
+    }
+  }
+
+  const deleteChat = async (chatId: string) => {
+    if (chatHistories.length <= 1) return // Don't allow deleting the last chat
+    if (!user) return
+
+    try {
+      const response = await fetch(`/api/ai-chat/${chatId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
+
+      if (!response.ok) throw new Error('Failed to delete conversation')
+
+      setChatHistories(prev => prev.filter(chat => chat.id !== chatId))
+
+      if (currentChatId === chatId) {
+        // Switch to the first available chat
+        const remainingChats = chatHistories.filter(chat => chat.id !== chatId)
+        if (remainingChats.length > 0) {
+          setCurrentChatId(remainingChats[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error)
+    }
+  }
+
+  const updateChatTitle = async (chatId: string, firstUserMessage: string) => {
+    if (!user) return
+
     const title = firstUserMessage.length > 30
       ? firstUserMessage.substring(0, 30) + '...'
       : firstUserMessage
 
-    setChatHistories(prev => prev.map(chat =>
-      chat.id === chatId
-        ? { ...chat, title, updatedAt: new Date() }
-        : chat
-    ))
+    try {
+      const response = await fetch(`/api/ai-chat/${chatId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify({ title }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update title')
+
+      setChatHistories(prev => prev.map(chat =>
+        chat.id === chatId
+          ? { ...chat, title, updatedAt: new Date() }
+          : chat
+      ))
+    } catch (error) {
+      console.error('Error updating title:', error)
+    }
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !currentChat) return
+    if (!newMessage.trim() || !currentChat || !user) return
+
+    const messageContent = newMessage
+    setNewMessage("")
+    setIsTyping(true)
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: newMessage,
+      content: messageContent,
       sender: 'user',
       timestamp: new Date()
     }
 
-    // Update the current chat with the new message
+    // Update the current chat with the new message (optimistic update)
     setChatHistories(prev => prev.map(chat =>
       chat.id === currentChatId
         ? {
@@ -129,11 +253,25 @@ export default function ShelterAIAssistantPage() {
 
     // Update chat title if this is the first user message
     if (currentChat.messages.length === 1 && currentChat.title === 'New Chat') {
-      updateChatTitle(currentChatId, newMessage)
+      updateChatTitle(currentChatId!, messageContent)
     }
 
-    setNewMessage("")
-    setIsTyping(true)
+    // Save user message to database
+    try {
+      await fetch(`/api/ai-chat/${currentChatId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify({
+          sender: 'user',
+          content: messageContent
+        }),
+      })
+    } catch (error) {
+      console.error('Error saving user message:', error)
+    }
 
     try {
       // Prepare conversation history for context
@@ -161,9 +299,11 @@ export default function ShelterAIAssistantPage() {
 
       const data = await response.json()
 
+      const aiMessageContent = data.response || "Sorry, I couldn't process your request right now. Please try again."
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.response || "Sorry, I couldn't process your request right now. Please try again.",
+        content: aiMessageContent,
         sender: 'ai',
         timestamp: new Date()
       }
@@ -177,6 +317,23 @@ export default function ShelterAIAssistantPage() {
             }
           : chat
       ))
+
+      // Save AI message to database
+      try {
+        await fetch(`/api/ai-chat/${currentChatId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-data': JSON.stringify(user),
+          },
+          body: JSON.stringify({
+            sender: 'ai',
+            content: aiMessageContent
+          }),
+        })
+      } catch (error) {
+        console.error('Error saving AI message:', error)
+      }
     } catch (error) {
       console.error('Error getting AI response:', error)
 
@@ -204,6 +361,17 @@ export default function ShelterAIAssistantPage() {
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  if (loading) {
+    return (
+      <div className="h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading conversations...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
