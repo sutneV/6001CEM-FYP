@@ -136,6 +136,12 @@ export default function ShelterAIAssistantPage() {
     setIsTyping(true)
 
     try {
+      // Prepare conversation history for context
+      const conversationHistory = currentChat.messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }))
+
       // Call the AI assistant API
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -144,7 +150,8 @@ export default function ShelterAIAssistantPage() {
         },
         body: JSON.stringify({
           message: newMessage,
-          userRole: 'shelter'
+          userRole: 'shelter',
+          conversationHistory
         }),
       })
 

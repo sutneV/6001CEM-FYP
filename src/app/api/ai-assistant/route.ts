@@ -14,7 +14,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, userRole } = await request.json()
+    const { message, userRole, conversationHistory = [] } = await request.json()
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -99,12 +99,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Prepare messages for OpenAI
-    const messages = [
-      {
-        role: 'system' as const,
-        content: contextText
-          ? `${getSystemPrompt(userRole || 'adopter')}
+    // Prepare messages for OpenAI with conversation history
+    const systemMessage = {
+      role: 'system' as const,
+      content: contextText
+        ? `${getSystemPrompt(userRole || 'adopter')}
 
 IMPORTANT INSTRUCTIONS:
 1. Use the provided context documents to answer the user's question accurately
@@ -113,18 +112,32 @@ IMPORTANT INSTRUCTIONS:
 4. Always be helpful and provide general guidance when specific information isn't available
 5. Cite your sources when using information from the knowledge base
 6. Keep responses concise but comprehensive
+7. Remember the conversation history and maintain context throughout the chat
 
 Context from Knowledge Base:
 ${contextText}`
-          : `${getSystemPrompt(userRole || 'adopter')}
+        : `${getSystemPrompt(userRole || 'adopter')}
 
-IMPORTANT: The knowledge base search didn't return any relevant documents for this query. Please provide helpful general information about pet adoption and animal care, but clearly indicate that you don't have access to specific organizational policies or procedures. Encourage the user to contact the shelter directly for specific information.`
-      },
-      {
-        role: 'user' as const,
-        content: message
-      }
-    ]
+IMPORTANT: The knowledge base search didn't return any relevant documents for this query. Please provide helpful general information about pet adoption and animal care, but clearly indicate that you don't have access to specific organizational policies or procedures. Encourage the user to contact the shelter directly for specific information. Remember the conversation history and maintain context throughout the chat.`
+    }
+
+    // Build messages array with conversation history
+    const messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [systemMessage]
+
+    // Add conversation history (excluding the initial AI greeting to avoid confusion)
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      const filteredHistory = conversationHistory.filter((msg: any) => {
+        // Skip the initial AI greeting message
+        return !(msg.role === 'assistant' && msg.content.includes("I'm your AI assistant for shelter management"))
+      })
+      messages.push(...filteredHistory)
+    }
+
+    // Add the current message
+    messages.push({
+      role: 'user' as const,
+      content: message
+    })
 
     // Generate response using OpenAI
     const completion = await openai.chat.completions.create({

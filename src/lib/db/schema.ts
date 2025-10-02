@@ -229,6 +229,13 @@ export const communityEventParticipants = pgTable('community_event_participants'
   joinedAt: timestamp('joined_at').defaultNow().notNull(),
 })
 
+export const favorites = pgTable('favorites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  petId: uuid('pet_id').notNull().references(() => pets.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Shelter = typeof shelters.$inferSelect
@@ -257,3 +264,5 @@ export type CommunityEvent = typeof communityEvents.$inferSelect
 export type NewCommunityEvent = typeof communityEvents.$inferInsert
 export type CommunityEventParticipant = typeof communityEventParticipants.$inferSelect
 export type NewCommunityEventParticipant = typeof communityEventParticipants.$inferInsert
+export type Favorite = typeof favorites.$inferSelect
+export type NewFavorite = typeof favorites.$inferInsert

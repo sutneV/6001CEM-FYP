@@ -5,34 +5,30 @@ import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
 import {
-  ChevronDown,
-  Filter,
   Heart,
   MapPin,
   PawPrint,
   Search,
-  SlidersHorizontal,
   Loader2,
-  AlertCircle,
   Dog,
   Cat,
-  Star,
+  X,
+  Filter,
+  SlidersHorizontal,
+  ChevronDown,
   Calendar,
-  Users,
-  TrendingUp,
-  Activity,
-  ArrowRight,
+  Star,
   ChevronLeft,
   ChevronRight,
+  Users,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,31 +40,38 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
-import { petsService, PetWithShelter } from "@/lib/services/pets"
 import { useAuth } from "@/contexts/AuthContext"
 
-// Animation variants - optimized for performance
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.3, ease: "easeOut" },
-  },
+interface FavoritePet {
+  id: string
+  petId: string
+  userId: string
+  createdAt: string
+  pet: {
+    id: string
+    name: string
+    species: string
+    breed: string
+    age: string
+    gender: string
+    size: string
+    description: string
+    images?: string[]
+    status: string
+    vaccinated?: boolean
+    neutered?: boolean
+    houseTrained?: boolean
+    goodWithKids?: boolean
+    goodWithDogs?: boolean
+    goodWithCats?: boolean
+    shelterId: string
+    shelter: {
+      id: string
+      name: string
+    }
+  }
 }
 
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05, // Reduced from 0.1 for faster loading
-      delayChildren: 0.1,
-    },
-  },
-}
-
-// Optimized card animation variant
 const cardVariant = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -81,17 +84,15 @@ const cardVariant = {
   },
 }
 
-// Compatibility calculation (mock for now)
-const calculateCompatibility = (pet: PetWithShelter) => {
-  // Simple compatibility calculation based on pet attributes
-  let score = 70; // Base score
-  if (pet.vaccinated) score += 5
-  if (pet.neutered) score += 5
-  if (pet.houseTrained) score += 10
-  if (pet.goodWithKids) score += 5
-  if (pet.goodWithDogs) score += 3
-  if (pet.goodWithCats) score += 2
-  return Math.min(score, 99) // Cap at 99%
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
 }
 
 const typeIcons = {
@@ -102,12 +103,20 @@ const typeIcons = {
   other: PawPrint,
 }
 
-export default function PetsPage() {
+const calculateCompatibility = (pet: FavoritePet['pet']) => {
+  let score = 70
+  if (pet.vaccinated) score += 5
+  if (pet.neutered) score += 5
+  if (pet.houseTrained) score += 10
+  if (pet.goodWithKids) score += 5
+  if (pet.goodWithDogs) score += 3
+  if (pet.goodWithCats) score += 2
+  return Math.min(score, 99)
+}
+
+export default function FavoritesPage() {
   const { user } = useAuth()
-  const [favorites, setFavorites] = useState<string[]>([])
-  const [favoritesMap, setFavoritesMap] = useState<Map<string, string>>(new Map()) // petId -> favoriteId
-  const [showFilters, setShowFilters] = useState(false)
-  const [pets, setPets] = useState<PetWithShelter[]>([])
+  const [favorites, setFavorites] = useState<FavoritePet[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedType, setSelectedType] = useState("all")
@@ -116,124 +125,78 @@ export default function PetsPage() {
   const [selectedGender, setSelectedGender] = useState<string[]>([])
   const [selectedCompatibility, setSelectedCompatibility] = useState<string[]>([])
   const [sortBy, setSortBy] = useState("newest")
+  const [showFilters, setShowFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [petsPerPage, setPetsPerPage] = useState(8)
 
-  // Fetch pets on component mount
   useEffect(() => {
-    fetchPets()
     fetchFavorites()
   }, [])
-
-  const fetchPets = async () => {
-    try {
-      setLoading(true)
-      const data = await petsService.getAllPets({ status: 'available' })
-      setPets(data)
-    } catch (error) {
-      toast.error('Failed to fetch pets')
-      console.error('Error fetching pets:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchFavorites = async () => {
     if (!user) return
 
     try {
+      setLoading(true)
       const response = await fetch('/api/favorites', {
         headers: {
           'x-user-data': JSON.stringify(user),
         },
       })
 
-      if (!response.ok) throw new Error('Failed to fetch favorites')
+      if (!response.ok) {
+        throw new Error('Failed to fetch favorites')
+      }
 
       const data = await response.json()
-      const petIds = data.favorites.map((fav: any) => fav.petId)
-      const map = new Map(data.favorites.map((fav: any) => [fav.petId, fav.id]))
-      setFavorites(petIds)
-      setFavoritesMap(map)
+      setFavorites(data.favorites || [])
     } catch (error) {
       console.error('Error fetching favorites:', error)
+      toast.error('Failed to load favorites')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const toggleFavorite = async (petId: string) => {
-    if (!user) {
-      toast.error("Please sign in to add favorites")
-      return
-    }
+  const handleRemoveFavorite = async (favoriteId: string, petName: string) => {
+    try {
+      const response = await fetch(`/api/favorites/${favoriteId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
 
-    if (favorites.includes(petId)) {
-      // Remove from favorites
-      const favoriteId = favoritesMap.get(petId)
-      if (!favoriteId) return
-
-      try {
-        const response = await fetch(`/api/favorites/${favoriteId}`, {
-          method: 'DELETE',
-          headers: {
-            'x-user-data': JSON.stringify(user),
-          },
-        })
-
-        if (!response.ok) throw new Error('Failed to remove favorite')
-
-        setFavorites(favorites.filter((id) => id !== petId))
-        const newMap = new Map(favoritesMap)
-        newMap.delete(petId)
-        setFavoritesMap(newMap)
-        toast.success("Removed from favorites")
-      } catch (error) {
-        console.error('Error removing favorite:', error)
-        toast.error('Failed to remove favorite')
+      if (!response.ok) {
+        throw new Error('Failed to remove favorite')
       }
-    } else {
-      // Add to favorites
-      try {
-        const response = await fetch('/api/favorites', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-data': JSON.stringify(user),
-          },
-          body: JSON.stringify({ petId }),
-        })
 
-        if (!response.ok) throw new Error('Failed to add favorite')
-
-        const data = await response.json()
-        setFavorites([...favorites, petId])
-        setFavoritesMap(new Map(favoritesMap).set(petId, data.favorite.id))
-        toast.success("Added to favorites")
-      } catch (error) {
-        console.error('Error adding favorite:', error)
-        toast.error('Failed to add favorite')
-      }
+      setFavorites(prev => prev.filter(fav => fav.id !== favoriteId))
+      toast.success(`${petName} removed from favorites`)
+    } catch (error) {
+      console.error('Error removing favorite:', error)
+      toast.error('Failed to remove favorite')
     }
   }
 
-  // Filter pets based on search and filters
-  const filteredPets = pets.filter((pet) => {
+  const filteredFavorites = favorites.filter((fav) => {
     const matchesSearch =
-      pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (pet.breed && pet.breed.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      pet.shelter.name.toLowerCase().includes(searchTerm.toLowerCase())
+      fav.pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fav.pet.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fav.pet.species.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fav.pet.shelter.name.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesType = selectedType === "all" || pet.type.toLowerCase() === selectedType.toLowerCase()
-    const matchesAge = selectedAge.length === 0 || selectedAge.includes(pet.age)
-    const matchesSize = selectedSize.length === 0 || selectedSize.includes(pet.size || "")
-    const matchesGender = selectedGender.length === 0 || selectedGender.includes(pet.gender)
+    const matchesType = selectedType === "all" || fav.pet.species.toLowerCase() === selectedType.toLowerCase()
+    const matchesAge = selectedAge.length === 0 || selectedAge.includes(fav.pet.age)
+    const matchesSize = selectedSize.length === 0 || selectedSize.includes(fav.pet.size || "")
+    const matchesGender = selectedGender.length === 0 || selectedGender.includes(fav.pet.gender)
 
-    // Compatibility filters
     const matchesCompatibility = selectedCompatibility.length === 0 || selectedCompatibility.some(comp => {
       switch(comp) {
-        case "children": return pet.goodWithKids
-        case "dogs": return pet.goodWithDogs
-        case "cats": return pet.goodWithCats
-        case "apartments": return pet.houseTrained
+        case "children": return fav.pet.goodWithKids
+        case "dogs": return fav.pet.goodWithDogs
+        case "cats": return fav.pet.goodWithCats
+        case "apartments": return fav.pet.houseTrained
         default: return true
       }
     })
@@ -241,17 +204,17 @@ export default function PetsPage() {
     return matchesSearch && matchesType && matchesAge && matchesSize && matchesGender && matchesCompatibility
   })
 
-  // Sort pets
-  const sortedPets = [...filteredPets].sort((a, b) => {
+  // Sort favorites
+  const sortedFavorites = [...filteredFavorites].sort((a, b) => {
     switch(sortBy) {
       case "newest":
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       case "oldest":
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       case "compatibility":
-        return calculateCompatibility(b) - calculateCompatibility(a)
+        return calculateCompatibility(b.pet) - calculateCompatibility(a.pet)
       case "alphabetical":
-        return a.name.localeCompare(b.name)
+        return a.pet.name.localeCompare(b.pet.name)
       default:
         return 0
     }
@@ -265,7 +228,7 @@ export default function PetsPage() {
     setSelectedGender([])
     setSelectedCompatibility([])
     setSortBy("newest")
-    setCurrentPage(1) // Reset to first page when clearing filters
+    setCurrentPage(1)
   }
 
   // Reset to first page when filters change
@@ -274,10 +237,10 @@ export default function PetsPage() {
   }, [searchTerm, selectedType, selectedAge, selectedSize, selectedGender, selectedCompatibility, sortBy, petsPerPage])
 
   // Calculate pagination
-  const totalPages = Math.ceil(sortedPets.length / petsPerPage)
+  const totalPages = Math.ceil(sortedFavorites.length / petsPerPage)
   const startIndex = (currentPage - 1) * petsPerPage
   const endIndex = startIndex + petsPerPage
-  const currentPets = sortedPets.slice(startIndex, endIndex)
+  const currentPets = sortedFavorites.slice(startIndex, endIndex)
 
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -298,19 +261,18 @@ export default function PetsPage() {
   }
 
   const stats = {
-    total: pets.length,
-    dogs: pets.filter(p => p.type === 'dog').length,
-    cats: pets.filter(p => p.type === 'cat').length,
-    shelters: [...new Set(pets.map(p => p.shelter.id))].length,
+    total: favorites.length,
+    dogs: favorites.filter(f => f.pet.species === 'dog').length,
+    cats: favorites.filter(f => f.pet.species === 'cat').length,
   }
 
-  const renderPetCard = React.useCallback((pet: PetWithShelter) => {
-    const compatibility = calculateCompatibility(pet)
-    const TypeIcon = typeIcons[pet.type as keyof typeof typeIcons] || PawPrint
+  const renderPetCard = useCallback((favorite: FavoritePet) => {
+    const compatibility = calculateCompatibility(favorite.pet)
+    const TypeIcon = typeIcons[favorite.pet.species as keyof typeof typeIcons] || PawPrint
 
     return (
       <motion.div
-        key={pet.id}
+        key={favorite.id}
         variants={cardVariant}
         whileHover={{
           y: -8,
@@ -320,8 +282,8 @@ export default function PetsPage() {
       >
         <div className="relative aspect-square">
           <Image
-            src={pet.images && pet.images.length > 0 ? pet.images[0] : `/placeholder.svg?height=300&width=300&text=${pet.name}`}
-            alt={pet.name}
+            src={favorite.pet.images && favorite.pet.images.length > 0 ? favorite.pet.images[0] : `/placeholder.svg?height=300&width=300&text=${favorite.pet.name}`}
+            alt={favorite.pet.name}
             fill
             className="object-cover"
             priority={false}
@@ -334,14 +296,14 @@ export default function PetsPage() {
           <div className="absolute bottom-2 left-2">
             <Badge variant="outline" className="bg-white/90">
               <TypeIcon className="h-3 w-3 mr-1" />
-              <span className="capitalize">{pet.type}</span>
+              <span className="capitalize">{favorite.pet.species}</span>
             </Badge>
           </div>
           <motion.button
-            className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-500 hover:text-red-500 will-change-transform"
+            className="absolute right-2 bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-red-500 hover:text-red-600 will-change-transform"
             onClick={(e) => {
               e.preventDefault()
-              toggleFavorite(pet.id)
+              handleRemoveFavorite(favorite.id, favorite.pet.name)
             }}
             whileHover={{
               scale: 1.1,
@@ -352,68 +314,67 @@ export default function PetsPage() {
               transition: { duration: 0.1, ease: "easeOut" }
             }}
           >
-            <Heart className={`h-4 w-4 ${favorites.includes(pet.id) ? "fill-red-500 text-red-500" : ""}`} />
+            <Heart className="h-4 w-4 fill-red-500" />
           </motion.button>
         </div>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">{pet.name}</h3>
+            <h3 className="font-semibold">{favorite.pet.name}</h3>
             <Badge variant="secondary" className="capitalize">
-              {pet.age}
+              {favorite.pet.age}
             </Badge>
           </div>
           <div className="mt-2 text-sm text-gray-500">
             <p>
-              {pet.breed || 'Mixed Breed'} • {pet.gender.charAt(0).toUpperCase() + pet.gender.slice(1)}
-              {pet.size && ` • ${pet.size.charAt(0).toUpperCase() + pet.size.slice(1)}`}
+              {favorite.pet.breed || 'Mixed Breed'} • {favorite.pet.gender.charAt(0).toUpperCase() + favorite.pet.gender.slice(1)}
+              {favorite.pet.size && ` • ${favorite.pet.size.charAt(0).toUpperCase() + favorite.pet.size.slice(1)}`}
             </p>
             <div className="mt-1 flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              <span>{pet.shelter.name}</span>
+              <span>{favorite.pet.shelter.name}</span>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-            {pet.description}
+            {favorite.pet.description}
           </p>
 
           {/* Health & Behavior badges */}
           <div className="flex flex-wrap gap-1 mt-3">
-            {pet.vaccinated && <Badge variant="outline" className="text-xs">Vaccinated</Badge>}
-            {pet.neutered && <Badge variant="outline" className="text-xs">Spayed/Neutered</Badge>}
-            {pet.houseTrained && <Badge variant="outline" className="text-xs">House Trained</Badge>}
-            {pet.goodWithKids && <Badge variant="outline" className="text-xs">Good with Kids</Badge>}
+            {favorite.pet.vaccinated && <Badge variant="outline" className="text-xs">Vaccinated</Badge>}
+            {favorite.pet.neutered && <Badge variant="outline" className="text-xs">Spayed/Neutered</Badge>}
+            {favorite.pet.houseTrained && <Badge variant="outline" className="text-xs">House Trained</Badge>}
+            {favorite.pet.goodWithKids && <Badge variant="outline" className="text-xs">Good with Kids</Badge>}
           </div>
 
           <div className="mt-4 flex gap-2">
-            <Link href={`/dashboard/pets/${pet.id}`} className="flex-1">
+            <Link href={`/dashboard/pets/${favorite.pet.id}`} className="flex-1">
               <Button variant="outline" className="w-full">
                 View Profile
               </Button>
             </Link>
-            <Link href={`/dashboard/pets/${pet.id}/apply`} className="flex-1">
+            <Link href={`/dashboard/pets/${favorite.pet.id}/apply`} className="flex-1">
               <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply Now</Button>
             </Link>
           </div>
         </CardContent>
       </motion.div>
     )
-  }, [favorites]) // Add dependency array for useCallback
+  }, [])
 
   return (
     <div className="flex h-[calc(100vh-6rem)] bg-gray-50 rounded-lg border overflow-hidden relative">
-      {/* Left Sidebar - Stats & Filters */}
+      {/* Left Sidebar - Stats & Search */}
       <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="mb-3">
-            <h1 className="text-xl font-bold text-gray-900">Available Pets</h1>
-            <p className="text-sm text-gray-600">Find your perfect companion in Penang</p>
+            <h1 className="text-xl font-bold text-gray-900">Favorite Pets</h1>
+            <p className="text-sm text-gray-600">Your saved companions</p>
           </div>
           {!loading && (
             <p className="text-xs text-muted-foreground">
-              Showing {startIndex + 1}-{Math.min(endIndex, sortedPets.length)} of {sortedPets.length} pets
-              {sortedPets.length !== pets.length && ` (${pets.length} total)`}
-              {favorites.length > 0 && ` • ${favorites.length} favorited`}
+              Showing {startIndex + 1}-{Math.min(endIndex, sortedFavorites.length)} of {sortedFavorites.length} pets
+              {sortedFavorites.length !== favorites.length && ` (${favorites.length} total)`}
               {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
             </p>
           )}
@@ -426,9 +387,9 @@ export default function PetsPage() {
             <div className="flex items-center justify-between p-3 bg-teal-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <div className="p-1 bg-teal-100 rounded">
-                  <PawPrint className="h-4 w-4 text-teal-600" />
+                  <Heart className="h-4 w-4 text-teal-600" />
                 </div>
-                <span className="text-sm font-medium">Total Available</span>
+                <span className="text-sm font-medium">Total Favorites</span>
               </div>
               <span className="text-lg font-bold text-teal-600">{stats.total}</span>
             </div>
@@ -451,16 +412,6 @@ export default function PetsPage() {
                 <span className="text-sm font-medium">Cats</span>
               </div>
               <span className="text-lg font-bold text-purple-600">{stats.cats}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="p-1 bg-green-100 rounded">
-                  <Users className="h-4 w-4 text-green-600" />
-                </div>
-                <span className="text-sm font-medium">Shelters</span>
-              </div>
-              <span className="text-lg font-bold text-green-600">{stats.shelters}</span>
             </div>
           </div>
         </div>
@@ -667,7 +618,7 @@ export default function PetsPage() {
         )}
 
         {/* Pagination Controls */}
-        {!loading && sortedPets.length > 8 && (
+        {!loading && sortedFavorites.length > 8 && (
           <div className="p-4 border-b border-gray-200">
             <h3 className="text-sm font-medium text-gray-500 mb-3">DISPLAY</h3>
             <div className="space-y-2">
@@ -716,18 +667,16 @@ export default function PetsPage() {
                 <Heart className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Find Your Perfect Companion</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Your Favorite Pets</h2>
                 <p className="text-gray-600">
                   {loading ? "Loading..." :
                     totalPages > 1
-                      ? `Showing ${startIndex + 1}-${Math.min(endIndex, sortedPets.length)} of ${sortedPets.length} pets`
-                      : `${sortedPets.length} pets available for adoption`
+                      ? `Showing ${startIndex + 1}-${Math.min(endIndex, sortedFavorites.length)} of ${sortedFavorites.length} pets`
+                      : `${sortedFavorites.length} pet${sortedFavorites.length !== 1 ? 's' : ''} saved`
                   }
-                  {favorites.length > 0 && ` • ${favorites.length} favorited`}
                 </p>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -736,20 +685,30 @@ export default function PetsPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin mb-4 text-teal-500" />
-              <p className="text-muted-foreground">Loading available pets...</p>
+              <p className="text-muted-foreground">Loading favorites...</p>
             </div>
-          ) : sortedPets.length === 0 ? (
+          ) : sortedFavorites.length === 0 ? (
             <div className="flex h-60 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-4">
-                <PawPrint className="h-6 w-6 text-gray-400" />
+                <Heart className="h-6 w-6 text-gray-400" />
               </div>
-              <h3 className="font-medium text-gray-900 mb-2">No pets found</h3>
+              <h3 className="font-medium text-gray-900 mb-2">
+                {favorites.length === 0 ? "No favorites yet" : "No pets found"}
+              </h3>
               <p className="text-sm text-gray-500 mb-4">
-                Try adjusting your filters or search criteria to find more pets
+                {favorites.length === 0
+                  ? "Browse available pets and add them to your favorites"
+                  : "Try adjusting your filters or search criteria to find more pets"}
               </p>
-              <Button variant="outline" onClick={clearFilters}>
-                Reset Filters
-              </Button>
+              {favorites.length === 0 ? (
+                <Link href="/dashboard/pets">
+                  <Button>Browse Pets</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" onClick={clearFilters}>
+                  Reset Filters
+                </Button>
+              )}
             </div>
           ) : (
             <motion.div
@@ -764,7 +723,7 @@ export default function PetsPage() {
           )}
 
           {/* Pagination Controls */}
-          {!loading && sortedPets.length > 0 && totalPages > 1 && (
+          {!loading && sortedFavorites.length > 0 && totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-8 pb-4">
               <Button
                 variant="outline"

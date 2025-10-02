@@ -137,6 +137,12 @@ export default function AIAssistantPage() {
     setIsTyping(true)
 
     try {
+      // Prepare conversation history for context
+      const conversationHistory = messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }))
+
       // Call the RAG-enabled AI assistant API
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -145,7 +151,8 @@ export default function AIAssistantPage() {
         },
         body: JSON.stringify({
           message: messageToSend,
-          userRole: 'adopter' // Adopter role for this dashboard
+          userRole: 'adopter', // Adopter role for this dashboard
+          conversationHistory
         }),
       })
 
