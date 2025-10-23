@@ -75,11 +75,23 @@ export default function ShelterDashboardPage() {
   const [isLoadingPets, setIsLoadingPets] = useState(true)
   const [applications, setApplications] = useState([])
   const [isLoadingApplications, setIsLoadingApplications] = useState(true)
+  const [stats, setStats] = useState({
+    availablePets: 0,
+    availablePetsChange: 0,
+    pendingApplications: 0,
+    pendingApplicationsChange: 0,
+    successfulAdoptions: 0,
+    successfulAdoptionsChange: 0,
+    activeAdopters: 0,
+    activeAdoptersChange: 0,
+  })
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
 
   useEffect(() => {
     if (user) {
       fetchRecentPets()
       fetchRecentApplications()
+      fetchStats()
     }
   }, [user])
 
@@ -161,6 +173,26 @@ export default function ShelterDashboardPage() {
       console.error('Error fetching applications:', error)
     } finally {
       setIsLoadingApplications(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      setIsLoadingStats(true)
+      const response = await fetch('/api/shelter/stats', {
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    } finally {
+      setIsLoadingStats(false)
     }
   }
 
@@ -303,36 +335,54 @@ export default function ShelterDashboardPage() {
       <motion.section variants={fadeIn}>
         <div className="grid gap-4 md:grid-cols-4">
           {[
-            { label: "Available Pets", value: "23", change: "+3", icon: PawPrint, color: "text-blue-600" },
+            {
+              label: "Available Pets",
+              value: stats.availablePets.toString(),
+              change: stats.availablePetsChange >= 0 ? `+${stats.availablePetsChange}` : stats.availablePetsChange.toString(),
+              icon: PawPrint,
+              color: "text-blue-600"
+            },
             {
               label: "Pending Applications",
-              value: "12",
-              change: "+5",
+              value: stats.pendingApplications.toString(),
+              change: stats.pendingApplicationsChange >= 0 ? `+${stats.pendingApplicationsChange}` : stats.pendingApplicationsChange.toString(),
               icon: ClipboardList,
               color: "text-orange-600",
             },
             {
               label: "Successful Adoptions",
-              value: "87",
-              change: "+8",
+              value: stats.successfulAdoptions.toString(),
+              change: stats.successfulAdoptionsChange >= 0 ? `+${stats.successfulAdoptionsChange}` : stats.successfulAdoptionsChange.toString(),
               icon: CheckCircle2,
               color: "text-green-600",
             },
-            { label: "Active Adopters", value: "156", change: "+12", icon: Users, color: "text-purple-600" },
+            {
+              label: "Active Adopters",
+              value: stats.activeAdopters.toString(),
+              change: stats.activeAdoptersChange >= 0 ? `+${stats.activeAdoptersChange}` : stats.activeAdoptersChange.toString(),
+              icon: Users,
+              color: "text-purple-600"
+            },
           ].map((stat, index) => (
             <motion.div key={index} variants={popIn}>
               <Card>
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-                      <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                      <p className="text-xs text-gray-500">{stat.change} this month</p>
+                  {isLoadingStats ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500"></div>
                     </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                      <stat.icon className="h-6 w-6 text-gray-600" />
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">{stat.label}</p>
+                        <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                        <p className="text-xs text-gray-500">{stat.change} this month</p>
+                      </div>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                        <stat.icon className="h-6 w-6 text-gray-600" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

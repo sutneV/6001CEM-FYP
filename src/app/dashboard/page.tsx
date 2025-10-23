@@ -62,12 +62,22 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const [applications, setApplications] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [recommendedPets, setRecommendedPets] = useState([])
+  const [petsLoading, setPetsLoading] = useState(true)
+  const [currentTab, setCurrentTab] = useState("all")
 
   useEffect(() => {
     if (user) {
       fetchRecentApplications()
+      fetchRecommendedPets()
     }
   }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchRecommendedPets()
+    }
+  }, [currentTab, user])
 
   const fetchRecentApplications = async () => {
     try {
@@ -87,6 +97,27 @@ export default function DashboardPage() {
       console.error('Error fetching applications:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchRecommendedPets = async () => {
+    try {
+      setPetsLoading(true)
+      const typeParam = currentTab === 'all' ? '' : `?type=${currentTab === 'dogs' ? 'dog' : currentTab === 'cats' ? 'cat' : 'other'}`
+      const response = await fetch(`/api/pets/recommended${typeParam}`, {
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setRecommendedPets(data)
+      }
+    } catch (error) {
+      console.error('Error fetching recommended pets:', error)
+    } finally {
+      setPetsLoading(false)
     }
   }
 
@@ -469,134 +500,100 @@ export default function DashboardPage() {
             <CardDescription>Based on your preferences and previous interactions</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="all" className="w-full">
+            <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
               <TabsList className="mb-4">
                 <TabsTrigger value="all">All Pets</TabsTrigger>
                 <TabsTrigger value="dogs">Dogs</TabsTrigger>
                 <TabsTrigger value="cats">Cats</TabsTrigger>
                 <TabsTrigger value="others">Others</TabsTrigger>
               </TabsList>
-              <TabsContent value="all" className="mt-0">
-                <motion.div
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                >
-                  {[
-                    {
-                      name: "Max",
-                      type: "Dog",
-                      breed: "Labrador Retriever",
-                      age: "2 years",
-                      location: "George Town",
-                      compatibility: "95%",
-                    },
-                    {
-                      name: "Luna",
-                      type: "Cat",
-                      breed: "Ragdoll",
-                      age: "1 year",
-                      location: "Batu Ferringhi",
-                      compatibility: "92%",
-                    },
-                    {
-                      name: "Rocky",
-                      type: "Dog",
-                      breed: "Beagle",
-                      age: "3 years",
-                      location: "Tanjung Bungah",
-                      compatibility: "88%",
-                    },
-                    {
-                      name: "Coco",
-                      type: "Cat",
-                      breed: "Maine Coon",
-                      age: "4 years",
-                      location: "Bayan Lepas",
-                      compatibility: "85%",
-                    },
-                  ].map((pet, index) => (
-                    <motion.div
-                      key={index}
-                      variants={popIn}
-                      whileHover={{ y: -10 }}
-                      className="overflow-hidden rounded-lg border"
-                    >
-                      <div className="relative aspect-square">
-                        <Image
-                          src={`/placeholder.svg?height=300&width=300&text=${pet.name}`}
-                          alt={pet.name}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute right-2 top-2 rounded-full bg-white px-2 py-1 text-xs font-medium">
-                          {pet.compatibility} Match
+              <TabsContent value={currentTab} className="mt-0">
+                {petsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                      <p className="text-sm text-gray-500">Finding perfect matches for you...</p>
+                    </div>
+                  </div>
+                ) : recommendedPets.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <PawPrint className="h-16 w-16 text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No pets found</h3>
+                    <p className="text-gray-500 mb-4">
+                      {currentTab === 'all'
+                        ? "There are no available pets at the moment."
+                        : `There are no ${currentTab} available at the moment.`}
+                    </p>
+                    <Link href="/dashboard/pets">
+                      <Button className="bg-teal-500 hover:bg-teal-600">
+                        Browse All Pets
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <motion.div
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+                  >
+                    {recommendedPets.map((pet, index) => (
+                      <motion.div
+                        key={pet.id}
+                        variants={popIn}
+                        whileHover={{ y: -10 }}
+                        className="overflow-hidden rounded-lg border"
+                      >
+                        <div className="relative aspect-square">
+                          {pet.images && pet.images.length > 0 ? (
+                            <Image
+                              src={pet.images[0]}
+                              alt={pet.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full bg-gray-100">
+                              <PawPrint className="h-16 w-16 text-gray-400" />
+                            </div>
+                          )}
+                          {pet.compatibilityScore && (
+                            <div className="absolute right-2 top-2 rounded-full bg-white px-2 py-1 text-xs font-medium">
+                              {pet.compatibilityScore}% Match
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div className="p-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold">{pet.name}</h3>
-                          <Badge variant="outline" className="text-teal-700 border-teal-200 bg-teal-100">
-                            {pet.type}
-                          </Badge>
-                        </div>
-                        <div className="mt-2 text-sm text-gray-500">
-                          <p>
-                            {pet.breed} • {pet.age}
-                          </p>
-                          <div className="mt-1 flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            <span>{pet.location}</span>
+                        <div className="p-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold">{pet.name}</h3>
+                            <Badge variant="outline" className="text-teal-700 border-teal-200 bg-teal-100 capitalize">
+                              {pet.type}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 text-sm text-gray-500">
+                            <p>
+                              {pet.breed} • {pet.age}
+                            </p>
+                            <div className="mt-1 flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              <span>{pet.shelter.address || pet.shelter.name}</span>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex gap-2">
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">
+                              <Link href={`/dashboard/pets/${pet.id}`}>
+                                <Button size="sm" className="w-full bg-teal-500 hover:bg-teal-600">
+                                  View
+                                </Button>
+                              </Link>
+                            </motion.div>
                           </div>
                         </div>
-                        <div className="mt-4 flex gap-2">
-                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">
-                            <Button variant="outline" size="sm" className="w-full">
-                              <Heart className="mr-1 h-4 w-4" />
-                              Save
-                            </Button>
-                          </motion.div>
-                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">
-                            <Button size="sm" className="w-full bg-teal-500 hover:bg-teal-600">
-                              View
-                            </Button>
-                          </motion.div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              </TabsContent>
-              <TabsContent value="dogs" className="mt-0">
-                <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {/* Dog content would go here */}
-                  <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-center">
-                    <div className="mx-auto flex max-w-[150px] flex-col items-center">
-                      <p className="text-sm text-gray-500">Switch to the "All Pets" tab to see recommendations</p>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-              <TabsContent value="cats" className="mt-0">
-                <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {/* Cat content would go here */}
-                  <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-center">
-                    <div className="mx-auto flex max-w-[150px] flex-col items-center">
-                      <p className="text-sm text-gray-500">Switch to the "All Pets" tab to see recommendations</p>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-              <TabsContent value="others" className="mt-0">
-                <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {/* Other pets content would go here */}
-                  <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-center">
-                    <div className="mx-auto flex max-w-[150px] flex-col items-center">
-                      <p className="text-sm text-gray-500">Switch to the "All Pets" tab to see recommendations</p>
-                    </div>
-                  </div>
-                </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
