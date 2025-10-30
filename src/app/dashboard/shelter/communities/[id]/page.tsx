@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
 import MapLocationPicker from "@/components/MapLocationPicker"
 
+
 export default function CommunityPostsPage() {
   const params = useParams()
   const communityId = params.id as string
@@ -68,47 +69,6 @@ export default function CommunityPostsPage() {
   const [isMembersOpen, setIsMembersOpen] = useState(false)
   const [removingMember, setRemovingMember] = useState<string | null>(null)
 
-  const handleJoinCommunity = async () => {
-    if (!user) return
-
-    try {
-      setJoining(true)
-
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      }
-      if (user) {
-        headers['x-user-id'] = user.id
-        headers['x-user-role'] = user.role
-      }
-
-      const response = await fetch(`/api/communities/${communityId}/join`, {
-        method: 'POST',
-        headers,
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // Update community state to reflect membership
-        setCommunity(prev => prev ? {
-          ...prev,
-          isMember: true,
-          memberCount: prev.memberCount + 1
-        } : null)
-
-        toast.success('Successfully joined the community!')
-      } else {
-        throw new Error(data.error || 'Failed to join community')
-      }
-    } catch (error) {
-      console.error('Error joining community:', error)
-      toast.error('Failed to join community')
-    } finally {
-      setJoining(false)
-    }
-  }
-
   const fetchMembers = async () => {
     if (!(community?.isOwner || (community?.ownerId && user?.id === community.ownerId))) return
 
@@ -125,7 +85,19 @@ export default function CommunityPostsPage() {
         headers,
       })
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(`Members API Error: ${response.status} ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse members JSON:', parseError)
+        console.error('Members response was:', responseText)
+        throw new Error('Invalid JSON response from members API')
+      }
 
       if (data.success) {
         setMembers(data.data)
@@ -191,8 +163,6 @@ export default function CommunityPostsPage() {
       const isCurrentlyLiked = currentState?.isLiked || false
       const method = isCurrentlyLiked ? 'DELETE' : 'POST'
       
-      console.log(`Attempting to ${method === 'POST' ? 'like' : 'unlike'} post ${postId}. Current state: ${isCurrentlyLiked}`)
-      
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       }
@@ -202,47 +172,15 @@ export default function CommunityPostsPage() {
       }
 
       const requestUrl = `/api/communities/${communityId}/posts/${postId}/likes`
-      console.log('Making request to:', requestUrl)
-      console.log('Request method:', method)
-      console.log('Request headers:', headers)
 
-      let response
-      try {
-        response = await fetch(requestUrl, {
-          method,
-          headers,
-        })
-        console.log('Fetch completed successfully')
-      } catch (fetchError) {
-        console.error('Fetch failed:', fetchError)
-        throw new Error(`Network error: ${fetchError.message}`)
-      }
+      const response = await fetch(requestUrl, {
+        method,
+        headers,
+      })
 
-      console.log('API response status:', response.status)
-      console.log('API response ok:', response.ok)
-      console.log('API response statusText:', response.statusText)
-      
-      let data
-      try {
-        const responseText = await response.text()
-        console.log('Raw response text:', responseText)
-        console.log('Raw response length:', responseText.length)
-        
-        if (responseText.trim() === '') {
-          console.error('Empty response received')
-          throw new Error('Empty response from server')
-        }
-        
-        data = JSON.parse(responseText)
-        console.log('Parsed API response data:', data)
-      } catch (parseError) {
-        console.error('Failed to parse JSON response:', parseError)
-        console.error('Response text that failed to parse:', responseText)
-        throw new Error(`Invalid JSON response: ${parseError.message}`)
-      }
+      const data = await response.json()
 
       if (data.success) {
-        console.log('Like API success response:', data)
         // Update like state
         setPostLikeStates(prev => ({
           ...prev,
@@ -456,6 +394,47 @@ export default function CommunityPostsPage() {
     }
   }
 
+  const handleJoinCommunity = async () => {
+    if (!user || !community) return
+
+    try {
+      setJoining(true)
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      if (user) {
+        headers['x-user-id'] = user.id
+        headers['x-user-role'] = user.role
+      }
+
+      const response = await fetch(`/api/communities/${communityId}/join`, {
+        method: 'POST',
+        headers,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update community state to reflect membership
+        setCommunity({
+          ...community,
+          isMember: true,
+          memberCount: community.memberCount + 1,
+        })
+        // Fetch posts and events now that user is a member
+        await Promise.all([fetchPosts(), fetchEvents()])
+        toast.success('Successfully joined the community!')
+      } else {
+        throw new Error(data.error || 'Failed to join community')
+      }
+    } catch (error) {
+      console.error('Error joining community:', error)
+      toast.error('Failed to join community')
+    } finally {
+      setJoining(false)
+    }
+  }
+
   const handleLocationSelect = (location: { latitude: number; longitude: number; address?: string }) => {
     setNewEvent({
       ...newEvent,
@@ -606,7 +585,19 @@ export default function CommunityPostsPage() {
         headers,
       })
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(`Posts API Error: ${response.status} ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse posts JSON:', parseError)
+        console.error('Posts response was:', responseText)
+        throw new Error('Invalid JSON response from posts API')
+      }
 
       if (data.success) {
         setPosts(data.data)
@@ -622,6 +613,10 @@ export default function CommunityPostsPage() {
         setPostLikeStates(likeStates)
       } else {
         console.error('Failed to fetch posts:', data.error)
+        if (response.status === 403) {
+          // User is not a member, don't show error toast
+          setPosts([])
+        }
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
@@ -644,7 +639,19 @@ export default function CommunityPostsPage() {
         headers,
       })
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(`Events API Error: ${response.status} ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      let data
+      try {
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse events JSON:', parseError)
+        console.error('Events response was:', responseText)
+        throw new Error('Invalid JSON response from events API')
+      }
 
       if (data.success) {
         setEvents(data.data)
@@ -657,6 +664,10 @@ export default function CommunityPostsPage() {
         setUserEventParticipation(participationStatus)
       } else {
         console.error('Failed to fetch events:', data.error)
+        if (response.status === 403) {
+          // User is not a member, don't show error toast
+          setEvents([])
+        }
       }
     } catch (error) {
       console.error('Error fetching events:', error)
@@ -697,8 +708,6 @@ export default function CommunityPostsPage() {
         }
 
         if (data.success) {
-          console.log('Community data:', data.data) // Debug log
-          console.log('Current user:', user) // Debug log
           setCommunity(data.data)
           // Only fetch posts and events if user is a member
           if (data.data.isMember) {
@@ -784,7 +793,7 @@ export default function CommunityPostsPage() {
             <p className="text-gray-700 mb-6">
               This community is for members only. Join to access posts, events, and discussions.
             </p>
-            <Button
+            <Button 
               onClick={handleJoinCommunity}
               disabled={joining || !user}
               className="bg-teal-500 hover:bg-teal-600 text-white px-8"
@@ -801,6 +810,11 @@ export default function CommunityPostsPage() {
                 </>
               )}
             </Button>
+            {!user && (
+              <p className="text-sm text-gray-500 mt-4">
+                You need to be logged in to join communities.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -808,42 +822,40 @@ export default function CommunityPostsPage() {
   }
 
   return (
-    <div className="flex-1 p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/shelter/communities">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Communities
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-semibold">Community Posts</h1>
-            <p className="text-gray-600">Join the discussion with other community members</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <h2 className="text-lg font-medium">{community.name}'s Posts</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-            <Users className="h-4 w-4" />
-            {community.memberCount} members
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-3 mb-8">
-        {/* Community Management Button (Owner Only) */}
-        {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
-          <Dialog open={isMembersOpen} onOpenChange={setIsMembersOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={fetchMembers}>
-                <Settings className="h-4 w-4 mr-2" />
-                Manage Members
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+    <div className="flex-1 p-6 md:p-8">
+      {/* Shell container inspired by Messages layout */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="border-b border-gray-200 p-4 md:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
+              <Link href="/dashboard/shelter/communities">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-lg md:text-xl font-semibold">{community.name}</h1>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+                  <Users className="h-4 w-4" />
+                  <span>{community.memberCount} members</span>
+                </div>
+              </div>
+            </div>
+            {/* Header actions (compact) */}
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Action Buttons */}
+              {/* Community Management Button (Owner Only) */}
+              {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
+                <Dialog open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" onClick={fetchMembers}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Manage Members
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-yellow-500" />
@@ -942,71 +954,72 @@ export default function CommunityPostsPage() {
           </Dialog>
         )}
 
-        <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              New Post
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New Post</DialogTitle>
-              <DialogDescription>Share something with the {community.name} community</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="post-title">Post Title</Label>
-                <Input
-                  id="post-title"
-                  placeholder="What's your post about?"
-                  value={newPost.title}
-                  onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="post-type">Post Type</Label>
-                <Select value={newPost.type} onValueChange={(value) => setNewPost({ ...newPost, type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General Discussion</SelectItem>
-                    <SelectItem value="help">Help Needed</SelectItem>
-                    <SelectItem value="success">Success Story</SelectItem>
-                    <SelectItem value="question">Question</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="post-content">Content</Label>
-                <Textarea
-                  id="post-content"
-                  placeholder="Share your thoughts, experiences, or ask for help..."
-                  className="min-h-32"
-                  value={newPost.content}
-                  onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewPostOpen(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreatePost}>
-                  Create Post
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        
+              <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-teal-500 hover:bg-teal-600 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Post
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Create New Post</DialogTitle>
+                    <DialogDescription>Share something with the {community.name} community</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="post-title">Post Title</Label>
+                      <Input
+                        id="post-title"
+                        placeholder="What's your post about?"
+                        value={newPost.title}
+                        onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="post-type">Post Type</Label>
+                      <Select value={newPost.type} onValueChange={(value) => setNewPost({ ...newPost, type: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="general">General Discussion</SelectItem>
+                          <SelectItem value="help">Help Needed</SelectItem>
+                          <SelectItem value="success">Success Story</SelectItem>
+                          <SelectItem value="question">Question</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="post-content">Content</Label>
+                      <Textarea
+                        id="post-content"
+                        placeholder="Share your thoughts, experiences, or ask for help..."
+                        className="min-h-32"
+                        value={newPost.content}
+                        onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewPostOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreatePost}>
+                        Create Post
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
-        <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
-              <Calendar className="h-4 w-4 mr-2" />
-              New Event
-            </Button>
-          </DialogTrigger>
+              <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-teal-500 hover:bg-teal-600 text-white">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      New Event
+                    </Button>
+                  </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Event</DialogTitle>
@@ -1093,15 +1106,34 @@ export default function CommunityPostsPage() {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
-      </div>
+              </Dialog>
+            </div>
+          </div>
+        </div>
 
-      {/* Posts and Events Tabs */}
-      <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-        </TabsList>
+        {/* Content area */}
+        <div className="p-4 md:p-6">
+          {/* On small screens show actions below header */}
+          <div className="sm:hidden flex gap-2 mb-4">
+            {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
+              <Button variant="outline" onClick={fetchMembers} className="w-full">
+                <Settings className="h-4 w-4 mr-2" /> Manage Members
+              </Button>
+            )}
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white w-full" onClick={() => setIsNewPostOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> New Post
+            </Button>
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white w-full" onClick={() => setIsNewEventOpen(true)}>
+              <Calendar className="h-4 w-4 mr-2" /> New Event
+            </Button>
+          </div>
+
+          {/* Posts and Events Tabs */}
+          <Tabs defaultValue="posts" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+          </TabsList>
         
         <TabsContent value="posts" className="space-y-6">
           {postsLoading ? (
@@ -1392,7 +1424,9 @@ export default function CommunityPostsPage() {
             })
           )}
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </div>
+      </div>
     </div>
   )
 }

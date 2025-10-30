@@ -822,42 +822,40 @@ export default function CommunityPostsPage() {
   }
 
   return (
-    <div className="flex-1 p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/communities">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Communities
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-semibold">Community Posts</h1>
-            <p className="text-gray-600">Join the discussion with other community members</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <h2 className="text-lg font-medium">{community.name}'s Posts</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-            <Users className="h-4 w-4" />
-            {community.memberCount} members
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-3 mb-8">
-        {/* Community Management Button (Owner Only) */}
-        {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
-          <Dialog open={isMembersOpen} onOpenChange={setIsMembersOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={fetchMembers}>
-                <Settings className="h-4 w-4 mr-2" />
-                Manage Members
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+    <div className="flex-1 p-6 md:p-8">
+      {/* Shell container inspired by Messages layout */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="border-b border-gray-200 p-4 md:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
+              <Link href="/dashboard/communities">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-lg md:text-xl font-semibold">{community.name}</h1>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+                  <Users className="h-4 w-4" />
+                  <span>{community.memberCount} members</span>
+                </div>
+              </div>
+            </div>
+            {/* Header actions (compact) */}
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Action Buttons */}
+              {/* Community Management Button (Owner Only) */}
+              {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
+                <Dialog open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" onClick={fetchMembers}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Manage Members
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-yellow-500" />
@@ -956,71 +954,72 @@ export default function CommunityPostsPage() {
           </Dialog>
         )}
 
-        <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              New Post
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New Post</DialogTitle>
-              <DialogDescription>Share something with the {community.name} community</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="post-title">Post Title</Label>
-                <Input
-                  id="post-title"
-                  placeholder="What's your post about?"
-                  value={newPost.title}
-                  onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="post-type">Post Type</Label>
-                <Select value={newPost.type} onValueChange={(value) => setNewPost({ ...newPost, type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">General Discussion</SelectItem>
-                    <SelectItem value="help">Help Needed</SelectItem>
-                    <SelectItem value="success">Success Story</SelectItem>
-                    <SelectItem value="question">Question</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="post-content">Content</Label>
-                <Textarea
-                  id="post-content"
-                  placeholder="Share your thoughts, experiences, or ask for help..."
-                  className="min-h-32"
-                  value={newPost.content}
-                  onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewPostOpen(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreatePost}>
-                  Create Post
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        
+              <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-teal-500 hover:bg-teal-600 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Post
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Create New Post</DialogTitle>
+                    <DialogDescription>Share something with the {community.name} community</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="post-title">Post Title</Label>
+                      <Input
+                        id="post-title"
+                        placeholder="What's your post about?"
+                        value={newPost.title}
+                        onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="post-type">Post Type</Label>
+                      <Select value={newPost.type} onValueChange={(value) => setNewPost({ ...newPost, type: value })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="general">General Discussion</SelectItem>
+                          <SelectItem value="help">Help Needed</SelectItem>
+                          <SelectItem value="success">Success Story</SelectItem>
+                          <SelectItem value="question">Question</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="post-content">Content</Label>
+                      <Textarea
+                        id="post-content"
+                        placeholder="Share your thoughts, experiences, or ask for help..."
+                        className="min-h-32"
+                        value={newPost.content}
+                        onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewPostOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreatePost}>
+                        Create Post
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
-        <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
-              <Calendar className="h-4 w-4 mr-2" />
-              New Event
-            </Button>
-          </DialogTrigger>
+              <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-teal-500 hover:bg-teal-600 text-white">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      New Event
+                    </Button>
+                  </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Event</DialogTitle>
@@ -1107,15 +1106,34 @@ export default function CommunityPostsPage() {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
-      </div>
+              </Dialog>
+            </div>
+          </div>
+        </div>
 
-      {/* Posts and Events Tabs */}
-      <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-        </TabsList>
+        {/* Content area */}
+        <div className="p-4 md:p-6">
+          {/* On small screens show actions below header */}
+          <div className="sm:hidden flex gap-2 mb-4">
+            {(community?.isOwner || (community?.ownerId && user?.id === community.ownerId)) && (
+              <Button variant="outline" onClick={fetchMembers} className="w-full">
+                <Settings className="h-4 w-4 mr-2" /> Manage Members
+              </Button>
+            )}
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white w-full" onClick={() => setIsNewPostOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> New Post
+            </Button>
+            <Button className="bg-teal-500 hover:bg-teal-600 text-white w-full" onClick={() => setIsNewEventOpen(true)}>
+              <Calendar className="h-4 w-4 mr-2" /> New Event
+            </Button>
+          </div>
+
+          {/* Posts and Events Tabs */}
+          <Tabs defaultValue="posts" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+          </TabsList>
         
         <TabsContent value="posts" className="space-y-6">
           {postsLoading ? (
@@ -1406,7 +1424,9 @@ export default function CommunityPostsPage() {
             })
           )}
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </div>
+      </div>
     </div>
   )
 }
