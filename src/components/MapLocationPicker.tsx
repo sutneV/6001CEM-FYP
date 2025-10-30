@@ -4,6 +4,8 @@ import { useState, useCallback, useRef } from "react"
 import Map, { Marker, Popup } from "react-map-gl"
 import { MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
+// Ensure Mapbox GL elements render with correct default styles
+import 'mapbox-gl/dist/mapbox-gl.css'
 
 // Penang coordinates as default center
 const PENANG_CENTER = {
@@ -152,7 +154,7 @@ export default function MapLocationPicker({
                 longitude={selectedLocation.longitude}
                 anchor="bottom"
               >
-                <div className="bg-teal-500 p-2 rounded-full shadow-lg">
+                <div className="inline-flex items-center justify-center bg-teal-500 p-2 rounded-full shadow-lg">
                   <MapPin className="h-5 w-5 text-white" />
                 </div>
               </Marker>
