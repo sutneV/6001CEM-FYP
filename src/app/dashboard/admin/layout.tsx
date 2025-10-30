@@ -51,6 +51,7 @@ export default function AdminLayout({
     { name: "Dashboard", icon: Home, href: "/dashboard/admin" },
     { name: "User Management", icon: Users, href: "/dashboard/admin/users" },
     { name: "Shelter Management", icon: Building, href: "/dashboard/admin/shelters" },
+    { name: "Shelter Applications", icon: ClipboardList, href: "/dashboard/admin/shelter-applications" },
     { name: "Pet Management", icon: PawPrint, href: "/dashboard/admin/pets" },
     { name: "Applications", icon: ClipboardList, href: "/dashboard/admin/applications" },
     { name: "Analytics", icon: BarChart3, href: "/dashboard/admin/analytics" },
@@ -218,6 +219,7 @@ export default function AdminLayout({
               {pathname === "/dashboard/admin" ? "Admin Dashboard" :
                pathname === "/dashboard/admin/users" ? "User Management" :
                pathname === "/dashboard/admin/shelters" ? "Shelter Management" :
+               pathname === "/dashboard/admin/shelter-applications" ? "Shelter Applications" :
                pathname === "/dashboard/admin/pets" ? "Pet Management" :
                pathname === "/dashboard/admin/applications" ? "Applications" :
                pathname === "/dashboard/admin/analytics" ? "Analytics" :

@@ -15,6 +15,7 @@ import { motion } from "framer-motion"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuth } from "@/contexts/AuthContext"
 import { registerUser, getRedirectPath } from "@/lib/auth-client"
+import { toast } from "sonner"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -64,16 +65,19 @@ export default function RegisterPage() {
       newErrors.city = "City is required"
     }
 
-    if (!formData.password) {
-      newErrors.password = "Password is required"
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters"
-    }
+    // Password validation only for adopters
+    if (formData.role === "adopter") {
+      if (!formData.password) {
+        newErrors.password = "Password is required"
+      } else if (formData.password.length < 8) {
+        newErrors.password = "Password must be at least 8 characters"
+      }
 
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password"
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match"
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = "Please confirm your password"
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = "Passwords do not match"
+      }
     }
 
     if (formData.role === "shelter") {
@@ -98,7 +102,41 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      // Register user
+      // For shelter role, submit application instead of registering
+      if (formData.role === 'shelter') {
+        const response = await fetch('/api/shelter-applications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            phone: formData.phone,
+            city: formData.city,
+            shelterName: formData.shelterName,
+            shelterDescription: formData.shelterDescription,
+          }),
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          setErrors({ general: result.error || 'Failed to submit application.' })
+          toast.error(result.error || 'Failed to submit application.')
+          setIsLoading(false)
+          return
+        }
+
+        // Show success message and redirect to sign in
+        toast.success('Application submitted successfully! You will receive an email once it is reviewed by our admin team.')
+        router.push('/auth/signin')
+        setIsLoading(false)
+        return
+      }
+
+      // For adopter role, proceed with normal registration
       const newUser = await registerUser({
         email: formData.email,
         password: formData.password,
@@ -107,8 +145,6 @@ export default function RegisterPage() {
         phone: formData.phone,
         city: formData.city,
         role: formData.role,
-        shelterName: formData.shelterName,
-        shelterDescription: formData.shelterDescription,
       })
 
       if (!newUser) {
@@ -119,7 +155,7 @@ export default function RegisterPage() {
 
       // Login user
       login(newUser)
-      
+
       // Redirect based on role
       const redirectPath = getRedirectPath(newUser.role)
       router.push(redirectPath)
@@ -179,7 +215,7 @@ export default function RegisterPage() {
                       <Building2 className="h-5 w-5 text-teal-600" />
                       <div>
                         <div className="font-medium">Animal Shelter</div>
-                        <div className="text-sm text-gray-500">Managing pet adoptions</div>
+                        <div className="text-sm text-gray-500">Apply to manage adoptions</div>
                       </div>
                     </div>
                   </Label>
@@ -270,6 +306,12 @@ export default function RegisterPage() {
 
             {formData.role === "shelter" && (
               <>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> Shelter applications require admin approval. You will receive an email with login credentials once your application is reviewed.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="shelterName">Shelter Name</Label>
                   <div className="relative">
@@ -299,51 +341,55 @@ export default function RegisterPage() {
               </>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
-                  className={`pl-10 pr-10 ${errors.password ? "border-red-500" : ""}`}
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
-            </div>
+            {formData.role === "adopter" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Create a password"
+                      className={`pl-10 pr-10 ${errors.password ? "border-red-500" : ""}`}
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  className={`pl-10 pr-10 ${errors.confirmPassword ? "border-red-500" : ""}`}
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm your password"
+                      className={`pl-10 pr-10 ${errors.confirmPassword ? "border-red-500" : ""}`}
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <div className="flex items-start space-x-2">
@@ -371,10 +417,10 @@ export default function RegisterPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
+                  {formData.role === "shelter" ? "Submitting application..." : "Creating account..."}
                 </>
               ) : (
-                "Create Account"
+                formData.role === "shelter" ? "Submit Application" : "Create Account"
               )}
             </Button>
           </form>

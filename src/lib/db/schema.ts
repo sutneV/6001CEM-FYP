@@ -11,6 +11,7 @@ export const conversationStatusEnum = pgEnum('conversation_status', ['active', '
 export const ownerTypeEnum = pgEnum('owner_type', ['adopter', 'shelter'])
 export const communityPostTypeEnum = pgEnum('post_type', ['text', 'image', 'event'])
 export const applicationStatusEnum = pgEnum('application_status', ['draft', 'submitted', 'under_review', 'interview_scheduled', 'meet_greet_scheduled', 'home_visit_scheduled', 'pending_approval', 'approved', 'rejected', 'withdrawn'])
+export const shelterApplicationStatusEnum = pgEnum('shelter_application_status', ['pending', 'approved', 'rejected'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -34,6 +35,26 @@ export const shelters = pgTable('shelters', {
   address: text('address'),
   registrationNumber: varchar('registration_number', { length: 100 }),
   website: varchar('website', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const shelterApplications = pgTable('shelter_applications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: varchar('email', { length: 255 }).notNull(),
+  firstName: varchar('first_name', { length: 100 }).notNull(),
+  lastName: varchar('last_name', { length: 100 }).notNull(),
+  phone: varchar('phone', { length: 20 }),
+  city: varchar('city', { length: 100 }),
+  shelterName: varchar('shelter_name', { length: 255 }).notNull(),
+  shelterDescription: text('shelter_description'),
+  registrationNumber: varchar('registration_number', { length: 100 }),
+  address: text('address'),
+  website: varchar('website', { length: 255 }),
+  status: shelterApplicationStatusEnum('status').notNull().default('pending'),
+  rejectionReason: text('rejection_reason'),
+  reviewedBy: uuid('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -286,3 +307,5 @@ export type AiChatConversation = typeof aiChatConversations.$inferSelect
 export type NewAiChatConversation = typeof aiChatConversations.$inferInsert
 export type AiChatMessage = typeof aiChatMessages.$inferSelect
 export type NewAiChatMessage = typeof aiChatMessages.$inferInsert
+export type ShelterApplication = typeof shelterApplications.$inferSelect
+export type NewShelterApplication = typeof shelterApplications.$inferInsert
