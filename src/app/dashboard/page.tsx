@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Calendar,
   ChevronRight,
@@ -66,20 +66,8 @@ export default function DashboardPage() {
   const [petsLoading, setPetsLoading] = useState(true)
   const [currentTab, setCurrentTab] = useState("all")
 
-  useEffect(() => {
-    if (user) {
-      fetchRecentApplications()
-      fetchRecommendedPets()
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (user) {
-      fetchRecommendedPets()
-    }
-  }, [currentTab, user])
-
-  const fetchRecentApplications = async () => {
+  const fetchRecentApplications = useCallback(async () => {
+    if (!user) return
     try {
       setIsLoading(true)
       const response = await fetch('/api/applications?limit=2&orderBy=updatedAt', {
@@ -98,13 +86,15 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user])
 
-  const fetchRecommendedPets = async () => {
+  const fetchRecommendedPets = useCallback(async () => {
+    if (!user) return
     try {
       setPetsLoading(true)
-      const typeParam = currentTab === 'all' ? '' : `?type=${currentTab === 'dogs' ? 'dog' : currentTab === 'cats' ? 'cat' : 'other'}`
-      const response = await fetch(`/api/pets/recommended${typeParam}`, {
+      const typeFilter = currentTab === 'all' ? '' : `type=${currentTab === 'dogs' ? 'dog' : currentTab === 'cats' ? 'cat' : 'other'}`
+      const params = typeFilter ? `?${typeFilter}&limit=4` : '?limit=4'
+      const response = await fetch(`/api/pets/recommended${params}`, {
         headers: {
           'x-user-data': JSON.stringify(user),
         },
@@ -119,7 +109,15 @@ export default function DashboardPage() {
     } finally {
       setPetsLoading(false)
     }
-  }
+  }, [user, currentTab])
+
+  useEffect(() => {
+    fetchRecentApplications()
+  }, [fetchRecentApplications])
+
+  useEffect(() => {
+    fetchRecommendedPets()
+  }, [fetchRecommendedPets])
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -556,11 +554,6 @@ export default function DashboardPage() {
                           ) : (
                             <div className="flex items-center justify-center h-full bg-gray-100">
                               <PawPrint className="h-16 w-16 text-gray-400" />
-                            </div>
-                          )}
-                          {pet.compatibilityScore && (
-                            <div className="absolute right-2 top-2 rounded-full bg-white px-2 py-1 text-xs font-medium">
-                              {pet.compatibilityScore}% Match
                             </div>
                           )}
                         </div>
