@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import {
@@ -13,6 +14,7 @@ import {
   BarChart3,
   Settings,
   AlertTriangle,
+  Loader2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -54,7 +56,102 @@ const popIn = {
   },
 }
 
+interface DashboardStats {
+  totalUsers: number
+  userGrowth: number
+  activeShelters: number
+  availablePets: number
+  adoptedPets: number
+  pendingPets: number
+  totalPets: number
+  pendingApplications: number
+  pendingShelterApps: number
+  successRate: number
+  todayNewUsers: number
+}
+
+interface Activity {
+  type: string
+  action: string
+  details: string
+  time: string
+  icon: string
+  color: string
+}
+
+interface Alert {
+  title: string
+  description: string
+  priority: string
+  icon: string
+}
+
 export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
+  const [systemAlerts, setSystemAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await fetch('/api/admin/dashboard-stats')
+      const data = await response.json()
+
+      if (response.ok && data.stats) {
+        setStats(data.stats)
+        setRecentActivity(data.recentActivity || [])
+        setSystemAlerts(data.systemAlerts || [])
+      } else {
+        console.error('Failed to fetch dashboard stats:', data.error)
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (seconds < 60) return 'Just now'
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`
+    const days = Math.floor(hours / 24)
+    if (days < 30) return `${days} day${days > 1 ? 's' : ''} ago`
+    const months = Math.floor(days / 30)
+    return `${months} month${months > 1 ? 's' : ''} ago`
+  }
+
+  const getIconComponent = (iconName: string) => {
+    const icons: { [key: string]: any } = {
+      Building,
+      CheckCircle2,
+      PawPrint,
+      AlertTriangle,
+      ClipboardList,
+      Users,
+      Settings,
+    }
+    return icons[iconName] || AlertTriangle
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+      </div>
+    )
+  }
+
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid gap-6">
       {/* Welcome Section */}
@@ -81,15 +178,33 @@ export default function AdminDashboardPage() {
       <motion.section variants={fadeIn}>
         <div className="grid gap-4 md:grid-cols-4">
           {[
-            { label: "Total Users", value: "2,847", change: "+12%", icon: Users, color: "text-blue-600" },
-            { label: "Active Shelters", value: "23", change: "+2", icon: Building, color: "text-green-600" },
-            { label: "Available Pets", value: "156", change: "+8", icon: PawPrint, color: "text-purple-600" },
+            {
+              label: "Total Users",
+              value: stats?.totalUsers.toLocaleString() || "0",
+              change: stats?.userGrowth ? `${stats.userGrowth > 0 ? '+' : ''}${stats.userGrowth}%` : "0%",
+              icon: Users,
+              color: "text-blue-600"
+            },
+            {
+              label: "Active Shelters",
+              value: stats?.activeShelters.toString() || "0",
+              change: `${stats?.pendingShelterApps || 0} pending`,
+              icon: Building,
+              color: "text-green-600"
+            },
+            {
+              label: "Available Pets",
+              value: stats?.availablePets.toString() || "0",
+              change: `${stats?.totalPets || 0} total`,
+              icon: PawPrint,
+              color: "text-purple-600"
+            },
             {
               label: "Pending Applications",
-              value: "47",
-              change: "-3",
+              value: stats?.pendingApplications.toString() || "0",
+              change: "Need review",
               icon: ClipboardList,
-              color: "text-orange-600",
+              color: "text-orange-600"
             },
           ].map((stat, index) => (
             <motion.div key={index} variants={popIn}>
@@ -123,54 +238,32 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
-                {[
-                  {
-                    action: "New shelter registered",
-                    details: "Penang Animal Welfare Society joined",
-                    time: "2 hours ago",
-                    icon: Building,
-                    color: "bg-green-100 text-green-700",
-                  },
-                  {
-                    action: "Application approved",
-                    details: "Buddy adopted by Sarah Chen",
-                    time: "4 hours ago",
-                    icon: CheckCircle2,
-                    color: "bg-blue-100 text-blue-700",
-                  },
-                  {
-                    action: "New pet added",
-                    details: "Luna (Ragdoll Cat) by SPCA Penang",
-                    time: "6 hours ago",
-                    icon: PawPrint,
-                    color: "bg-purple-100 text-purple-700",
-                  },
-                  {
-                    action: "User reported issue",
-                    details: "Application form not loading",
-                    time: "8 hours ago",
-                    icon: AlertTriangle,
-                    color: "bg-yellow-100 text-yellow-700",
-                  },
-                ].map((activity, index) => (
-                  <motion.div
-                    key={index}
-                    variants={popIn}
-                    whileHover={{ x: 5 }}
-                    className="flex gap-4 rounded-lg border p-3"
-                  >
-                    <div
-                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md ${activity.color}`}
+                {recentActivity.length > 0 ? recentActivity.map((activity, index) => {
+                  const IconComponent = getIconComponent(activity.icon)
+                  return (
+                    <motion.div
+                      key={index}
+                      variants={popIn}
+                      whileHover={{ x: 5 }}
+                      className="flex gap-4 rounded-lg border p-3"
                     >
-                      <activity.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{activity.action}</h4>
-                      <p className="mt-1 text-xs text-gray-500">{activity.details}</p>
-                      <p className="mt-1 text-xs text-gray-400">{activity.time}</p>
-                    </div>
-                  </motion.div>
-                ))}
+                      <div
+                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md ${activity.color}`}
+                      >
+                        <IconComponent className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{activity.action}</h4>
+                        <p className="mt-1 text-xs text-gray-500">{activity.details}</p>
+                        <p className="mt-1 text-xs text-gray-400">{formatTimeAgo(activity.time)}</p>
+                      </div>
+                    </motion.div>
+                  )
+                }) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No recent activity</p>
+                  </div>
+                )}
               </motion.div>
             </CardContent>
           </Card>
@@ -185,68 +278,50 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
-                {[
-                  {
-                    title: "High Application Volume",
-                    description: "47 pending applications need review",
-                    priority: "high",
-                    icon: ClipboardList,
-                  },
-                  {
-                    title: "Shelter Capacity Alert",
-                    description: "3 shelters approaching capacity limits",
-                    priority: "medium",
-                    icon: Building,
-                  },
-                  {
-                    title: "System Maintenance Due",
-                    description: "Scheduled maintenance in 2 days",
-                    priority: "low",
-                    icon: Settings,
-                  },
-                  {
-                    title: "New User Registrations",
-                    description: "15 new users registered today",
-                    priority: "info",
-                    icon: Users,
-                  },
-                ].map((alert, index) => (
-                  <motion.div
-                    key={index}
-                    variants={popIn}
-                    whileHover={{ y: -2 }}
-                    className="flex gap-4 rounded-lg border p-3"
-                  >
-                    <div
-                      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md ${
-                        alert.priority === "high"
-                          ? "bg-red-100 text-red-700"
-                          : alert.priority === "medium"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : alert.priority === "low"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-green-100 text-green-700"
-                      }`}
+                {systemAlerts.length > 0 ? systemAlerts.map((alert, index) => {
+                  const IconComponent = getIconComponent(alert.icon)
+                  return (
+                    <motion.div
+                      key={index}
+                      variants={popIn}
+                      whileHover={{ y: -2 }}
+                      className="flex gap-4 rounded-lg border p-3"
                     >
-                      <alert.icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{alert.title}</h4>
-                      <p className="mt-1 text-xs text-gray-500">{alert.description}</p>
-                    </div>
-                    <Badge
-                      variant={
-                        alert.priority === "high"
-                          ? "destructive"
-                          : alert.priority === "medium"
-                            ? "default"
-                            : "secondary"
-                      }
-                    >
-                      {alert.priority}
-                    </Badge>
-                  </motion.div>
-                ))}
+                      <div
+                        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md ${
+                          alert.priority === "high"
+                            ? "bg-red-100 text-red-700"
+                            : alert.priority === "medium"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : alert.priority === "low"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        <IconComponent className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{alert.title}</h4>
+                        <p className="mt-1 text-xs text-gray-500">{alert.description}</p>
+                      </div>
+                      <Badge
+                        variant={
+                          alert.priority === "high"
+                            ? "destructive"
+                            : alert.priority === "medium"
+                              ? "default"
+                              : "secondary"
+                        }
+                      >
+                        {alert.priority}
+                      </Badge>
+                    </motion.div>
+                  )
+                }) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No system alerts</p>
+                  </div>
+                )}
               </motion.div>
             </CardContent>
           </Card>
@@ -272,18 +347,18 @@ export default function AdminDashboardPage() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">User Growth</p>
-                    <p className="text-2xl font-bold text-blue-600">+12%</p>
-                    <Progress value={75} className="h-2" />
+                    <p className="text-2xl font-bold text-blue-600">{stats?.userGrowth > 0 ? '+' : ''}{stats?.userGrowth}%</p>
+                    <Progress value={Math.min(Math.abs(stats?.userGrowth || 0), 100)} className="h-2" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Active Users</p>
-                    <p className="text-2xl font-bold text-green-600">1,847</p>
+                    <p className="text-sm font-medium">Total Users</p>
+                    <p className="text-2xl font-bold text-green-600">{stats?.totalUsers.toLocaleString()}</p>
                     <Progress value={85} className="h-2" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">New Registrations</p>
-                    <p className="text-2xl font-bold text-purple-600">156</p>
-                    <Progress value={60} className="h-2" />
+                    <p className="text-sm font-medium">New Today</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats?.todayNewUsers}</p>
+                    <Progress value={Math.min((stats?.todayNewUsers || 0) * 5, 100)} className="h-2" />
                   </div>
                 </div>
               </TabsContent>
@@ -291,17 +366,17 @@ export default function AdminDashboardPage() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Active Shelters</p>
-                    <p className="text-2xl font-bold text-green-600">23</p>
-                    <Progress value={90} className="h-2" />
+                    <p className="text-2xl font-bold text-green-600">{stats?.activeShelters}</p>
+                    <Progress value={Math.min((stats?.activeShelters || 0) * 4, 100)} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Pending Approval</p>
-                    <p className="text-2xl font-bold text-yellow-600">3</p>
-                    <Progress value={30} className="h-2" />
+                    <p className="text-2xl font-bold text-yellow-600">{stats?.pendingShelterApps}</p>
+                    <Progress value={Math.min((stats?.pendingShelterApps || 0) * 10, 100)} className="h-2" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Total Capacity</p>
-                    <p className="text-2xl font-bold text-blue-600">450</p>
+                    <p className="text-sm font-medium">Total Pets Managed</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats?.totalPets}</p>
                     <Progress value={70} className="h-2" />
                   </div>
                 </div>
@@ -310,18 +385,18 @@ export default function AdminDashboardPage() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Successful Adoptions</p>
-                    <p className="text-2xl font-bold text-green-600">342</p>
-                    <Progress value={95} className="h-2" />
+                    <p className="text-2xl font-bold text-green-600">{stats?.adoptedPets}</p>
+                    <Progress value={Math.min((stats?.adoptedPets || 0) / 5, 100)} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Pending Applications</p>
-                    <p className="text-2xl font-bold text-orange-600">47</p>
-                    <Progress value={40} className="h-2" />
+                    <p className="text-2xl font-bold text-orange-600">{stats?.pendingApplications}</p>
+                    <Progress value={Math.min((stats?.pendingApplications || 0) * 2, 100)} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Success Rate</p>
-                    <p className="text-2xl font-bold text-blue-600">87%</p>
-                    <Progress value={87} className="h-2" />
+                    <p className="text-2xl font-bold text-blue-600">{stats?.successRate}%</p>
+                    <Progress value={stats?.successRate || 0} className="h-2" />
                   </div>
                 </div>
               </TabsContent>
