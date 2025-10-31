@@ -37,7 +37,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
     }
 
-    return NextResponse.json(data || [])
+    // For each notification, if it has an interview_id in metadata, fetch the current interview status
+    const enrichedData = await Promise.all((data || []).map(async (notification) => {
+      let enrichedMetadata = notification.metadata || {}
+
+      // If notification has interview_id in metadata, fetch current interview response status
+      if (enrichedMetadata.interview_id) {
+        const { data: interview } = await supabase
+          .from('interviews')
+          .select('adopter_response, status')
+          .eq('id', enrichedMetadata.interview_id)
+          .single()
+
+        if (interview) {
+          enrichedMetadata = {
+            ...enrichedMetadata,
+            adopter_response: interview.adopter_response,
+            interview_status: interview.status,
+          }
+        }
+      }
+
+      return {
+        ...notification,
+        metadata: enrichedMetadata,
+      }
+    }))
+
+    // Transform snake_case to camelCase
+    const transformedData = enrichedData.map(notification => ({
+      id: notification.id,
+      userId: notification.user_id,
+      type: notification.type,
+      status: notification.status,
+      title: notification.title,
+      message: notification.message,
+      metadata: notification.metadata,
+      readAt: notification.read_at,
+      createdAt: notification.created_at,
+      updatedAt: notification.updated_at,
+    }))
+
+    return NextResponse.json(transformedData)
   } catch (error) {
     console.error('Error in notifications GET:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

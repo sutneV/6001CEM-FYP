@@ -42,8 +42,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent } from "@/components/ui/card"
 import { useAuth } from "@/contexts/AuthContext"
 import { interviewsService } from "@/lib/services/interviews"
+import { toast } from "sonner"
 
 
 const getEventTypeIcon = (type: string) => {
@@ -63,6 +74,12 @@ export default function CalendarPage() {
   const [viewType, setViewType] = useState<'month' | 'week' | 'day'>('month')
   const [calendarEvents, setCalendarEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [responseDialog, setResponseDialog] = useState<{
+    open: boolean
+    event?: any
+  }>({ open: false })
+  const [response, setResponse] = useState<boolean | null>(null)
+  const [notes, setNotes] = useState("")
 
   // Generate calendar grid for current month
   const monthStart = startOfMonth(currentDate)
@@ -188,6 +205,51 @@ export default function CalendarPage() {
 
   const getEventsForDate = (date: Date) => {
     return calendarEvents.filter(event => isSameDay(event.date, date))
+  }
+
+  const handleInterviewResponse = async () => {
+    if (!responseDialog.event || response === null || !user) return
+
+    try {
+      const interviewId = responseDialog.event.interviewId
+      if (!interviewId) throw new Error('Interview ID not found')
+
+      await interviewsService.respondToInterview(interviewId, response, notes, user)
+
+      toast.success(
+        response
+          ? 'Interview accepted successfully!'
+          : 'Interview declined. The shelter has been notified.'
+      )
+
+      // Refresh calendar events
+      await fetchCalendarEvents()
+
+      setResponseDialog({ open: false })
+      setResponse(null)
+      setNotes("")
+    } catch (error) {
+      console.error('Error responding to interview:', error)
+      toast.error('Failed to submit response')
+    }
+  }
+
+  const getInterviewIcon = (type: string) => {
+    switch (type) {
+      case 'interview': return <Phone className="h-5 w-5 text-blue-600" />
+      case 'meet_greet': return <Heart className="h-5 w-5 text-purple-600" />
+      case 'home_visit': return <Home className="h-5 w-5 text-green-600" />
+      default: return <CalendarIcon className="h-5 w-5 text-gray-600" />
+    }
+  }
+
+  const getInterviewLabel = (type: string) => {
+    switch (type) {
+      case 'interview': return 'Phone/Video Interview'
+      case 'meet_greet': return 'Meet & Greet'
+      case 'home_visit': return 'Home Visit'
+      default: return 'Interview'
+    }
   }
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -630,11 +692,27 @@ export default function CalendarPage() {
                            event.interviewStatus !== 'cancelled' &&
                            user?.role === 'adopter' && (
                             <div className="flex gap-2 mt-4">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setResponseDialog({ open: true, event })
+                                  setResponse(true)
+                                }}
+                              >
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
                                 Accept
                               </Button>
-                              <Button size="sm" variant="outline">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setResponseDialog({ open: true, event })
+                                  setResponse(false)
+                                }}
+                              >
                                 <XCircle className="h-4 w-4 mr-1" />
                                 Decline
                               </Button>
@@ -661,6 +739,122 @@ export default function CalendarPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Interview Response Dialog */}
+      {responseDialog.event && (
+        <Dialog open={responseDialog.open} onOpenChange={(open) => {
+          setResponseDialog({ open })
+          if (!open) {
+            setResponse(null)
+            setNotes("")
+          }
+        }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                {getInterviewIcon(responseDialog.event.type)}
+                <div>
+                  <div>Respond to {getInterviewLabel(responseDialog.event.type)}</div>
+                  <DialogDescription className="text-sm font-normal mt-1">
+                    {responseDialog.event.title}
+                  </DialogDescription>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Interview Details */}
+              <Card className="bg-gray-50">
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Date & Time</p>
+                        <p className="text-sm text-gray-600">
+                          {format(responseDialog.event.date, 'EEEE, MMMM d, yyyy')} • {responseDialog.event.time}
+                        </p>
+                      </div>
+                    </div>
+                    {responseDialog.event.location && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <p className="text-sm font-medium">Location</p>
+                          <p className="text-sm text-gray-600">{responseDialog.event.location}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Response Selection */}
+              <div className="space-y-4">
+                <h4 className="font-medium">Your Response</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    variant={response === true ? "default" : "outline"}
+                    className={`h-20 flex-col gap-2 ${
+                      response === true
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "hover:bg-green-50 hover:border-green-300"
+                    }`}
+                    onClick={() => setResponse(true)}
+                  >
+                    <CheckCircle2 className="h-6 w-6" />
+                    Accept
+                  </Button>
+                  <Button
+                    variant={response === false ? "destructive" : "outline"}
+                    className={`h-20 flex-col gap-2 ${
+                      response === false
+                        ? ""
+                        : "hover:bg-red-50 hover:border-red-300"
+                    }`}
+                    onClick={() => setResponse(false)}
+                  >
+                    <XCircle className="h-6 w-6" />
+                    Decline
+                  </Button>
+                </div>
+              </div>
+
+              {/* Additional Notes */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Additional Notes (Optional)
+                </label>
+                <Textarea
+                  placeholder={
+                    response === true
+                      ? "Any questions or special requests for the interview..."
+                      : response === false
+                      ? "Let us know if you'd like to reschedule or have other preferences..."
+                      : "Add any notes or comments..."
+                  }
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResponseDialog({ open: false })}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleInterviewResponse}
+                disabled={response === null}
+                className={response === true ? "bg-green-600 hover:bg-green-700" : ""}
+              >
+                {response === true ? "Accept Interview" : "Decline Interview"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

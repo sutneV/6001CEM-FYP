@@ -279,8 +279,34 @@ export default function NotificationsPage() {
                               {(notification.status === 'pending' || notification.status === 'sent') && (
                                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
                               )}
-                              <Badge variant="outline" className="text-xs">
+                              <Badge
+                                variant={
+                                  notification.metadata?.adopter_response !== undefined
+                                    ? notification.metadata.adopter_response === true
+                                      ? "default"
+                                      : "destructive"
+                                    : "outline"
+                                }
+                                className={
+                                  notification.metadata?.adopter_response !== undefined
+                                    ? notification.metadata.adopter_response === true
+                                      ? "bg-green-600 text-white text-xs"
+                                      : "bg-red-600 text-white text-xs"
+                                    : "text-xs"
+                                }
+                              >
                                 {(() => {
+                                  // For notifications with adopter_response, show Accepted/Declined/Pending status
+                                  if (notification.metadata?.adopter_response !== undefined) {
+                                    return notification.metadata.adopter_response === true ? 'Accepted' : 'Declined'
+                                  }
+
+                                  // For interview_scheduled without response, show Pending
+                                  if (notification.type === 'interview_scheduled') {
+                                    return 'Pending Response'
+                                  }
+
+                                  // For other notifications, show date
                                   try {
                                     if (!notification.createdAt) return 'No date'
                                     const date = new Date(notification.createdAt)
