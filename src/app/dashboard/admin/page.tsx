@@ -231,12 +231,12 @@ export default function AdminDashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Recent Activity */}
         <motion.section variants={fadeIn}>
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>Recent System Activity</CardTitle>
               <CardDescription>Latest actions across the platform</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1">
               <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
                 {recentActivity.length > 0 ? recentActivity.map((activity, index) => {
                   const IconComponent = getIconComponent(activity.icon)
@@ -244,7 +244,7 @@ export default function AdminDashboardPage() {
                     <motion.div
                       key={index}
                       variants={popIn}
-                      whileHover={{ x: 5 }}
+                      whileHover={{ y: -2 }}
                       className="flex gap-4 rounded-lg border p-3"
                     >
                       <div
@@ -254,8 +254,8 @@ export default function AdminDashboardPage() {
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium">{activity.action}</h4>
-                        <p className="mt-1 text-xs text-gray-500">{activity.details}</p>
-                        <p className="mt-1 text-xs text-gray-400">{formatTimeAgo(activity.time)}</p>
+                        <p className="text-sm text-gray-500">{activity.details}</p>
+                        <p className="text-xs text-gray-400">{formatTimeAgo(activity.time)}</p>
                       </div>
                     </motion.div>
                   )
@@ -271,12 +271,12 @@ export default function AdminDashboardPage() {
 
         {/* System Alerts */}
         <motion.section variants={fadeIn}>
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>System Alerts</CardTitle>
               <CardDescription>Important notifications requiring attention</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1">
               <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
                 {systemAlerts.length > 0 ? systemAlerts.map((alert, index) => {
                   const IconComponent = getIconComponent(alert.icon)
@@ -288,7 +288,7 @@ export default function AdminDashboardPage() {
                       className="flex gap-4 rounded-lg border p-3"
                     >
                       <div
-                        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md ${
+                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md ${
                           alert.priority === "high"
                             ? "bg-red-100 text-red-700"
                             : alert.priority === "medium"
@@ -298,11 +298,11 @@ export default function AdminDashboardPage() {
                                 : "bg-green-100 text-green-700"
                         }`}
                       >
-                        <IconComponent className="h-4 w-4" />
+                        <IconComponent className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium">{alert.title}</h4>
-                        <p className="mt-1 text-xs text-gray-500">{alert.description}</p>
+                        <p className="text-sm text-gray-500">{alert.description}</p>
                       </div>
                       <Badge
                         variant={

@@ -24,6 +24,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/contexts/AuthContext"
+import { interviewsService } from "@/lib/services/interviews"
+import { format } from "date-fns"
 
 // Animation variants
 const fadeIn = {
@@ -65,6 +67,10 @@ export default function DashboardPage() {
   const [recommendedPets, setRecommendedPets] = useState([])
   const [petsLoading, setPetsLoading] = useState(true)
   const [currentTab, setCurrentTab] = useState("all")
+  const [upcomingEvents, setUpcomingEvents] = useState([])
+  const [eventsLoading, setEventsLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
 
   const fetchRecentApplications = useCallback(async () => {
     if (!user) return
@@ -111,6 +117,46 @@ export default function DashboardPage() {
     }
   }, [user, currentTab])
 
+  const fetchUpcomingEvents = useCallback(async () => {
+    if (!user) return
+    try {
+      setEventsLoading(true)
+      const today = new Date()
+      const futureDate = new Date()
+      futureDate.setMonth(futureDate.getMonth() + 2)
+
+      const events = await interviewsService.getCalendarEvents(user, {
+        startDate: format(today, 'yyyy-MM-dd'),
+        endDate: format(futureDate, 'yyyy-MM-dd'),
+      })
+
+      // Filter and sort upcoming events, limit to 4
+      const upcoming = events
+        .filter(event => new Date(event.event_date) >= today)
+        .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+        .slice(0, 4)
+
+      setUpcomingEvents(upcoming)
+    } catch (error) {
+      console.error('Error fetching upcoming events:', error)
+    } finally {
+      setEventsLoading(false)
+    }
+  }, [user])
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return
+    try {
+      setNotificationsLoading(true)
+      const data = await interviewsService.getNotifications(user, { limit: 4 })
+      setNotifications(data)
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    } finally {
+      setNotificationsLoading(false)
+    }
+  }, [user])
+
   useEffect(() => {
     fetchRecentApplications()
   }, [fetchRecentApplications])
@@ -118,6 +164,14 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchRecommendedPets()
   }, [fetchRecommendedPets])
+
+  useEffect(() => {
+    fetchUpcomingEvents()
+  }, [fetchUpcomingEvents])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -207,6 +261,28 @@ export default function DashboardPage() {
         current: stepProgress === progressValue + 25 && progressValue < 100
       }
     })
+  }
+
+  const getEventTypeLabel = (type) => {
+    switch (type) {
+      case 'interview': return 'Interview'
+      case 'meet_greet': return 'Meet & Greet'
+      case 'home_visit': return 'Home Visit'
+      default: return 'Event'
+    }
+  }
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'interview_scheduled':
+        return { icon: Calendar, color: 'bg-blue-100 text-blue-700' }
+      case 'interview_response':
+        return { icon: MessageSquare, color: 'bg-green-100 text-green-700' }
+      case 'interview_reminder':
+        return { icon: Clock, color: 'bg-yellow-100 text-yellow-700' }
+      default:
+        return { icon: FileText, color: 'bg-gray-100 text-gray-700' }
+    }
   }
 
   return (
@@ -351,69 +427,57 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Upcoming Events */}
         <motion.section variants={fadeIn}>
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>Upcoming Events</CardTitle>
               <CardDescription>Your scheduled appointments and events</CardDescription>
             </CardHeader>
-            <CardContent>
-              <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
-                {[
-                  {
-                    title: "Meet & Greet with Buddy",
-                    date: "May 18, 2025",
-                    time: "10:00 AM",
-                    location: "Penang Pet Pals Center, George Town",
-                  },
-                  {
-                    title: "Home Visit Assessment",
-                    date: "May 20, 2025",
-                    time: "2:00 PM",
-                    location: "Your Home Address",
-                  },
-                  {
-                    title: "Pet Care Workshop",
-                    date: "May 25, 2025",
-                    time: "11:00 AM",
-                    location: "Penang Pet Pals Center, George Town",
-                  },
-                ].map((event, index) => (
-                  <motion.div
-                    key={index}
-                    variants={popIn}
-                    whileHover={{ y: -5 }}
-                    className="flex gap-4 rounded-lg border p-3"
-                  >
-                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md bg-teal-100 text-teal-700">
-                      <Calendar className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{event.title}</h4>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{event.date}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{event.time}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          <span>{event.location}</span>
-                        </div>
+            <CardContent className="flex-1">
+              {eventsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                    <p className="text-sm text-gray-500">Loading events...</p>
+                  </div>
+                </div>
+              ) : upcomingEvents.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming events</h3>
+                  <p className="text-gray-500">Your schedule is clear for now</p>
+                </div>
+              ) : (
+                <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
+                  {upcomingEvents.map((event, index) => (
+                    <motion.div
+                      key={event.id}
+                      variants={popIn}
+                      whileHover={{ y: -2 }}
+                      className="flex gap-4 rounded-lg border p-3"
+                    >
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-teal-100 text-teal-700">
+                        <Calendar className="h-5 w-5" />
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{event.title}</h4>
+                        <p className="text-sm text-gray-500">
+                          {format(new Date(event.event_date), 'MMM d, yyyy')} • {format(new Date(`${event.event_date}T${event.event_time}`), 'h:mm a')}
+                        </p>
+                        {event.location && (
+                          <p className="text-xs text-gray-400">{event.location}</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
             </CardContent>
             <CardFooter className="border-t bg-gray-50 px-6 py-3">
               <Link
-                href="/dashboard/appointments"
+                href="/dashboard/calendar"
                 className="text-sm font-medium text-teal-600 hover:text-teal-700"
               >
-                View all appointments
+                View calendar
               </Link>
             </CardFooter>
           </Card>
@@ -421,62 +485,55 @@ export default function DashboardPage() {
 
         {/* Notifications */}
         <motion.section variants={fadeIn}>
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
               <CardDescription>Recent updates and alerts</CardDescription>
             </CardHeader>
-            <CardContent>
-              <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
-                {[
-                  {
-                    title: "Application Update",
-                    description: "Your application for Buddy has moved to the next stage.",
-                    time: "2 hours ago",
-                    icon: FileText,
-                    color: "bg-blue-100 text-blue-700",
-                  },
-                  {
-                    title: "Appointment Reminder",
-                    description: "You have a meet & greet with Buddy tomorrow at 10:00 AM.",
-                    time: "5 hours ago",
-                    icon: Calendar,
-                    color: "bg-yellow-100 text-yellow-700",
-                  },
-                  {
-                    title: "Application Approved",
-                    description: "Your application for Whiskers has been approved!",
-                    time: "1 day ago",
-                    icon: CheckCircle2,
-                    color: "bg-green-100 text-green-700",
-                  },
-                  {
-                    title: "New Message",
-                    description: "You have a new message from the adoption coordinator.",
-                    time: "2 days ago",
-                    icon: MessageSquare,
-                    color: "bg-purple-100 text-purple-700",
-                  },
-                ].map((notification, index) => (
-                  <motion.div
-                    key={index}
-                    variants={popIn}
-                    whileHover={{ x: 5 }}
-                    className="flex gap-4 rounded-lg border p-3"
-                  >
-                    <div
-                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md ${notification.color}`}
-                    >
-                      <notification.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{notification.title}</h4>
-                      <p className="mt-1 text-xs text-gray-500">{notification.description}</p>
-                      <p className="mt-1 text-xs text-gray-400">{notification.time}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
+            <CardContent className="flex-1">
+              {notificationsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                    <p className="text-sm text-gray-500">Loading notifications...</p>
+                  </div>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
+                  <p className="text-gray-500">You're all caught up!</p>
+                </div>
+              ) : (
+                <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-4">
+                  {notifications.map((notification, index) => {
+                    const { icon: NotifIcon, color } = getNotificationIcon(notification.type)
+                    const timeDiff = Math.floor((new Date().getTime() - new Date(notification.createdAt).getTime()) / 1000 / 60)
+                    const timeAgo =
+                      timeDiff < 60 ? `${timeDiff} min ago` :
+                      timeDiff < 1440 ? `${Math.floor(timeDiff / 60)} hours ago` :
+                      `${Math.floor(timeDiff / 1440)} days ago`
+
+                    return (
+                      <motion.div
+                        key={notification.id}
+                        variants={popIn}
+                        whileHover={{ y: -2 }}
+                        className="flex gap-4 rounded-lg border p-3"
+                      >
+                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md ${color}`}>
+                          <NotifIcon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">{notification.title}</h4>
+                          <p className="text-sm text-gray-500">{notification.message}</p>
+                          <p className="text-xs text-gray-400">{timeAgo}</p>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+              )}
             </CardContent>
             <CardFooter className="border-t bg-gray-50 px-6 py-3">
               <Link
