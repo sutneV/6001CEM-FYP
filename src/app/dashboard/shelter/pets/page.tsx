@@ -28,11 +28,21 @@ import {
   Users,
   Star,
   Dog,
-  Cat
+  Cat,
+  RefreshCw
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 const statusColors = {
   available: "bg-green-100 text-green-800 border-green-200",
@@ -57,6 +67,12 @@ export default function ShelterPetsPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [activeView, setActiveView] = useState("grid") // grid or list
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [selectedPetForStatus, setSelectedPetForStatus] = useState<PetWithShelter | null>(null)
+  const [newStatus, setNewStatus] = useState<string>("")
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false)
+  const [bulkNewStatus, setBulkNewStatus] = useState<string>("")
 
   // Fetch pets on component mount
   useEffect(() => {
@@ -116,6 +132,50 @@ export default function ShelterPetsPage() {
       console.error('Error deleting pet:', error)
     } finally {
       setDeleting(null)
+    }
+  }
+
+  const handleOpenStatusDialog = (pet: PetWithShelter, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedPetForStatus(pet)
+    setNewStatus(pet.status)
+    setStatusDialogOpen(true)
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!selectedPetForStatus || !newStatus) return
+
+    try {
+      setUpdatingStatus(true)
+      await petsService.updatePet(selectedPetForStatus.id, { status: newStatus })
+      toast.success('Pet status updated successfully')
+      setStatusDialogOpen(false)
+      fetchPets() // Refresh the list
+    } catch (error) {
+      toast.error('Failed to update pet status')
+      console.error('Error updating pet status:', error)
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkNewStatus || selectedPets.length === 0) return
+
+    try {
+      setUpdatingStatus(true)
+      await Promise.all(
+        selectedPets.map(petId => petsService.updatePet(petId, { status: bulkNewStatus }))
+      )
+      toast.success(`Successfully updated status for ${selectedPets.length} pet${selectedPets.length > 1 ? 's' : ''}`)
+      setBulkStatusDialogOpen(false)
+      setSelectedPets([])
+      fetchPets() // Refresh the list
+    } catch (error) {
+      toast.error('Failed to update pet status')
+      console.error('Error updating pet status:', error)
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
@@ -203,6 +263,12 @@ export default function ShelterPetsPage() {
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Pet
                       </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => handleOpenStatusDialog(pet, e)}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Change Status
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-red-600"
@@ -346,7 +412,13 @@ export default function ShelterPetsPage() {
               {selectedPets.length} pet{selectedPets.length > 1 ? "s" : ""} selected
             </h3>
             <div className="space-y-2">
-              <Button size="sm" variant="outline" className="w-full">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => setBulkStatusDialogOpen(true)}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
                 Update Status
               </Button>
               <Button size="sm" variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
@@ -450,6 +522,128 @@ export default function ShelterPetsPage() {
           )}
         </ScrollArea>
       </div>
+
+      {/* Status Update Dialog */}
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Pet Status</DialogTitle>
+            <DialogDescription>
+              Change the adoption status for {selectedPetForStatus?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      Available
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pending">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                      Pending
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="adopted">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500" />
+                      Adopted
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)} disabled={updatingStatus}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateStatus}
+              disabled={updatingStatus || !newStatus}
+              className="bg-teal-500 hover:bg-teal-600"
+            >
+              {updatingStatus ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Status'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Status Update Dialog */}
+      <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Status for Multiple Pets</DialogTitle>
+            <DialogDescription>
+              Change the adoption status for {selectedPets.length} selected pet{selectedPets.length > 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-status">New Status</Label>
+              <Select value={bulkNewStatus} onValueChange={setBulkNewStatus}>
+                <SelectTrigger id="bulk-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      Available
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pending">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                      Pending
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="adopted">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500" />
+                      Adopted
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)} disabled={updatingStatus}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkStatusUpdate}
+              disabled={updatingStatus || !bulkNewStatus}
+              className="bg-teal-500 hover:bg-teal-600"
+            >
+              {updatingStatus ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                `Update ${selectedPets.length} Pet${selectedPets.length > 1 ? 's' : ''}`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
