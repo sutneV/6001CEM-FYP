@@ -346,12 +346,9 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
           <Button variant="ghost" size="icon" className={`relative ${className}`}>
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
-              >
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-teal-500 text-white text-xs flex items-center justify-center font-medium">
                 {unreadCount > 99 ? "99+" : unreadCount}
-              </Badge>
+              </span>
             )}
           </Button>
         </PopoverTrigger>

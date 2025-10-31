@@ -26,7 +26,6 @@ import {
   Clock,
   MapPin,
   User,
-  Users,
   MoreHorizontal
 } from "lucide-react"
 
@@ -252,15 +251,6 @@ export default function ShelterCalendarPage() {
             className="h-8"
           >
             Day
-          </Button>
-          <div className="w-px h-6 bg-gray-300 mx-2" />
-          <Button size="sm" variant="outline" className="h-8">
-            <Users className="h-4 w-4 mr-2" />
-            Staff Schedule
-          </Button>
-          <Button size="sm" className="bg-teal-600 hover:bg-teal-700 h-8">
-            <Plus className="h-4 w-4 mr-2" />
-            New Event
           </Button>
         </div>
       </div>

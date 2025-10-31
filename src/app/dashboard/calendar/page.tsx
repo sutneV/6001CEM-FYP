@@ -319,11 +319,6 @@ export default function CalendarPage() {
           >
             Day
           </Button>
-          <div className="w-px h-6 bg-gray-300 mx-2" />
-          <Button size="sm" className="bg-teal-600 hover:bg-teal-700 h-8">
-            <Plus className="h-4 w-4 mr-2" />
-            New Event
-          </Button>
         </div>
       </div>
 

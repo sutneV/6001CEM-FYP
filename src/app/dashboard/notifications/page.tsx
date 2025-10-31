@@ -281,24 +281,28 @@ export default function NotificationsPage() {
                               )}
                               <Badge
                                 variant={
-                                  notification.metadata?.adopter_response !== undefined
-                                    ? notification.metadata.adopter_response === true
-                                      ? "default"
-                                      : "destructive"
+                                  notification.metadata?.adopter_response === true
+                                    ? "default"
+                                    : notification.metadata?.adopter_response === false
+                                    ? "destructive"
                                     : "outline"
                                 }
                                 className={
-                                  notification.metadata?.adopter_response !== undefined
-                                    ? notification.metadata.adopter_response === true
-                                      ? "bg-green-600 text-white text-xs"
-                                      : "bg-red-600 text-white text-xs"
+                                  notification.metadata?.adopter_response === true
+                                    ? "bg-green-600 text-white text-xs"
+                                    : notification.metadata?.adopter_response === false
+                                    ? "bg-red-600 text-white text-xs"
                                     : "text-xs"
                                 }
                               >
                                 {(() => {
-                                  // For notifications with adopter_response, show Accepted/Declined/Pending status
-                                  if (notification.metadata?.adopter_response !== undefined) {
-                                    return notification.metadata.adopter_response === true ? 'Accepted' : 'Declined'
+                                  // For notifications with adopter_response, show Accepted/Declined status
+                                  // Only show status if adopter_response is explicitly true or false (not null)
+                                  if (notification.metadata?.adopter_response === true) {
+                                    return 'Accepted'
+                                  }
+                                  if (notification.metadata?.adopter_response === false) {
+                                    return 'Declined'
                                   }
 
                                   // For interview_scheduled without response, show Pending

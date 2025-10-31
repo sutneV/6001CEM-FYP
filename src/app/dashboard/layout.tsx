@@ -38,6 +38,7 @@ import {
 import AuthGuard from "@/components/auth/AuthGuard"
 import { useAuth } from "@/contexts/AuthContext"
 import { useUnreadMessages } from "@/hooks/useUnreadMessages"
+import { NotificationCenter } from "@/components/ui/notification-center"
 
 export default function DashboardLayout({
   children,
@@ -253,28 +254,20 @@ export default function DashboardLayout({
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationCenter />
             <div className="relative">
               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="outline" size="icon" className="relative h-8 w-8">
-                  <Bell className="h-4 w-4" />
-                  <span className="sr-only">Notifications</span>
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
-                    3
-                  </span>
-                </Button>
-              </motion.div>
-            </div>
-            <div className="relative">
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="outline" size="icon" className="h-8 w-8">
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="sr-only">Messages</span>
-                  {!loadingUnread && unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </Button>
+                <Link href="/dashboard/messages">
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="sr-only">Messages</span>
+                    {!loadingUnread && unreadCount > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-[10px] font-medium text-white">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
               </motion.div>
             </div>
           </div>
