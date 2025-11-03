@@ -26,7 +26,10 @@ import {
   Clock,
   MapPin,
   User,
-  MoreHorizontal
+  MoreHorizontal,
+  Phone,
+  Heart,
+  Home
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -40,15 +43,23 @@ import { useAuth } from "@/contexts/AuthContext"
 import { interviewsService } from "@/lib/services/interviews"
 
 
+// JSX-based icon helper to match adopter calendar
 const getEventTypeIcon = (type: string) => {
   switch (type) {
-    case 'home_visit': return '🏠'
-    case 'meet_greet': return '🤝'
-    case 'interview': return '👥'
-    case 'training': return '🎓'
-    case 'health': return '🏥'
-    case 'event': return '🎉'
-    default: return '📅'
+    case 'interview':
+      return <Phone className="h-3 w-3" />
+    case 'meet_greet':
+      return <Heart className="h-3 w-3" />
+    case 'home_visit':
+      return <Home className="h-3 w-3" />
+    case 'visit':
+      return <MapPin className="h-3 w-3" />
+    case 'appointment':
+    case 'training':
+    case 'health':
+    case 'event':
+    default:
+      return <CalendarIcon className="h-3 w-3" />
   }
 }
 
@@ -424,8 +435,8 @@ export default function ShelterCalendarPage() {
                             return (
                               <div
                                 key={event.id}
-                                className={`absolute left-1 right-1 top-1 text-xs p-1 rounded ${event.color} border cursor-pointer z-10`}
-                                style={{ height: '56px' }}
+                                className={`absolute left-1 right-1 top-1 text-xs p-1 rounded ${event.color} border cursor-pointer z-10 overflow-hidden whitespace-nowrap`}
+                                style={{ height: 28 }}
                               >
                                 <div className="font-medium truncate">{event.title}</div>
                                 <div className="text-[10px] opacity-75">{event.time}</div>
@@ -467,11 +478,11 @@ export default function ShelterCalendarPage() {
 
               {/* Day Schedule */}
               <div className="flex-1 bg-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-2 gap-px">
+                <div className="grid grid-cols-[120px_1fr] gap-0">
                   {/* Time Column */}
                   <div className="bg-white">
                     {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="h-20 border-b border-gray-100 px-4 py-2 flex items-start">
+                      <div key={hour} className="h-20 border-b border-r border-gray-100 px-4 py-2 flex items-start">
                         <span className="text-sm text-gray-500">
                           {hour === 0 ? '12:00 AM' : hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`}
                         </span>
@@ -482,7 +493,7 @@ export default function ShelterCalendarPage() {
                   {/* Events Column */}
                   <div className="bg-white relative">
                     {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="h-20 border-b border-gray-100 border-r border-gray-100 relative p-2">
+                      <div key={hour} className="h-20 border-b border-gray-100 relative p-2">
                         {getEventsForDate(currentDate).map((event, eventIndex) => {
                           const eventHour = parseInt(event.time.split(':')[0])
                           const isAM = event.time.includes('AM')

@@ -252,6 +252,25 @@ export default function CalendarPage() {
     }
   }
 
+  // JSX-based icon helper for calendar cells
+  const getEventTypeIcon = (type: string) => {
+    switch (type) {
+      case 'interview':
+        return <Phone className="h-3 w-3" />
+      case 'meet_greet':
+        return <Heart className="h-3 w-3" />
+      case 'home_visit':
+        return <Home className="h-3 w-3" />
+      case 'visit':
+        return <MapPin className="h-3 w-3" />
+      case 'appointment':
+      case 'training':
+      case 'event':
+      default:
+        return <CalendarIcon className="h-3 w-3" />
+    }
+  }
+
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
@@ -488,8 +507,8 @@ export default function CalendarPage() {
                             return (
                               <div
                                 key={event.id}
-                                className={`absolute left-1 right-1 top-1 text-xs p-1 rounded ${event.color} border cursor-pointer z-10`}
-                                style={{ height: '56px' }}
+                                className={`absolute left-1 right-1 top-1 text-xs p-1 rounded ${event.color} border cursor-pointer z-10 overflow-hidden whitespace-nowrap`}
+                                style={{ height: 28 }}
                               >
                                 <div className="font-medium truncate">{event.title}</div>
                                 <div className="text-[10px] opacity-75">{event.time}</div>
@@ -531,11 +550,11 @@ export default function CalendarPage() {
 
               {/* Day Schedule */}
               <div className="flex-1 bg-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-2 gap-px">
+                <div className="grid grid-cols-[120px_1fr] gap-0">
                   {/* Time Column */}
                   <div className="bg-white">
                     {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="h-20 border-b border-gray-100 px-4 py-2 flex items-start">
+                      <div key={hour} className="h-20 border-b border-r border-gray-100 px-4 py-2 flex items-start">
                         <span className="text-sm text-gray-500">
                           {hour === 0 ? '12:00 AM' : hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`}
                         </span>
@@ -545,36 +564,44 @@ export default function CalendarPage() {
 
                   {/* Events Column */}
                   <div className="bg-white relative">
-                    {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="h-20 border-b border-gray-100 border-r border-gray-100 relative p-2">
-                        {getEventsForDate(currentDate).map((event, eventIndex) => {
-                          const eventHour = parseInt(event.time.split(':')[0])
-                          const isAM = event.time.includes('AM')
-                          const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
-                          
-                          if (eventHour24 === hour) {
+                    {Array.from({ length: 24 }, (_, hour) => {
+                      const eventsAtHour = getEventsForDate(currentDate).filter((event) => {
+                        const eventHour = parseInt(event.time.split(':')[0])
+                        const isAM = event.time.includes('AM')
+                        const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
+                        return eventHour24 === hour
+                      })
+
+                      return (
+                        <div key={hour} className="h-20 border-b border-gray-100 relative p-2">
+                          {eventsAtHour.map((event, idx) => {
+                            const minuteStr = event.time.split(':')[1] || '0'
+                            const minutes = parseInt(minuteStr) || 0
+                            const top = Math.round((minutes / 60) * 80)
                             return (
                               <div
                                 key={event.id}
-                                className={`w-full text-sm p-3 rounded ${event.color} border cursor-pointer mb-1`}
+                                className={`absolute left-2 right-2 text-sm p-2 rounded ${event.color} border cursor-pointer shadow-sm overflow-hidden whitespace-nowrap`}
+                                style={{ top: top + 2, zIndex: 10 + idx, height: 36 }}
                               >
-                                <div className="font-medium">{event.title}</div>
-                                <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
+                                <div className="font-medium truncate">{event.title}</div>
+                                <div className="flex items-center gap-1 text-[11px] opacity-75 mt-0.5">
                                   <Clock className="h-3 w-3" />
                                   <span>{event.time}</span>
+                                  {event.location && (
+                                    <>
+                                      <span className="mx-1">•</span>
+                                      <MapPin className="h-3 w-3" />
+                                      <span className="truncate max-w-[120px]">{event.location}</span>
+                                    </>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-1 text-xs opacity-75">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>{event.location}</span>
-                                </div>
-                                <div className="text-xs text-gray-600 mt-1 whitespace-pre-line">{event.description}</div>
                               </div>
                             )
-                          }
-                          return null
-                        })}
-                      </div>
-                    ))}
+                          })}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -646,22 +673,9 @@ export default function CalendarPage() {
                                   ""
                                 }
                               >
-                                {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? (
-                                  <>
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Confirmed
-                                  </>
-                                ) : event.interviewResponse === false || event.interviewStatus === 'cancelled' ? (
-                                  <>
-                                    <XCircle className="h-3 w-3 mr-1" />
-                                    Declined
-                                  </>
-                                ) : (
-                                  <>
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    Pending Response
-                                  </>
-                                )}
+                                {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? "Confirmed" :
+                                 event.interviewResponse === false || event.interviewStatus === 'cancelled' ? "Declined" :
+                                 "Pending"}
                               </Badge>
                             )}
                           </div>
