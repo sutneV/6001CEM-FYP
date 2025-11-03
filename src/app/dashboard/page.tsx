@@ -175,8 +175,10 @@ export default function DashboardPage() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'approved':
-        return 'bg-green-100 text-green-800'
+      case 'draft':
+        return 'bg-gray-100 text-gray-800'
+      case 'submitted':
+        return 'bg-teal-100 text-teal-800'
       case 'under_review':
         return 'bg-yellow-100 text-yellow-800'
       case 'interview_scheduled':
@@ -185,8 +187,12 @@ export default function DashboardPage() {
         return 'bg-blue-100 text-blue-800'
       case 'pending_approval':
         return 'bg-orange-100 text-orange-800'
+      case 'approved':
+        return 'bg-green-100 text-green-800'
       case 'rejected':
         return 'bg-red-100 text-red-800'
+      case 'withdrawn':
+        return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -194,8 +200,10 @@ export default function DashboardPage() {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case 'approved':
-        return 'Approved'
+      case 'draft':
+        return 'Draft'
+      case 'submitted':
+        return 'Submitted'
       case 'under_review':
         return 'In Review'
       case 'interview_scheduled':
@@ -206,25 +214,39 @@ export default function DashboardPage() {
         return 'Home Visit Scheduled'
       case 'pending_approval':
         return 'Pending Approval'
+      case 'approved':
+        return 'Approved'
       case 'rejected':
         return 'Rejected'
+      case 'withdrawn':
+        return 'Withdrawn'
       default:
-        return 'Draft'
+        return 'Unknown'
     }
   }
 
   const getProgressValue = (status) => {
     switch (status) {
+      case 'draft':
+        return 0
       case 'submitted':
-        return 25
+        return 20
       case 'under_review':
-        return 50
+        return 40
       case 'interview_scheduled':
+        return 50
       case 'meet_greet_scheduled':
+        return 65
       case 'home_visit_scheduled':
-        return 75
+        return 80
+      case 'pending_approval':
+        return 90
       case 'approved':
         return 100
+      case 'rejected':
+        return 40
+      case 'withdrawn':
+        return 20
       default:
         return 0
     }
@@ -232,18 +254,24 @@ export default function DashboardPage() {
 
   const getProgressColor = (status) => {
     switch (status) {
-      case 'approved':
-        return 'bg-green-500'
-      case 'rejected':
-        return 'bg-red-500'
+      case 'draft':
+        return 'bg-gray-500'
+      case 'submitted':
+        return 'bg-teal-500'
+      case 'under_review':
+        return 'bg-yellow-500'
       case 'interview_scheduled':
       case 'meet_greet_scheduled':
       case 'home_visit_scheduled':
         return 'bg-blue-500'
       case 'pending_approval':
         return 'bg-orange-500'
-      case 'under_review':
-        return 'bg-yellow-500'
+      case 'approved':
+        return 'bg-green-500'
+      case 'rejected':
+        return 'bg-red-500'
+      case 'withdrawn':
+        return 'bg-gray-500'
       default:
         return 'bg-teal-500'
     }

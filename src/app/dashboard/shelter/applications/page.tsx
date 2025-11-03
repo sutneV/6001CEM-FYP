@@ -303,6 +303,11 @@ export default function ShelterApplicationsPage() {
   }
 
   const filteredApplications = applications.filter((app) => {
+    // Exclude draft applications - shelters should only see submitted applications
+    if (app.status === 'draft') {
+      return false
+    }
+
     const matchesTab = selectedTab === "all" || app.status === selectedTab
     const matchesSearch =
       searchQuery === "" ||

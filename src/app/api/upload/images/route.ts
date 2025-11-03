@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
 
     try {
       // Ensure bucket exists (this is safe to call multiple times)
-      // Note: We don't fail here because the bucket might exist but we can't list it due to permissions
       await supabaseStorageService.ensureBucketExists()
 
       // Upload images to Supabase Storage

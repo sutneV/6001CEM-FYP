@@ -192,7 +192,7 @@ export default function ApplicationsPage() {
 
   const fetchApplications = async () => {
     if (!user) return
-    
+
     try {
       setLoading(true)
       const data = await applicationsService.getApplications(user)
@@ -202,6 +202,24 @@ export default function ApplicationsPage() {
       toast.error('Failed to load applications')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleWithdrawApplication = async (applicationId: string) => {
+    if (!user) return
+
+    if (!confirm('Are you sure you want to withdraw this application? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      await applicationsService.withdrawApplication(applicationId, user)
+      toast.success('Application withdrawn successfully')
+      // Refresh the applications list
+      await fetchApplications()
+    } catch (error) {
+      console.error('Error withdrawing application:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to withdraw application')
     }
   }
 
@@ -530,7 +548,10 @@ export default function ApplicationsPage() {
                                       application.status !== "rejected" && (
                                         <>
                                           <DropdownMenuSeparator />
-                                          <DropdownMenuItem className="text-red-600">
+                                          <DropdownMenuItem
+                                            className="text-red-600"
+                                            onClick={() => handleWithdrawApplication(application.id)}
+                                          >
                                             <X className="mr-2 h-4 w-4" />
                                             Withdraw Application
                                           </DropdownMenuItem>
