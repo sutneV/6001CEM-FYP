@@ -85,6 +85,13 @@ export default function ShelterCalendarPage() {
     }
   }, [user, currentDate, viewType])
 
+  // Sync side panel with current date in day view
+  useEffect(() => {
+    if (viewType === 'day' && selectedDate) {
+      setSelectedDate(currentDate)
+    }
+  }, [currentDate, viewType])
+
   const fetchCalendarEvents = async () => {
     if (!user) return
 
@@ -420,34 +427,56 @@ export default function ShelterCalendarPage() {
                 </div>
 
                 {/* Week Days */}
-                {eachDayOfInterval({ 
-                  start: startOfWeek(currentDate), 
-                  end: endOfWeek(currentDate) 
+                {eachDayOfInterval({
+                  start: startOfWeek(currentDate),
+                  end: endOfWeek(currentDate)
                 }).map((day) => (
                   <div key={day.toISOString()} className="bg-white relative">
-                    {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="h-16 border-b border-gray-100 border-r border-gray-100 relative">
-                        {getEventsForDate(day).map((event, eventIndex) => {
-                          const eventHour = parseInt(event.time.split(':')[0])
-                          const isAM = event.time.includes('AM')
-                          const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
-                          
-                          if (eventHour24 === hour) {
+                    {Array.from({ length: 24 }, (_, hour) => {
+                      const eventsInHour = getEventsForDate(day).filter(event => {
+                        const eventHour = parseInt(event.time.split(':')[0])
+                        const isAM = event.time.includes('AM')
+                        const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
+                        return eventHour24 === hour
+                      })
+
+                      return (
+                        <div key={hour} className="h-16 border-b border-gray-100 border-r border-gray-100 relative">
+                          {eventsInHour.map((event, eventIndex) => {
+                            // Only show first 3 events inline, rest indicated by "+"
+                            if (eventIndex >= 3) return null
+
+                            const topOffset = 2 + (eventIndex * 18)
+
                             return (
                               <div
                                 key={event.id}
-                                className={`absolute left-1 right-1 top-1 text-xs p-1 rounded ${event.color} border cursor-pointer z-10 overflow-hidden whitespace-nowrap`}
-                                style={{ height: 28 }}
+                                className={`absolute left-1 right-1 text-[10px] px-1.5 py-1 rounded ${event.color} cursor-pointer truncate font-medium leading-tight hover:brightness-95 active:scale-[0.98] transition-all`}
+                                style={{
+                                  top: topOffset,
+                                  zIndex: 10 + eventIndex
+                                }}
+                                onClick={() => setSelectedDate(day)}
                               >
-                                <div className="font-medium truncate">{event.title}</div>
-                                <div className="text-[10px] opacity-75">{event.time}</div>
+                                {event.title}
                               </div>
                             )
-                          }
-                          return null
-                        })}
-                      </div>
-                    ))}
+                          })}
+
+                          {/* Show +N more indicator if more than 3 events */}
+                          {eventsInHour.length > 3 && (
+                            <div
+                              className="absolute bottom-1 left-1 right-1 text-center cursor-pointer"
+                              onClick={() => setSelectedDate(day)}
+                            >
+                              <span className="text-[9px] font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded-full transition-colors">
+                                +{eventsInHour.length - 3} more
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 ))}
                 </div>
@@ -494,52 +523,72 @@ export default function ShelterCalendarPage() {
 
                   {/* Events Column */}
                   <div className="bg-white relative">
-                    {Array.from({ length: 24 }, (_, hour) => (
-                      <div key={hour} className="h-20 border-b border-gray-100 relative p-2">
-                        {getEventsForDate(currentDate).map((event, eventIndex) => {
-                          const eventHour = parseInt(event.time.split(':')[0])
-                          const isAM = event.time.includes('AM')
-                          const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
-                          
-                          if (eventHour24 === hour) {
+                    {Array.from({ length: 24 }, (_, hour) => {
+                      const eventsAtHour = getEventsForDate(currentDate).filter((event) => {
+                        const eventHour = parseInt(event.time.split(':')[0])
+                        const isAM = event.time.includes('AM')
+                        const eventHour24 = isAM ? (eventHour === 12 ? 0 : eventHour) : (eventHour === 12 ? 12 : eventHour + 12)
+                        return eventHour24 === hour
+                      })
+
+                      return (
+                        <div key={hour} className="h-20 border-b border-gray-100 relative p-2">
+                          {eventsAtHour.map((event, idx) => {
+                            const minuteStr = event.time.split(':')[1] || '0'
+                            const minutes = parseInt(minuteStr) || 0
+                            const top = Math.round((minutes / 60) * 80)
+
+                            // Calculate horizontal offset for overlapping events
+                            const totalEvents = eventsAtHour.length
+                            const leftOffset = totalEvents > 1 ? (idx * (100 / totalEvents)) : 0
+                            const widthPercent = totalEvents > 1 ? (100 / totalEvents) - 2 : 100
+
                             return (
                               <div
                                 key={event.id}
-                                className={`w-full text-sm p-3 rounded ${event.color} border cursor-pointer mb-1`}
+                                className={`absolute text-xs p-2 rounded-md ${event.color} border shadow-sm hover:shadow-md hover:brightness-95 active:scale-[0.98] transition-all cursor-pointer overflow-hidden`}
+                                style={{
+                                  top: top + 2,
+                                  left: `calc(${leftOffset}% + 8px)`,
+                                  width: `calc(${widthPercent}% - 8px)`,
+                                  zIndex: 10 + idx,
+                                  maxHeight: 60
+                                }}
+                                onClick={() => setSelectedDate(currentDate)}
                               >
-                                <div className="font-medium">{event.title}</div>
-                                <div className="flex items-center gap-1 text-xs opacity-75 mt-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>{event.time}</span>
+                                <div className="font-semibold truncate mb-1 text-xs leading-tight">{event.title}</div>
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-1 text-[10px] opacity-75">
+                                    <Clock className="h-2.5 w-2.5 flex-shrink-0" />
+                                    <span className="font-medium">{event.time}</span>
+                                  </div>
+                                  {event.location && (
+                                    <div className="flex items-center gap-1 text-[10px] opacity-75">
+                                      <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+                                      <span className="truncate">{event.location}</span>
+                                    </div>
+                                  )}
+                                  {event.interviewId && (
+                                    <div className="flex items-center gap-1 text-[10px] opacity-75">
+                                      <span className="text-[9px] font-semibold">
+                                        {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? '✓' :
+                                         event.interviewResponse === false || event.interviewStatus === 'cancelled' ? '✕' :
+                                         '?'}
+                                      </span>
+                                      <span className="font-medium truncate">
+                                        {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? 'Confirmed' :
+                                         event.interviewResponse === false || event.interviewStatus === 'cancelled' ? 'Declined' :
+                                         'Pending'}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
-                                {event.location && (
-                                  <div className="flex items-center gap-1 text-xs opacity-75">
-                                    <MapPin className="h-3 w-3" />
-                                    <span>{event.location}</span>
-                                  </div>
-                                )}
-                                {event.interviewId && (
-                                  <div className="flex items-center gap-1 text-xs opacity-75">
-                                    <span className="text-[8px]">
-                                      {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? '✓' :
-                                       event.interviewResponse === false || event.interviewStatus === 'cancelled' ? '✕' :
-                                       '?'}
-                                    </span>
-                                    <span>
-                                      {event.interviewResponse === true || event.interviewStatus === 'confirmed' ? 'Confirmed' :
-                                       event.interviewResponse === false || event.interviewStatus === 'cancelled' ? 'Declined' :
-                                       'Pending'}
-                                    </span>
-                                  </div>
-                                )}
-                                <div className="text-xs text-gray-600 mt-1 whitespace-pre-line">{event.description}</div>
                               </div>
                             )
-                          }
-                          return null
-                        })}
-                      </div>
-                    ))}
+                          })}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
