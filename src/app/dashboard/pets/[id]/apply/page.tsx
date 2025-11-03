@@ -50,6 +50,7 @@ export default function PetApplicationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const hasShownDuplicateError = useRef(false)
+  const hasLoadedDraft = useRef(false)
   const [formData, setFormData] = useState({
     // Personal Information
     firstName: "",
@@ -126,18 +127,59 @@ export default function PetApplicationPage() {
       const data = await petsService.getPetById(id)
       setPet(data)
 
-      // Check if user already has an active application for this pet
+      // Check if user already has an application for this pet
       if (user) {
         const userApplications = await applicationsService.getApplications(user)
-        const existingApplication = userApplications.find(
-          app => app.pet.id === id && app.status !== 'withdrawn'
+
+        // Check for active application (not draft, not withdrawn)
+        const activeApplication = userApplications.find(
+          app => app.pet.id === id && app.status !== 'withdrawn' && app.status !== 'draft'
         )
 
-        if (existingApplication && !hasShownDuplicateError.current) {
+        if (activeApplication && !hasShownDuplicateError.current) {
           hasShownDuplicateError.current = true
           toast.error('You already have an active application for this pet')
           router.push('/dashboard/applications')
           return
+        }
+
+        // Load existing draft if available
+        const draftApplication = userApplications.find(
+          app => app.pet.id === id && app.status === 'draft'
+        )
+
+        if (draftApplication && !hasLoadedDraft.current) {
+          hasLoadedDraft.current = true
+          // Pre-fill form with draft data
+          setFormData({
+            firstName: draftApplication.firstName || "",
+            lastName: draftApplication.lastName || "",
+            email: draftApplication.email || "",
+            phone: draftApplication.phone || "",
+            dateOfBirth: draftApplication.dateOfBirth ? new Date(draftApplication.dateOfBirth) : undefined,
+            occupation: draftApplication.occupation || "",
+            housingType: draftApplication.housingType || "",
+            ownRent: draftApplication.ownRent || "",
+            address: draftApplication.address || "",
+            landlordPermission: draftApplication.landlordPermission || "",
+            yardType: draftApplication.yardType || "",
+            householdSize: draftApplication.householdSize?.toString() || "",
+            previousPets: draftApplication.previousPets || "",
+            currentPets: draftApplication.currentPets || "",
+            petExperience: draftApplication.petExperience || "",
+            veterinarian: draftApplication.veterinarian || "",
+            workSchedule: draftApplication.workSchedule || "",
+            exerciseCommitment: draftApplication.exerciseCommitment || "",
+            travelFrequency: draftApplication.travelFrequency || "",
+            petPreferences: draftApplication.petPreferences || "",
+            householdMembers: draftApplication.householdMembers || "",
+            allergies: draftApplication.allergies || "",
+            childrenAges: draftApplication.childrenAges || "",
+            references: draftApplication.references || "",
+            emergencyContact: draftApplication.emergencyContact || "",
+            agreements: draftApplication.agreements || [],
+          })
+          toast.success('Draft application loaded. Continue where you left off!')
         }
       }
     } catch (error) {

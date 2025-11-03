@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { applications, pets, shelters, users } from '@/lib/db/schema'
-import { eq, and, desc, inArray, ne } from 'drizzle-orm'
+import { eq, and, desc, inArray, ne, notInArray } from 'drizzle-orm'
 
 // GET /api/applications - List applications for the current user
 export async function GET(request: NextRequest) {
@@ -276,8 +276,9 @@ export async function POST(request: NextRequest) {
         and(
           eq(applications.petId, petId),
           eq(applications.adopterId, user.id),
-          // Don't allow new applications if there's already one that's not withdrawn
-          ne(applications.status, 'withdrawn')
+          // Don't allow new applications if there's already one that's submitted or in process
+          // Allow if status is 'draft' or 'withdrawn' (these can be replaced/resubmitted)
+          notInArray(applications.status, ['draft', 'withdrawn'])
         )
       )
       .limit(1)

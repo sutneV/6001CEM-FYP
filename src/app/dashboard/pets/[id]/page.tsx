@@ -162,7 +162,7 @@ export default function PetProfilePage() {
         try {
           const userApplications = await applicationsService.getApplications(user)
           const existingApplication = userApplications.find(
-            app => app.pet.id === id && app.status !== 'withdrawn'
+            app => app.pet.id === id && app.status !== 'withdrawn' && app.status !== 'draft'
           )
           setHasActiveApplication(!!existingApplication)
         } catch (error) {
