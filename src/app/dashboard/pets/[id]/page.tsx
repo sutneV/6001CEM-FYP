@@ -32,6 +32,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
 import { petsService, PetWithShelter } from "@/lib/services/pets"
+import { applicationsService } from "@/lib/services/applications"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter as useNextRouter } from "next/navigation"
 
@@ -134,6 +135,7 @@ export default function PetProfilePage() {
   const [showGalleryModal, setShowGalleryModal] = useState(false)
   const [galleryIndex, setGalleryIndex] = useState(0)
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set())
+  const [hasActiveApplication, setHasActiveApplication] = useState(false)
 
   useEffect(() => {
     if (petId) {
@@ -150,10 +152,24 @@ export default function PetProfilePage() {
       console.log('Pet data received:', data)
       console.log('Pet images array:', data.images)
       setPet(data)
-      
+
       // Check if pet is in favorites
       const favorites = JSON.parse(localStorage.getItem('petFavorites') || '[]')
       setIsFavorite(favorites.includes(id))
+
+      // Check if user already has an active application for this pet
+      if (user) {
+        try {
+          const userApplications = await applicationsService.getApplications(user)
+          const existingApplication = userApplications.find(
+            app => app.pet.id === id && app.status !== 'withdrawn'
+          )
+          setHasActiveApplication(!!existingApplication)
+        } catch (error) {
+          console.error('Error checking applications:', error)
+          // Don't block the page if application check fails
+        }
+      }
     } catch (error) {
       console.error('Error fetching pet:', error)
       toast.error(`Failed to load pet profile: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -893,10 +909,17 @@ export default function PetProfilePage() {
                     </div>
                     <Progress value={95} className="h-2 bg-gray-100" indicatorClassName="bg-teal-500" />
                   </div>
-                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Link href={`/dashboard/pets/${petData.id}/apply`}>
-                      <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply to Adopt {petData.name}</Button>
-                    </Link>
+                  <motion.div whileHover={{ scale: hasActiveApplication ? 1 : 1.03 }} whileTap={{ scale: hasActiveApplication ? 1 : 0.97 }}>
+                    {hasActiveApplication ? (
+                      <Button disabled className="w-full bg-gray-400 cursor-not-allowed">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Application Already Submitted
+                      </Button>
+                    ) : (
+                      <Link href={`/dashboard/pets/${petData.id}/apply`}>
+                        <Button className="w-full bg-teal-500 hover:bg-teal-600">Apply to Adopt {petData.name}</Button>
+                      </Link>
+                    )}
                   </motion.div>
                   <div className="flex gap-2">
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -49,6 +49,7 @@ export default function PetApplicationPage() {
   const [activeSection, setActiveSection] = useState("personal")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const hasShownDuplicateError = useRef(false)
   const [formData, setFormData] = useState({
     // Personal Information
     firstName: "",
@@ -124,6 +125,21 @@ export default function PetApplicationPage() {
       setLoading(true)
       const data = await petsService.getPetById(id)
       setPet(data)
+
+      // Check if user already has an active application for this pet
+      if (user) {
+        const userApplications = await applicationsService.getApplications(user)
+        const existingApplication = userApplications.find(
+          app => app.pet.id === id && app.status !== 'withdrawn'
+        )
+
+        if (existingApplication && !hasShownDuplicateError.current) {
+          hasShownDuplicateError.current = true
+          toast.error('You already have an active application for this pet')
+          router.push('/dashboard/applications')
+          return
+        }
+      }
     } catch (error) {
       console.error('Error fetching pet:', error)
       toast.error('Failed to load pet information')

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { applications, pets, shelters, users } from '@/lib/db/schema'
-import { eq, and, desc, inArray } from 'drizzle-orm'
+import { eq, and, desc, inArray, ne } from 'drizzle-orm'
 
 // GET /api/applications - List applications for the current user
 export async function GET(request: NextRequest) {
@@ -270,20 +270,20 @@ export async function POST(request: NextRequest) {
 
     // Check for existing application from this user for this pet
     const existingApplication = await db
-      .select({ id: applications.id })
+      .select({ id: applications.id, status: applications.status })
       .from(applications)
       .where(
         and(
           eq(applications.petId, petId),
           eq(applications.adopterId, user.id),
           // Don't allow new applications if there's already one that's not withdrawn
-          eq(applications.status, 'submitted')
+          ne(applications.status, 'withdrawn')
         )
       )
       .limit(1)
 
     if (existingApplication.length > 0) {
-      return NextResponse.json({ error: 'You have already submitted an application for this pet' }, { status: 400 })
+      return NextResponse.json({ error: 'You already have an active application for this pet. Please check your applications dashboard.' }, { status: 400 })
     }
 
     const newApplication = await db

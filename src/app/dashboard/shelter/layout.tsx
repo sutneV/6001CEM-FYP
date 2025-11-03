@@ -39,6 +39,7 @@ import {
 import AuthGuard from "@/components/auth/AuthGuard"
 import { useAuth } from "@/contexts/AuthContext"
 import { useUnreadMessages } from "@/hooks/useUnreadMessages"
+import { usePendingApplications } from "@/hooks/usePendingApplications"
 import { NotificationCenter } from "@/components/ui/notification-center"
 
 export default function ShelterLayout({
@@ -51,18 +52,24 @@ export default function ShelterLayout({
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { unreadCount, loading: loadingUnread } = useUnreadMessages()
+  const { pendingCount, loading: loadingPending } = usePendingApplications()
 
   const navigationItems = [
     { name: "Dashboard", icon: Home, href: "/dashboard/shelter" },
     { name: "My Pets", icon: PawPrint, href: "/dashboard/shelter/pets" },
     { name: "Add New Pet", icon: Plus, href: "/dashboard/shelter/pets/add" },
-    { name: "Applications", icon: ClipboardList, href: "/dashboard/shelter/applications", badge: "8" },
+    {
+      name: "Applications",
+      icon: ClipboardList,
+      href: "/dashboard/shelter/applications",
+      badge: !loadingPending && pendingCount > 0 ? pendingCount.toString() : undefined
+    },
     { name: "Adopters", icon: Users, href: "/dashboard/shelter/adopters" },
-    { 
-      name: "Messages", 
-      icon: MessageSquare, 
-      href: "/dashboard/shelter/messages", 
-      badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined 
+    {
+      name: "Messages",
+      icon: MessageSquare,
+      href: "/dashboard/shelter/messages",
+      badge: !loadingUnread && unreadCount > 0 ? unreadCount.toString() : undefined
     },
     { name: "Communities", icon: Users, href: "/dashboard/shelter/communities" },
     { name: "Event Map", icon: MapPin, href: "/dashboard/shelter/event-map" },
