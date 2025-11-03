@@ -268,9 +268,9 @@ export default function ShelterCalendarPage() {
 
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Calendar Grid */}
-        <div className={`transition-all duration-300 p-6 ${selectedDate ? 'flex-[2]' : 'flex-1'}`}>
+        <div className={`transition-all duration-300 p-6 ${selectedDate ? 'flex-[2]' : 'flex-1'} min-w-0`}>
           <div className="h-full">
             <AnimatePresence mode="wait">
             {viewType === 'month' && (
@@ -385,14 +385,14 @@ export default function ShelterCalendarPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -50 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="h-full"
+                className="h-full flex flex-col"
               >
                 {/* Week Days Header */}
               <div className="grid grid-cols-8 gap-px mb-2">
                 <div className="p-3"></div> {/* Empty corner for time column */}
-                {eachDayOfInterval({ 
-                  start: startOfWeek(currentDate), 
-                  end: endOfWeek(currentDate) 
+                {eachDayOfInterval({
+                  start: startOfWeek(currentDate),
+                  end: endOfWeek(currentDate)
                 }).map((day) => (
                   <div key={day.toISOString()} className="p-3 text-center">
                     <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">
@@ -408,7 +408,8 @@ export default function ShelterCalendarPage() {
               </div>
 
               {/* Week Grid */}
-              <div className="grid grid-cols-8 gap-px bg-gray-200 rounded-lg overflow-hidden flex-1">
+              <div className="flex-1 bg-gray-200 rounded-lg overflow-auto">
+                <div className="grid grid-cols-8 gap-px min-h-full">
                 {/* Time Column */}
                 <div className="bg-white">
                   {Array.from({ length: 24 }, (_, hour) => (
@@ -449,6 +450,7 @@ export default function ShelterCalendarPage() {
                     ))}
                   </div>
                 ))}
+                </div>
               </div>
               </motion.div>
             )}
@@ -460,7 +462,7 @@ export default function ShelterCalendarPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.05 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="h-full"
+                className="h-full flex flex-col"
               >
                 {/* Day Header */}
               <div className="flex items-center justify-center mb-4">
@@ -477,8 +479,8 @@ export default function ShelterCalendarPage() {
               </div>
 
               {/* Day Schedule */}
-              <div className="flex-1 bg-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[120px_1fr] gap-0">
+              <div className="flex-1 bg-gray-200 rounded-lg overflow-auto">
+                <div className="grid grid-cols-[120px_1fr] gap-0 min-h-full">
                   {/* Time Column */}
                   <div className="bg-white">
                     {Array.from({ length: 24 }, (_, hour) => (
@@ -555,7 +557,7 @@ export default function ShelterCalendarPage() {
               animate={{ width: 320, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="border-l border-gray-200 bg-white overflow-hidden"
+              className="border-l border-gray-200 bg-white overflow-hidden h-full flex flex-col"
             >
                 {/* Panel Header */}
                 <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-blue-50">
@@ -585,7 +587,7 @@ export default function ShelterCalendarPage() {
                 </div>
 
                 {/* Events List */}
-                <div className="overflow-y-auto p-6 space-y-4" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {getEventsForDate(selectedDate).map((event) => (
                     <div
                       key={event.id}
