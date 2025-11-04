@@ -23,6 +23,9 @@ export const users = pgTable('users', {
   city: varchar('city', { length: 100 }),
   role: userRoleEnum('role').notNull().default('adopter'),
   isActive: varchar('is_active', { length: 10 }).notNull().default('true'),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  verificationToken: varchar('verification_token', { length: 255 }),
+  verificationTokenExpiry: timestamp('verification_token_expiry'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })

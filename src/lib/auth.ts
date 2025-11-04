@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt'
+import crypto from 'crypto'
 import { db } from './db'
 import { users, shelters } from './db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -31,13 +32,20 @@ export async function createUser(userData: {
 }): Promise<UserWithRole | null> {
   try {
     const existingUser = await db.select().from(users).where(eq(users.email, userData.email)).limit(1)
-    
+
     if (existingUser.length > 0) {
       throw new Error('User with this email already exists')
     }
 
     const hashedPassword = await hashPassword(userData.password)
-    
+
+    // Generate verification token for adopters only
+    const needsVerification = userData.role === 'adopter'
+    const verificationToken = needsVerification ? crypto.randomBytes(32).toString('hex') : null
+    const verificationTokenExpiry = needsVerification
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+      : null
+
     const newUser = await db.insert(users).values({
       email: userData.email,
       password: hashedPassword,
@@ -46,6 +54,9 @@ export async function createUser(userData: {
       phone: userData.phone,
       city: userData.city,
       role: userData.role,
+      emailVerified: !needsVerification, // Shelters are auto-verified
+      verificationToken,
+      verificationTokenExpiry,
     }).returning()
 
     if (newUser.length === 0) {
@@ -103,6 +114,11 @@ export async function authenticateUser(email: string, password: string): Promise
       return null
     }
 
+    // Check if email is verified (only for adopters)
+    if (user.role === 'adopter' && !user.emailVerified) {
+      throw new Error('EMAIL_NOT_VERIFIED')
+    }
+
     let userWithRole: UserWithRole = {
       id: user.id,
       email: user.email,
@@ -129,6 +145,9 @@ export async function authenticateUser(email: string, password: string): Promise
     return userWithRole
   } catch (error) {
     console.error('Error authenticating user:', error)
+    if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
+      throw error
+    }
     return null
   }
 }

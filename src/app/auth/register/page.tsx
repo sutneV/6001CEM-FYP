@@ -137,7 +137,7 @@ export default function RegisterPage() {
       }
 
       // For adopter role, proceed with normal registration
-      const newUser = await registerUser({
+      const result = await registerUser({
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
@@ -147,17 +147,25 @@ export default function RegisterPage() {
         role: formData.role,
       })
 
-      if (!newUser) {
+      if (!result.user) {
         setErrors({ general: 'Failed to create account. Email may already exist.' })
         setIsLoading(false)
         return
       }
 
-      // Login user
-      login(newUser)
+      // If email verification is required, show message and redirect to signin
+      if (result.requiresVerification) {
+        toast.success(result.message || 'Account created successfully! Please check your email to verify your account.')
+        router.push('/auth/signin')
+        setIsLoading(false)
+        return
+      }
+
+      // Login user (only for non-adopter accounts that don't need verification)
+      login(result.user)
 
       // Redirect based on role
-      const redirectPath = getRedirectPath(newUser.role)
+      const redirectPath = getRedirectPath(result.user.role)
       router.push(redirectPath)
     } catch (error) {
       console.error('Registration error:', error)

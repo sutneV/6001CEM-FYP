@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Heart, MessageCircle, Share2, Calendar, MapPin, DollarSign, Users, ArrowLeft, Plus, Loader2, Send, Settings, Crown, UserMinus } from "lucide-react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { useCommunities, type Community } from "@/hooks/useCommunities"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
@@ -29,11 +29,13 @@ import MapLocationPicker from "@/components/MapLocationPicker"
 
 export default function CommunityPostsPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const communityId = params.id as string
   const { user } = useAuth()
   const [community, setCommunity] = useState<Community | null>(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'posts')
 
   const [posts, setPosts] = useState<any[]>([])
   const [postsLoading, setPostsLoading] = useState(false)
@@ -1129,7 +1131,7 @@ export default function CommunityPostsPage() {
           </div>
 
           {/* Posts and Events Tabs */}
-          <Tabs defaultValue="posts" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="posts">Posts</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>

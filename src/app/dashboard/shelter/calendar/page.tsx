@@ -688,11 +688,7 @@ export default function ShelterCalendarPage() {
                     <div className="text-center py-16">
                       <CalendarIcon className="h-20 w-20 text-gray-300 mx-auto mb-6" />
                       <p className="text-lg text-gray-500 mb-4">No events scheduled</p>
-                      <p className="text-sm text-gray-400 mb-6">This day is free for new appointments</p>
-                      <Button size="lg" className="bg-teal-600 hover:bg-teal-700">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Event
-                      </Button>
+                      <p className="text-sm text-gray-400">This day is free for new appointments</p>
                     </div>
                   )}
                 </div>

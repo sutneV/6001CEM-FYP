@@ -18,6 +18,8 @@ import { loginUser, getRedirectPath } from "@/lib/auth-client"
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isResendingEmail, setIsResendingEmail] = useState(false)
+  const [showResendOption, setShowResendOption] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -46,6 +48,35 @@ export default function SignInPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleResendVerification = async () => {
+    setIsResendingEmail(true)
+    setErrors({})
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setErrors({ success: result.message || 'Verification email sent! Please check your inbox.' })
+        setShowResendOption(false)
+      } else {
+        setErrors({ general: result.error || 'Failed to send verification email' })
+      }
+    } catch (error) {
+      console.error('Resend verification error:', error)
+      setErrors({ general: 'Failed to send verification email' })
+    }
+
+    setIsResendingEmail(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -53,6 +84,7 @@ export default function SignInPage() {
 
     setIsLoading(true)
     setErrors({})
+    setShowResendOption(false)
 
     try {
       // Authenticate user
@@ -69,13 +101,20 @@ export default function SignInPage() {
 
       // Login user
       login(user)
-      
+
       // Redirect based on role
       const redirectPath = getRedirectPath(user.role)
       router.push(redirectPath)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error)
-      setErrors({ general: 'An unexpected error occurred. Please try again.' })
+
+      // Check if error is due to unverified email (status 403)
+      if (error.status === 403) {
+        setErrors({ general: error.message })
+        setShowResendOption(true)
+      } else {
+        setErrors({ general: error.message || 'An unexpected error occurred. Please try again.' })
+      }
     }
 
     setIsLoading(false)
@@ -100,9 +139,36 @@ export default function SignInPage() {
             {errors.general && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
                 {errors.general}
+                {showResendOption && (
+                  <div className="mt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResendVerification}
+                      disabled={isResendingEmail}
+                      className="w-full"
+                    >
+                      {isResendingEmail ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        'Resend Verification Email'
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
-            
+
+            {errors.success && (
+              <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+                {errors.success}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">

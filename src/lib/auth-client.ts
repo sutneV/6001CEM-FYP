@@ -32,7 +32,7 @@ export interface LoginData {
   password: string
 }
 
-export async function registerUser(data: RegisterData): Promise<UserWithRole | null> {
+export async function registerUser(data: RegisterData): Promise<{ user: UserWithRole | null, requiresVerification?: boolean, message?: string }> {
   try {
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -48,34 +48,35 @@ export async function registerUser(data: RegisterData): Promise<UserWithRole | n
       throw new Error(result.error || 'Registration failed')
     }
 
-    return result.user
+    return {
+      user: result.user,
+      requiresVerification: result.requiresVerification,
+      message: result.message
+    }
   } catch (error) {
     console.error('Registration error:', error)
-    return null
+    return { user: null }
   }
 }
 
 export async function loginUser(data: LoginData): Promise<UserWithRole | null> {
-  try {
-    const response = await fetch('/api/auth/signin', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
+  const response = await fetch('/api/auth/signin', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
 
-    const result = await response.json()
+  const result = await response.json()
 
-    if (!response.ok) {
-      throw new Error(result.error || 'Login failed')
-    }
-
-    return result.user
-  } catch (error) {
-    console.error('Login error:', error)
-    return null
+  if (!response.ok) {
+    const error = new Error(result.error || 'Login failed')
+    ;(error as any).status = response.status
+    throw error
   }
+
+  return result.user
 }
 
 export function getRedirectPath(role: string): string {

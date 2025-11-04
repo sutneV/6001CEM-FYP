@@ -27,6 +27,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ user }, { status: 200 })
   } catch (error) {
     console.error('Login error:', error)
+
+    // Check if the error is due to unverified email
+    if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
+      return NextResponse.json(
+        { error: 'Please verify your email before signing in. Check your email for the verification link.' },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'An unexpected error occurred' },
       { status: 500 }

@@ -26,6 +26,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+// Helper function to capitalize first letter of each word
+const capitalizeCategory = (category: string) => {
+  return category
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
 export default function CommunitiesInterface() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -218,15 +226,6 @@ export default function CommunitiesInterface() {
                       onChange={(e) => setNewCommunity(prev => ({ ...prev, description: e.target.value }))}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="banner-image">Banner Image URL (optional)</Label>
-                    <Input
-                      id="banner-image"
-                      placeholder="https://example.com/banner.jpg"
-                      value={newCommunity.bannerImage}
-                      onChange={(e) => setNewCommunity(prev => ({ ...prev, bannerImage: e.target.value }))}
-                    />
-                  </div>
                   <Button
                     className="w-full bg-teal-500 hover:bg-teal-600"
                     onClick={handleCreateCommunity}
@@ -340,7 +339,7 @@ export default function CommunitiesInterface() {
                           <span>{community.memberCount}</span>
                         </div>
                         <Badge variant="secondary" className="text-xs">
-                          {community.category}
+                          {capitalizeCategory(community.category)}
                         </Badge>
                       </div>
                     </div>
@@ -376,7 +375,7 @@ export default function CommunitiesInterface() {
                 <div>
                   <h2 className="text-2xl font-bold">{selectedCommunity.name}</h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary">{selectedCommunity.category}</Badge>
+                    <Badge variant="secondary">{capitalizeCategory(selectedCommunity.category)}</Badge>
                     <span className="text-sm text-gray-500">{selectedCommunity.memberCount} members</span>
                   </div>
                 </div>
@@ -435,7 +434,7 @@ export default function CommunitiesInterface() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Category</span>
-                    <Badge variant="secondary" className="text-xs">{selectedCommunity.category}</Badge>
+                    <Badge variant="secondary" className="text-xs">{capitalizeCategory(selectedCommunity.category)}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Visibility</span>
@@ -452,20 +451,24 @@ export default function CommunitiesInterface() {
                 <CardContent className="space-y-2">
                   {selectedCommunity.isMember ? (
                     <>
-                      <Link href={`${getBasePath()}/${selectedCommunity.id}`} className="block">
+                      <Link href={`${getBasePath()}/${selectedCommunity.id}?tab=posts`} className="block">
                         <Button variant="outline" className="w-full justify-start">
                           <MessageCircle className="h-4 w-4 mr-2" />
                           View Posts & Discussions
                         </Button>
                       </Link>
-                      <Button variant="outline" className="w-full justify-start">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        View Events
-                      </Button>
-                      <Button variant="outline" className="w-full justify-start">
-                        <Users className="h-4 w-4 mr-2" />
-                        View Members
-                      </Button>
+                      <Link href={`${getBasePath()}/${selectedCommunity.id}?tab=events`} className="block">
+                        <Button variant="outline" className="w-full justify-start">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          View Events
+                        </Button>
+                      </Link>
+                      <Link href={`${getBasePath()}/${selectedCommunity.id}?tab=members`} className="block">
+                        <Button variant="outline" className="w-full justify-start">
+                          <Users className="h-4 w-4 mr-2" />
+                          View Members
+                        </Button>
+                      </Link>
                     </>
                   ) : (
                     <div className="p-4 bg-gray-50 rounded-lg text-center">
@@ -530,7 +533,7 @@ export default function CommunitiesInterface() {
                   {selectedCommunity?.memberCount} members
                 </div>
                 <Badge variant="secondary" className="text-xs">
-                  {selectedCommunity?.category}
+                  {capitalizeCategory(selectedCommunity?.category || '')}
                 </Badge>
               </div>
             </div>

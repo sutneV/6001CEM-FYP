@@ -6,7 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, Users, ExternalLink, Loader2 } from 'lucide-react'
+import { Calendar, Clock, MapPin, Users, ExternalLink, Loader2, DollarSign, Building2, UsersIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 
@@ -282,20 +282,20 @@ export default function EventMap() {
                       <Users className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Participants</p>
-                        <p className="text-sm text-gray-600">{selectedEvent.currentParticipants} of {selectedEvent.maxParticipants} joined</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                          <div 
-                            className="bg-teal-600 h-2 rounded-full" 
-                            style={{ width: `${(selectedEvent.currentParticipants / selectedEvent.maxParticipants) * 100}%` }}
-                          ></div>
-                        </div>
+                        <p className="text-sm text-gray-600">{selectedEvent.currentParticipants} joined</p>
+                        {(selectedEvent.maxParticipants ?? 0) > 0 && (
+                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div
+                              className="bg-teal-600 h-2 rounded-full"
+                              style={{ width: `${(selectedEvent.currentParticipants / selectedEvent.maxParticipants) * 100}%` }}
+                            ></div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="h-5 w-5 flex items-center justify-center">
-                        <span className="text-lg">💰</span>
-                      </div>
+                      <DollarSign className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Fee</p>
                         <p className="text-lg font-semibold text-green-600">{selectedEvent.fee}</p>
@@ -303,9 +303,7 @@ export default function EventMap() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="h-5 w-5 flex items-center justify-center">
-                        <span className="text-lg">🏢</span>
-                      </div>
+                      <Building2 className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Organizer</p>
                         <p className="text-sm text-gray-600">{selectedEvent.organizer}</p>
@@ -314,9 +312,7 @@ export default function EventMap() {
 
                     {selectedEvent.community && (
                       <div className="flex items-center gap-3">
-                        <div className="h-5 w-5 flex items-center justify-center">
-                          <span className="text-lg">👥</span>
-                        </div>
+                        <UsersIcon className="h-5 w-5 text-gray-400" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">Community</p>
                           <p className="text-sm text-gray-600">{selectedEvent.community}</p>
@@ -554,17 +550,11 @@ export default function EventMap() {
       <div className="w-80 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-              <p className="text-sm text-gray-500">
-                {eventsLoading ? 'Loading...' : `${events.length} events found`}
-              </p>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-green-600 font-medium">Live</span>
-            </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
+            <p className="text-sm text-gray-500">
+              {eventsLoading ? 'Loading...' : `${events.length} events found`}
+            </p>
           </div>
         </div>
         
@@ -617,7 +607,7 @@ export default function EventMap() {
                         {event.title}
                       </h3>
                       <Badge className={`${getEventTypeColor(event.type)} text-xs`} variant="secondary">
-                        {event.type}
+                        {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                       </Badge>
                     </div>
                     
@@ -637,7 +627,7 @@ export default function EventMap() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                           <Users className="h-3 w-3" />
-                          <span>{event.currentParticipants}/{event.maxParticipants}</span>
+                          <span>{event.currentParticipants} joined</span>
                         </div>
                         <span className="text-xs font-semibold text-green-600">
                           {event.fee}
