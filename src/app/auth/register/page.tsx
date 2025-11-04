@@ -71,6 +71,14 @@ export default function RegisterPage() {
         newErrors.password = "Password is required"
       } else if (formData.password.length < 8) {
         newErrors.password = "Password must be at least 8 characters"
+      } else if (!/(?=.*[a-z])/.test(formData.password)) {
+        newErrors.password = "Password must contain at least one lowercase letter"
+      } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+        newErrors.password = "Password must contain at least one uppercase letter"
+      } else if (!/(?=.*\d)/.test(formData.password)) {
+        newErrors.password = "Password must contain at least one number"
+      } else if (!/(?=.*[@$!%*?&#])/.test(formData.password)) {
+        newErrors.password = "Password must contain at least one special character (@$!%*?&#)"
       }
 
       if (!formData.confirmPassword) {
@@ -372,6 +380,28 @@ export default function RegisterPage() {
                     </button>
                   </div>
                   {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
+                  {formData.password && !errors.password && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-600">Password requirements:</p>
+                      <ul className="text-xs space-y-1">
+                        <li className={formData.password.length >= 8 ? "text-green-600" : "text-gray-500"}>
+                          ✓ At least 8 characters
+                        </li>
+                        <li className={/(?=.*[a-z])/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                          ✓ One lowercase letter
+                        </li>
+                        <li className={/(?=.*[A-Z])/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                          ✓ One uppercase letter
+                        </li>
+                        <li className={/(?=.*\d)/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                          ✓ One number
+                        </li>
+                        <li className={/(?=.*[@$!%*?&#])/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                          ✓ One special character (@$!%*?&#)
+                        </li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
