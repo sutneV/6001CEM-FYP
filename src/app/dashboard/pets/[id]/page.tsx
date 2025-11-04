@@ -393,7 +393,7 @@ export default function PetProfilePage() {
     images: processedImages,
     fosterParent: {
       name: pet.shelter.name,
-      image: `/placeholder.svg?height=40&width=40&text=${pet.shelter.name.charAt(0)}`,
+      image: (pet as any).shelterUser?.avatar || undefined,
       since: 'Contact for details',
     },
     story: pet.story || `${pet.name} is a wonderful ${pet.type} looking for a loving forever home. This ${pet.age} ${pet.gender} has so much love to give and would make a perfect addition to the right family.`,

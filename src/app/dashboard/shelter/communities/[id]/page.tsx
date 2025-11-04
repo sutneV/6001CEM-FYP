@@ -896,7 +896,7 @@ export default function CommunityPostsPage() {
                           >
                             <div className="flex items-center gap-3">
                               <Avatar className="h-10 w-10">
-                                <AvatarImage src="/placeholder.svg" />
+                                <AvatarImage src={(member as any).avatar || undefined} />
                                 <AvatarFallback>{memberInitials}</AvatarFallback>
                               </Avatar>
                               <div>
@@ -1166,7 +1166,7 @@ export default function CommunityPostsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder.svg" />
+                      <AvatarImage src={post.author.avatar || undefined} />
                       <AvatarFallback>{authorInitials}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -1218,7 +1218,7 @@ export default function CommunityPostsPage() {
                     {/* Add Comment Input */}
                     <div className="flex gap-3 mb-4">
                       <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src="/placeholder.svg" />
+                        <AvatarImage src={user?.avatar || undefined} />
                         <AvatarFallback>
                           {user?.firstName?.[0]}{user?.lastName?.[0]}
                         </AvatarFallback>
@@ -1272,7 +1272,7 @@ export default function CommunityPostsPage() {
                           return (
                             <div key={comment.id} className="flex gap-3">
                               <Avatar className="h-7 w-7 flex-shrink-0">
-                                <AvatarImage src="/placeholder.svg" />
+                                <AvatarImage src={comment.author.avatar || undefined} />
                                 <AvatarFallback className="text-xs">{commentAuthorInitials}</AvatarFallback>
                               </Avatar>
                               <div className="flex-1 bg-white rounded-lg p-3 shadow-sm">
@@ -1337,7 +1337,7 @@ export default function CommunityPostsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder.svg" />
+                      <AvatarImage src={event.organizer.avatar || undefined} />
                       <AvatarFallback>{organizerInitials}</AvatarFallback>
                     </Avatar>
                     <div>

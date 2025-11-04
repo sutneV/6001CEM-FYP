@@ -60,6 +60,7 @@ export async function GET(
         lastName: users.lastName,
         email: users.email,
         role: users.role,
+        avatar: users.avatar,
         joinedAt: communityMembers.joinedAt,
       })
       .from(communityMembers)

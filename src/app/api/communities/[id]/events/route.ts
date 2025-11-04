@@ -89,6 +89,7 @@ export async function GET(
           firstName: users.firstName,
           lastName: users.lastName,
           role: users.role,
+          avatar: users.avatar,
         },
       })
       .from(communityEvents)
@@ -258,6 +259,7 @@ export async function POST(
           firstName: users.firstName,
           lastName: users.lastName,
           role: users.role,
+          avatar: users.avatar,
         },
       })
       .from(communityEvents)

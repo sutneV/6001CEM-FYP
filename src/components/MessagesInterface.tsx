@@ -375,14 +375,14 @@ export default function MessagesInterface() {
     if (user?.role === 'shelter') {
       return {
         participantName: `${conv.adopter.firstName} ${conv.adopter.lastName}`,
-        participantAvatar: `/placeholder.svg?height=40&width=40&text=${conv.adopter.firstName[0]}${conv.adopter.lastName[0]}`,
+        participantAvatar: (conv.adopter as any).avatar || undefined,
         petName: conv.pet?.name,
         petImage: conv.pet?.images?.[0]
       }
     } else {
       return {
         participantName: conv.shelter.name,
-        participantAvatar: `/placeholder.svg?height=40&width=40&text=${conv.shelter.name[0]}`,
+        participantAvatar: (conv as any).shelterUser?.avatar || undefined,
         petName: conv.pet?.name,
         petImage: conv.pet?.images?.[0]
       }

@@ -221,7 +221,7 @@ export default function UsersPage() {
                     <CardContent className="p-3">
                       <div className="flex space-x-3">
                         <Avatar className="h-10 w-10 flex-shrink-0">
-                          <AvatarImage src={`/placeholder.svg?height=40&width=40&text=${user.firstName[0]}${user.lastName[0]}`} />
+                          <AvatarImage src={(user as any).avatar || undefined} />
                           <AvatarFallback>
                             {user.firstName[0]}{user.lastName[0]}
                           </AvatarFallback>
@@ -281,7 +281,7 @@ export default function UsersPage() {
                 >
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10 flex-shrink-0">
-                      <AvatarImage src={`/placeholder.svg?height=40&width=40&text=${user.firstName[0]}${user.lastName[0]}`} />
+                      <AvatarImage src={(user as any).avatar || undefined} />
                       <AvatarFallback>
                         {user.firstName[0]}{user.lastName[0]}
                       </AvatarFallback>
@@ -333,7 +333,7 @@ export default function UsersPage() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={`/placeholder.svg?height=48&width=48&text=${selectedUserData.firstName[0]}${selectedUserData.lastName[0]}`} />
+                  <AvatarImage src={(selectedUserData as any).avatar || undefined} />
                   <AvatarFallback>
                     {selectedUserData.firstName[0]}{selectedUserData.lastName[0]}
                   </AvatarFallback>

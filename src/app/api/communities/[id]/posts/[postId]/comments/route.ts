@@ -65,6 +65,7 @@ export async function GET(
           firstName: users.firstName,
           lastName: users.lastName,
           role: users.role,
+          avatar: users.avatar,
         },
       })
       .from(communityPostComments)
@@ -203,6 +204,7 @@ export async function POST(
           firstName: users.firstName,
           lastName: users.lastName,
           role: users.role,
+          avatar: users.avatar,
         },
       })
       .from(communityPostComments)

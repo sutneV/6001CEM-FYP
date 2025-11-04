@@ -175,6 +175,7 @@ export async function GET(request: NextRequest) {
             lastName: users.lastName,
             email: users.email,
             phone: users.phone,
+            avatar: users.avatar,
           }
         })
         .from(applications)

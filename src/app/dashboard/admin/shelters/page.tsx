@@ -229,7 +229,7 @@ export default function SheltersPage() {
                     <CardContent className="p-3">
                       <div className="flex space-x-3">
                         <Avatar className="h-10 w-10 flex-shrink-0">
-                          <AvatarImage src={`/placeholder.svg?height=40&width=40&text=${shelter.name[0]}`} />
+                          <AvatarImage src={(shelter as any).userAvatar || undefined} />
                           <AvatarFallback>
                             <Building className="h-5 w-5" />
                           </AvatarFallback>
@@ -294,7 +294,7 @@ export default function SheltersPage() {
                 >
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-10 w-10 flex-shrink-0">
-                      <AvatarImage src={`/placeholder.svg?height=40&width=40&text=${shelter.name[0]}`} />
+                      <AvatarImage src={(shelter as any).userAvatar || undefined} />
                       <AvatarFallback>
                         <Building className="h-5 w-5" />
                       </AvatarFallback>
@@ -354,7 +354,7 @@ export default function SheltersPage() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={`/placeholder.svg?height=48&width=48&text=${selectedShelterData.name[0]}`} />
+                  <AvatarImage src={(selectedShelterData as any).userAvatar || undefined} />
                   <AvatarFallback>
                     <Building className="h-6 w-6" />
                   </AvatarFallback>

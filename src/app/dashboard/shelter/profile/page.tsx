@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,15 +21,23 @@ import {
   MapPin,
   Phone,
   Mail,
-  Globe
+  Globe,
+  PawPrint,
+  ClipboardList,
+  MessageSquare
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
 
 export default function ShelterProfilePage() {
-  const { user } = useAuth()
+  const { user, login } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [activeSection, setActiveSection] = useState("profile")
+  const [stats, setStats] = useState({
+    pets: 0,
+    applications: 0,
+    messages: 0,
+  })
 
   const [profileData, setProfileData] = useState({
     shelterName: user?.shelter?.name || "",
@@ -42,6 +50,100 @@ export default function ShelterProfilePage() {
     registrationNumber: "",
     avatar: "",
   })
+
+  // Use ref to store the latest avatar URL to avoid stale state issues
+  const latestAvatarRef = React.useRef(profileData.avatar)
+  const hasInitiallyFetchedRef = React.useRef(false)
+
+  React.useEffect(() => {
+    latestAvatarRef.current = profileData.avatar
+  }, [profileData.avatar])
+
+  // Fetch user profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return
+
+      // Only fetch once on initial mount
+      if (hasInitiallyFetchedRef.current) return
+      hasInitiallyFetchedRef.current = true
+
+      try {
+        const profileResponse = await fetch('/api/profile', {
+          headers: {
+            'x-user-data': JSON.stringify(user),
+          },
+        })
+
+        if (profileResponse.ok) {
+          const data = await profileResponse.json()
+          setProfileData({
+            shelterName: user?.shelter?.name || "",
+            email: data.profile.email || "",
+            phone: data.profile.phone || "",
+            address: "",
+            city: data.profile.city || "",
+            website: "",
+            description: data.profile.bio || "",
+            registrationNumber: "",
+            avatar: data.profile.avatar || "",
+          })
+
+          // Update user context with avatar if it exists
+          if (user && data.profile.avatar) {
+            login({
+              ...user,
+              avatar: data.profile.avatar,
+              bio: data.profile.bio,
+            })
+          }
+        }
+
+        // Fetch pets count (filter by shelter)
+        if (user?.shelter?.id) {
+          const petsResponse = await fetch('/api/pets', {
+            headers: {
+              'x-user-data': JSON.stringify(user),
+            },
+          })
+          if (petsResponse.ok) {
+            const petsData = await petsResponse.json()
+            // Filter pets by this shelter's ID
+            const shelterPets = Array.isArray(petsData)
+              ? petsData.filter((pet: any) => pet.shelter?.id === user.shelter?.id)
+              : []
+            setStats(prev => ({ ...prev, pets: shelterPets.length }))
+          }
+        }
+
+        // Fetch applications count
+        const appsResponse = await fetch('/api/applications', {
+          headers: {
+            'x-user-data': JSON.stringify(user),
+          },
+        })
+        if (appsResponse.ok) {
+          const appsData = await appsResponse.json()
+          setStats(prev => ({ ...prev, applications: Array.isArray(appsData) ? appsData.length : 0 }))
+        }
+
+        // Fetch messages count
+        const msgsResponse = await fetch('/api/messages/conversations', {
+          headers: {
+            'x-user-data': JSON.stringify(user),
+          },
+        })
+        if (msgsResponse.ok) {
+          const msgsData = await msgsResponse.json()
+          setStats(prev => ({ ...prev, messages: msgsData.conversations?.length || 0 }))
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+      }
+    }
+
+    fetchProfile()
+  }, [user])
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -60,14 +162,120 @@ export default function ShelterProfilePage() {
     analytics: true,
   })
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB")
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('fileName', fileName)
+      formData.append('bucket', 'avatars')
+
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'x-user-data': JSON.stringify(user),
+        },
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json()
+        throw new Error(errorData.error || 'Failed to upload image')
+      }
+
+      const { url } = await uploadResponse.json()
+
+      // Update profile data state
+      setProfileData(prevData => {
+        const newData = { ...prevData, avatar: url }
+        return newData
+      })
+
+      toast.success("Logo uploaded! Don't forget to save changes.")
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast.error(error instanceof Error ? error.message : "Failed to upload image")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSave = async () => {
+    if (!user) return
+
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Use the latest avatar from ref to avoid stale state
+      const dataToSave = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: profileData.email,
+        phone: profileData.phone,
+        city: profileData.city,
+        bio: profileData.description,
+        avatar: latestAvatarRef.current
+      }
+
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify(dataToSave),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update profile')
+      }
+
+      const data = await response.json()
       toast.success("Profile updated successfully!")
-    } catch (error) {
-      toast.error("Failed to update profile")
+
+      // Update local profile data with response
+      setProfileData(prev => ({
+        ...prev,
+        email: data.profile.email,
+        phone: data.profile.phone || "",
+        city: data.profile.city || "",
+        description: data.profile.bio || "",
+        avatar: data.profile.avatar || "",
+      }))
+
+      // Update the user context to reflect changes across the entire app
+      if (user) {
+        login({
+          ...user,
+          email: data.profile.email,
+          phone: data.profile.phone,
+          city: data.profile.city,
+          bio: data.profile.bio,
+          avatar: data.profile.avatar,
+        })
+      }
+    } catch (error: any) {
+      console.error('Error updating profile:', error)
+      toast.error(error.message || "Failed to update profile")
     }
     setIsLoading(false)
   }
@@ -114,31 +322,111 @@ export default function ShelterProfilePage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <ScrollArea className="flex-1">
-          <div className="p-6 max-w-3xl mx-auto">
+          <div className="p-6">
             {/* Profile Section */}
             {activeSection === "profile" && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Shelter Information</h2>
-                  <p className="text-gray-600 mt-1">Update your shelter details and contact information</p>
+                  <p className="text-gray-600 mt-1">Update your shelter details and profile picture</p>
                 </div>
 
-                <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-                  {/* Avatar Section */}
-                  <div className="flex items-center gap-6">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage src={profileData.avatar} />
-                      <AvatarFallback className="text-lg">
-                        {profileData.shelterName?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-2">
-                      <Button variant="outline" className="flex items-center gap-2">
-                        <Upload className="h-4 w-4" />
-                        Upload Logo
+                {/* Profile Header Card */}
+                <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-lg border border-teal-200 p-6">
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                    <div className="relative">
+                      <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
+                        <AvatarImage src={profileData.avatar} />
+                        <AvatarFallback className="text-2xl bg-teal-500 text-white">
+                          {profileData.shelterName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <input
+                        type="file"
+                        id="avatar-upload-shelter"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                      />
+                      <Button
+                        size="icon"
+                        className="absolute -bottom-2 -right-2 rounded-full h-10 w-10 bg-white border-2 border-teal-500 text-teal-600 hover:bg-teal-50"
+                        onClick={() => document.getElementById('avatar-upload-shelter')?.click()}
+                        type="button"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                       </Button>
-                      <p className="text-sm text-gray-500">JPG, PNG or GIF. Max size 2MB.</p>
                     </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {profileData.shelterName}
+                      </h3>
+                      <p className="text-gray-600 mt-1">Animal Shelter</p>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-sm">
+                          <Mail className="h-3.5 w-3.5 text-teal-600" />
+                          <span className="text-gray-700">{profileData.email}</span>
+                        </div>
+                        {profileData.phone && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-sm">
+                            <Phone className="h-3.5 w-3.5 text-teal-600" />
+                            <span className="text-gray-700">{profileData.phone}</span>
+                          </div>
+                        )}
+                        {profileData.city && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-sm">
+                            <MapPin className="h-3.5 w-3.5 text-teal-600" />
+                            <span className="text-gray-700">{profileData.city}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Total Pets</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">{stats.pets}</p>
+                      </div>
+                      <div className="h-12 w-12 bg-teal-50 rounded-lg flex items-center justify-center">
+                        <PawPrint className="h-6 w-6 text-teal-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Applications</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">{stats.applications}</p>
+                      </div>
+                      <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <ClipboardList className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">Messages</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">{stats.messages}</p>
+                      </div>
+                      <div className="h-12 w-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                        <MessageSquare className="h-6 w-6 text-purple-600" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Edit Profile Form */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Edit Profile</h3>
+                    <p className="text-sm text-gray-600 mt-1">Update your shelter information</p>
                   </div>
 
                   <Separator />

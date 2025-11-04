@@ -166,8 +166,9 @@ export default function ShelterDashboardPage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Limit to 4 most recent applications
-        setApplications(data.slice(0, 4))
+        // Filter out draft applications and limit to 4 most recent
+        const submittedApplications = data.filter(app => app.status !== 'draft')
+        setApplications(submittedApplications.slice(0, 4))
       }
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -427,6 +428,7 @@ export default function ShelterDashboardPage() {
                         className="flex gap-4 rounded-lg border p-3"
                       >
                         <Avatar className="h-10 w-10">
+                          <AvatarImage src={(application as any).adopter?.avatar || undefined} />
                           <AvatarFallback>
                             {application.firstName?.charAt(0)}{application.lastName?.charAt(0)}
                           </AvatarFallback>

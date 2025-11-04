@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { pets, shelters } from '@/lib/db/schema'
+import { pets, shelters, users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 // GET /api/pets/[id] - Get specific pet with shelter information (public endpoint)
@@ -41,10 +41,15 @@ export async function GET(
           id: shelters.id,
           name: shelters.name,
           address: shelters.address,
+          userId: shelters.userId,
+        },
+        shelterUser: {
+          avatar: users.avatar,
         }
       })
       .from(pets)
       .leftJoin(shelters, eq(pets.shelterId, shelters.id))
+      .leftJoin(users, eq(shelters.userId, users.id))
       .where(eq(pets.id, params.id))
       .limit(1)
 

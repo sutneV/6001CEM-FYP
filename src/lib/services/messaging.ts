@@ -6,6 +6,7 @@ import type { Conversation, Message, NewConversation, NewMessage, User, Shelter,
 export interface ConversationWithDetails extends Conversation {
   adopter: User
   shelter: Shelter
+  shelterUser?: User // Add shelter user to get avatar
   pet?: Pet
   lastMessage?: Message
   unreadCount: number
@@ -53,6 +54,8 @@ export class MessagingService {
         .where(whereCondition)
         .orderBy(desc(conversations.lastMessageAt))
 
+      // Note: We'll fetch shelter user separately to avoid SQL alias conflicts
+
       const results = await query
 
       // For each conversation, get the last message and unread count
@@ -60,6 +63,13 @@ export class MessagingService {
       
       for (const result of results) {
         if (!result.conversation || !result.adopter || !result.shelter) continue
+
+        // Get shelter user for avatar
+        const shelterUserResult = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, result.shelter.userId))
+          .limit(1)
 
         // Get last message
         const lastMessageResult = await db
@@ -85,6 +95,7 @@ export class MessagingService {
           ...result.conversation,
           adopter: result.adopter,
           shelter: result.shelter,
+          shelterUser: shelterUserResult[0] || undefined,
           pet: result.pet || undefined,
           lastMessage: lastMessageResult[0] || undefined,
           unreadCount: unreadCountResult[0]?.count || 0,

@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         userEmail: users.email,
         userPhone: users.phone,
         userCity: users.city,
+        userAvatar: users.avatar,
         userIsActive: users.isActive,
       })
       .from(shelters)
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
         city: city,
         state: state,
         zipCode: zipCode,
+        userAvatar: shelter.userAvatar,
         status: shelter.userIsActive === 'true' ? 'active' : 'suspended',
         createdAt: shelter.createdAt,
         updatedAt: shelter.updatedAt,
