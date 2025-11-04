@@ -21,6 +21,8 @@ export const users = pgTable('users', {
   lastName: varchar('last_name', { length: 100 }).notNull(),
   phone: varchar('phone', { length: 20 }),
   city: varchar('city', { length: 100 }),
+  bio: text('bio'),
+  avatar: text('avatar'),
   role: userRoleEnum('role').notNull().default('adopter'),
   isActive: varchar('is_active', { length: 10 }).notNull().default('true'),
   emailVerified: boolean('email_verified').notNull().default(false),

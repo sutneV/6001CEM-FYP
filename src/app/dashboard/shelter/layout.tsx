@@ -194,7 +194,7 @@ export default function ShelterLayout({
         <div className="border-t p-4">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
             <Avatar>
-              <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Shelter" />
+              <AvatarImage src={user?.avatar || undefined} alt="Shelter" />
               <AvatarFallback>{user?.shelter?.name?.charAt(0) || user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</AvatarFallback>
             </Avatar>
             {!sidebarCollapsed && (

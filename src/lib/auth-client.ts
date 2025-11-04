@@ -9,6 +9,9 @@ export interface UserWithRole {
   isActive: string
   createdAt: Date
   updatedAt: Date
+  avatar?: string | null
+  bio?: string | null
+  emailVerified?: boolean
   shelter?: {
     id: string
     name: string

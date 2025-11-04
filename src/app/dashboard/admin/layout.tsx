@@ -167,7 +167,7 @@ export default function AdminLayout({
         <div className="border-t p-4">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
             <Avatar>
-              <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Admin" />
+              <AvatarImage src={user?.avatar || undefined} alt="Admin" />
               <AvatarFallback>{user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</AvatarFallback>
             </Avatar>
             {!sidebarCollapsed && (

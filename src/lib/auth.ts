@@ -130,6 +130,9 @@ export async function authenticateUser(email: string, password: string): Promise
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      avatar: user.avatar,
+      bio: user.bio,
+      emailVerified: user.emailVerified,
     }
 
     if (user.role === 'shelter') {

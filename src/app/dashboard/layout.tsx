@@ -76,7 +76,6 @@ export default function DashboardLayout({
 
   const secondaryNavItems = [
     { name: "Profile", icon: User, href: "/dashboard/profile" },
-    { name: "Settings", icon: Settings, href: "/dashboard/settings" },
   ]
 
   return (
@@ -189,7 +188,7 @@ export default function DashboardLayout({
         <div className="border-t p-4">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
             <Avatar>
-              <AvatarImage src="/placeholder.svg?height=40&width=40" alt="User" />
+              <AvatarImage src={user?.avatar || undefined} alt="User" />
               <AvatarFallback>{user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</AvatarFallback>
             </Avatar>
             {!sidebarCollapsed && (
@@ -208,8 +207,9 @@ export default function DashboardLayout({
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Profile</DropdownMenuItem>
-                    <DropdownMenuItem>Settings</DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/dashboard/profile" className="w-full">Profile</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
                   </DropdownMenuContent>
@@ -238,7 +238,7 @@ export default function DashboardLayout({
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-semibold">
-              {pathname === "/dashboard" ? "Dashboard" : 
+              {pathname === "/dashboard" ? "Dashboard" :
                pathname === "/dashboard/pets" ? "Browse Pets" :
                pathname === "/dashboard/applications" ? "My Applications" :
                pathname === "/dashboard/favorites" ? "Favorites" :
@@ -249,7 +249,6 @@ export default function DashboardLayout({
                pathname === "/dashboard/resources" ? "Resources" :
                pathname === "/dashboard/ai-assistant" ? "AI Assistant" :
                pathname === "/dashboard/profile" ? "Profile" :
-               pathname === "/dashboard/settings" ? "Settings" :
                "Dashboard"}
             </h1>
           </div>
