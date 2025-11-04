@@ -13,7 +13,6 @@ import {
   LogOut,
   MessageSquare,
   PawPrint,
-  Settings,
   User,
   FileText,
   ClipboardList,
@@ -81,7 +80,6 @@ export default function ShelterLayout({
 
   const secondaryNavItems = [
     { name: "Profile", icon: User, href: "/dashboard/shelter/profile" },
-    { name: "Settings", icon: Settings, href: "/dashboard/shelter/settings" },
   ]
 
   return (
@@ -213,8 +211,9 @@ export default function ShelterLayout({
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Shelter Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Profile</DropdownMenuItem>
-                    <DropdownMenuItem>Settings</DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/dashboard/shelter/profile" className="w-full">Profile</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
                   </DropdownMenuContent>
