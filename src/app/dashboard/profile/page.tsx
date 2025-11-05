@@ -29,11 +29,13 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import { TwoFactorSettings } from "@/components/TwoFactorSettings"
 
 export default function ProfilePage() {
   const { user, login } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [activeSection, setActiveSection] = useState("profile")
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [stats, setStats] = useState({
     applications: 0,
     favorites: 0,
@@ -86,12 +88,16 @@ export default function ProfilePage() {
             avatar: profileData.profile.avatar || "",
           })
 
+          // Update 2FA status
+          setTwoFactorEnabled(profileData.profile.twoFactorEnabled || false)
+
           // Update user context with avatar and bio if they exist in the profile
           if (user && (profileData.profile.avatar || profileData.profile.bio)) {
             login({
               ...user,
               avatar: profileData.profile.avatar,
               bio: profileData.profile.bio,
+              twoFactorEnabled: profileData.profile.twoFactorEnabled || false,
             })
           }
         }
@@ -293,6 +299,7 @@ export default function ProfilePage() {
     { id: "preferences", label: "Preferences", icon: Heart },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "privacy", label: "Privacy", icon: Eye },
+    { id: "security", label: "Security", icon: Shield },
   ]
 
   return (
@@ -857,6 +864,18 @@ export default function ProfilePage() {
                     {isLoading ? "Saving..." : "Save Privacy Settings"}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* Security Section */}
+            {activeSection === "security" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Security Settings</h2>
+                  <p className="text-gray-600 mt-1">Manage your account security and authentication</p>
+                </div>
+
+                <TwoFactorSettings user={user} twoFactorEnabled={twoFactorEnabled} />
               </div>
             )}
           </div>

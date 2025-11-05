@@ -5,7 +5,7 @@ import { users, shelters } from './db/schema'
 import { eq, and } from 'drizzle-orm'
 import type { User } from './db/schema'
 
-export interface UserWithRole extends Omit<User, 'password'> {
+export interface UserWithRole extends Omit<User, 'password' | 'twoFactorSecret' | 'twoFactorBackupCodes'> {
   shelter?: {
     id: string
     name: string
@@ -119,6 +119,11 @@ export async function authenticateUser(email: string, password: string): Promise
       throw new Error('EMAIL_NOT_VERIFIED')
     }
 
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      throw new Error('2FA_REQUIRED')
+    }
+
     let userWithRole: UserWithRole = {
       id: user.id,
       email: user.email,
@@ -133,6 +138,9 @@ export async function authenticateUser(email: string, password: string): Promise
       avatar: user.avatar,
       bio: user.bio,
       emailVerified: user.emailVerified,
+      twoFactorEnabled: user.twoFactorEnabled || false,
+      verificationToken: user.verificationToken,
+      verificationTokenExpiry: user.verificationTokenExpiry,
     }
 
     if (user.role === 'shelter') {
@@ -148,7 +156,7 @@ export async function authenticateUser(email: string, password: string): Promise
     return userWithRole
   } catch (error) {
     console.error('Error authenticating user:', error)
-    if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
+    if (error instanceof Error && (error.message === 'EMAIL_NOT_VERIFIED' || error.message === '2FA_REQUIRED')) {
       throw error
     }
     return null
@@ -157,6 +165,58 @@ export async function authenticateUser(email: string, password: string): Promise
 
 // Admin credentials are now stored in the database
 // Use the same authenticateUser function for all users including admin
+
+// Authenticate user with 2FA (after password verification)
+export async function authenticateUserWith2FA(userId: string): Promise<UserWithRole | null> {
+  try {
+    const userResult = await db.select().from(users).where(
+      and(
+        eq(users.id, userId),
+        eq(users.isActive, 'true')
+      )
+    ).limit(1)
+
+    if (userResult.length === 0) {
+      return null
+    }
+
+    const user = userResult[0]
+
+    let userWithRole: UserWithRole = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      city: user.city,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      avatar: user.avatar,
+      bio: user.bio,
+      emailVerified: user.emailVerified,
+      twoFactorEnabled: user.twoFactorEnabled || false,
+      verificationToken: user.verificationToken,
+      verificationTokenExpiry: user.verificationTokenExpiry,
+    }
+
+    if (user.role === 'shelter') {
+      const shelterResult = await db.select().from(shelters).where(eq(shelters.userId, user.id)).limit(1)
+      if (shelterResult.length > 0) {
+        userWithRole.shelter = {
+          id: shelterResult[0].id,
+          name: shelterResult[0].name,
+        }
+      }
+    }
+
+    return userWithRole
+  } catch (error) {
+    console.error('Error authenticating user with 2FA:', error)
+    return null
+  }
+}
 
 export function getRedirectPath(role: string): string {
   switch (role) {

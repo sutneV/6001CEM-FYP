@@ -28,11 +28,13 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import { TwoFactorSettings } from "@/components/TwoFactorSettings"
 
 export default function ShelterProfilePage() {
   const { user, login } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [activeSection, setActiveSection] = useState("profile")
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [stats, setStats] = useState({
     pets: 0,
     applications: 0,
@@ -89,12 +91,16 @@ export default function ShelterProfilePage() {
             avatar: data.profile.avatar || "",
           })
 
+          // Update 2FA status
+          setTwoFactorEnabled(data.profile.twoFactorEnabled || false)
+
           // Update user context with avatar if it exists
           if (user && data.profile.avatar) {
             login({
               ...user,
               avatar: data.profile.avatar,
               bio: data.profile.bio,
+              twoFactorEnabled: data.profile.twoFactorEnabled || false,
             })
           }
         }
@@ -284,6 +290,7 @@ export default function ShelterProfilePage() {
     { id: "profile", label: "Profile", icon: Building2 },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "privacy", label: "Privacy", icon: Eye },
+    { id: "security", label: "Security", icon: Shield },
   ]
 
   return (
@@ -713,6 +720,18 @@ export default function ShelterProfilePage() {
                     {isLoading ? "Saving..." : "Save Privacy Settings"}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* Security Section */}
+            {activeSection === "security" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Security Settings</h2>
+                  <p className="text-gray-600 mt-1">Manage your shelter account security and authentication</p>
+                </div>
+
+                <TwoFactorSettings user={user} twoFactorEnabled={twoFactorEnabled} />
               </div>
             )}
           </div>

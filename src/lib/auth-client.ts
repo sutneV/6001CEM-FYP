@@ -12,6 +12,7 @@ export interface UserWithRole {
   avatar?: string | null
   bio?: string | null
   emailVerified?: boolean
+  twoFactorEnabled?: boolean
   shelter?: {
     id: string
     name: string
@@ -74,8 +75,13 @@ export async function loginUser(data: LoginData): Promise<UserWithRole | null> {
   const result = await response.json()
 
   if (!response.ok) {
-    const error = new Error(result.error || 'Login failed')
-    ;(error as any).status = response.status
+    const error: any = new Error(result.error || 'Login failed')
+    error.status = response.status
+    // Pass through 2FA info if available
+    if (result.requires2FA) {
+      error.requires2FA = true
+      error.userId = result.userId
+    }
     throw error
   }
 

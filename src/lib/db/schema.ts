@@ -28,6 +28,9 @@ export const users = pgTable('users', {
   emailVerified: boolean('email_verified').notNull().default(false),
   verificationToken: varchar('verification_token', { length: 255 }),
   verificationTokenExpiry: timestamp('verification_token_expiry'),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  twoFactorSecret: varchar('two_factor_secret', { length: 255 }),
+  twoFactorBackupCodes: text('two_factor_backup_codes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })

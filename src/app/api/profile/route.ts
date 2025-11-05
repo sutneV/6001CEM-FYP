@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         avatar: users.avatar,
         role: users.role,
         emailVerified: users.emailVerified,
+        twoFactorEnabled: users.twoFactorEnabled,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -92,6 +93,7 @@ export async function PUT(request: NextRequest) {
         avatar: users.avatar,
         role: users.role,
         emailVerified: users.emailVerified,
+        twoFactorEnabled: users.twoFactorEnabled,
         createdAt: users.createdAt,
       })
 

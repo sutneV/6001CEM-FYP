@@ -20,6 +20,9 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isResendingEmail, setIsResendingEmail] = useState(false)
   const [showResendOption, setShowResendOption] = useState(false)
+  const [show2FA, setShow2FA] = useState(false)
+  const [userId, setUserId] = useState<string>("")
+  const [twoFactorCode, setTwoFactorCode] = useState("")
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -106,6 +109,16 @@ export default function SignInPage() {
       const redirectPath = getRedirectPath(user.role)
       router.push(redirectPath)
     } catch (error: any) {
+      // Check if 2FA is required (this is expected behavior, not an error)
+      if (error.requires2FA && error.userId) {
+        setUserId(error.userId)
+        setShow2FA(true)
+        setErrors({})
+        setIsLoading(false)
+        return
+      }
+
+      // Log actual errors (not 2FA flow)
       console.error('Login error:', error)
 
       // Check if error is due to unverified email (status 403)
@@ -115,6 +128,53 @@ export default function SignInPage() {
       } else {
         setErrors({ general: error.message || 'An unexpected error occurred. Please try again.' })
       }
+    }
+
+    setIsLoading(false)
+  }
+
+  const handle2FASubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!twoFactorCode || !userId) {
+      setErrors({ general: 'Please enter your 2FA code' })
+      return
+    }
+
+    setIsLoading(true)
+    setErrors({})
+
+    try {
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          twoFactorToken: twoFactorCode,
+          userId: userId,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setErrors({ general: result.error || 'Invalid 2FA code' })
+        setIsLoading(false)
+        return
+      }
+
+      const user = result.user
+
+      // Login user
+      login(user)
+
+      // Redirect based on role
+      const redirectPath = getRedirectPath(user.role)
+      router.push(redirectPath)
+    } catch (error: any) {
+      console.error('2FA verification error:', error)
+      setErrors({ general: error.message || 'An unexpected error occurred. Please try again.' })
     }
 
     setIsLoading(false)
@@ -131,11 +191,62 @@ export default function SignInPage() {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card className="border-0 shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your account to continue your pet adoption journey</CardDescription>
+          <CardTitle className="text-2xl font-bold">{show2FA ? 'Two-Factor Authentication' : 'Welcome back'}</CardTitle>
+          <CardDescription>{show2FA ? 'Enter your 6-digit code from your authenticator app' : 'Sign in to your account to continue your pet adoption journey'}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {show2FA ? (
+            <form onSubmit={handle2FASubmit} className="space-y-4">
+              {errors.general && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                  {errors.general}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="twoFactorCode">Authentication Code</Label>
+                <Input
+                  id="twoFactorCode"
+                  type="text"
+                  placeholder="Enter code or backup code"
+                  className="text-center text-lg tracking-widest uppercase"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+                  maxLength={8}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 text-center">
+                  Enter the 6-digit code from your authenticator app or an 8-character backup code
+                </p>
+              </div>
+
+              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify & Sign In"
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setShow2FA(false)
+                  setTwoFactorCode("")
+                  setUserId("")
+                  setErrors({})
+                }}
+              >
+                Back to Sign In
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
             {errors.general && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
                 {errors.general}
@@ -235,17 +346,20 @@ export default function SignInPage() {
               )}
             </Button>
           </form>
+          )}
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">Or continue with</span>
-            </div>
-          </div>
+          {!show2FA && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
             <Button variant="outline" className="w-full">
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -275,12 +389,14 @@ export default function SignInPage() {
             </Button>
           </div>
 
-          <div className="text-center text-sm">
-            {"Don't have an account? "}
-            <Link href="/auth/register" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
-              Sign up
-            </Link>
-          </div>
+              <div className="text-center text-sm">
+                {"Don't have an account? "}
+                <Link href="/auth/register" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
+                  Sign up
+                </Link>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </motion.div>
