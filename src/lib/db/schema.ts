@@ -278,6 +278,7 @@ export const aiChatMessages = pgTable('ai_chat_messages', {
   conversationId: uuid('conversation_id').notNull().references(() => aiChatConversations.id, { onDelete: 'cascade' }),
   sender: varchar('sender', { length: 10 }).notNull(), // 'user' or 'ai'
   content: text('content').notNull(),
+  images: text('images').array(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

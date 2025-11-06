@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   User,
   Bell,
@@ -25,7 +26,10 @@ import {
   Phone,
   MapPin,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  Lock,
+  EyeOff,
+  Eye as EyeIcon
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
@@ -168,6 +172,16 @@ export default function ProfilePage() {
     analytics: true,
   })
 
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({})
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
@@ -292,6 +306,78 @@ export default function ProfilePage() {
       toast.error(error.message || "Failed to update profile")
     }
     setIsLoading(false)
+  }
+
+  const handlePasswordChange = async () => {
+    if (!user) return
+
+    const newErrors: Record<string, string> = {}
+
+    // Validate current password
+    if (!passwordData.currentPassword) {
+      newErrors.currentPassword = "Current password is required"
+    }
+
+    // Validate new password
+    if (!passwordData.newPassword) {
+      newErrors.newPassword = "New password is required"
+    } else if (passwordData.newPassword.length < 8) {
+      newErrors.newPassword = "Password must be at least 8 characters"
+    } else if (!/(?=.*[a-z])/.test(passwordData.newPassword)) {
+      newErrors.newPassword = "Password must contain at least one lowercase letter"
+    } else if (!/(?=.*[A-Z])/.test(passwordData.newPassword)) {
+      newErrors.newPassword = "Password must contain at least one uppercase letter"
+    } else if (!/(?=.*\d)/.test(passwordData.newPassword)) {
+      newErrors.newPassword = "Password must contain at least one number"
+    } else if (!/(?=.*[@$!%*?&#])/.test(passwordData.newPassword)) {
+      newErrors.newPassword = "Password must contain at least one special character (@$!%*?&#)"
+    }
+
+    // Validate confirm password
+    if (!passwordData.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password"
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match"
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setPasswordErrors(newErrors)
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/profile/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-data': JSON.stringify(user),
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change password')
+      }
+
+      toast.success("Password changed successfully!")
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+      setPasswordErrors({})
+    } catch (error: any) {
+      console.error('Error changing password:', error)
+      toast.error(error.message || "Failed to change password")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const sections = [
@@ -874,6 +960,122 @@ export default function ProfilePage() {
                   <h2 className="text-2xl font-bold text-gray-900">Security Settings</h2>
                   <p className="text-gray-600 mt-1">Manage your account security and authentication</p>
                 </div>
+
+                {/* Change Password */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lock className="h-5 w-5" />
+                      Change Password
+                    </CardTitle>
+                    <CardDescription>
+                      Update your password to keep your account secure
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={passwordData.currentPassword}
+                          onChange={(e) => {
+                            setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                            setPasswordErrors({ ...passwordErrors, currentPassword: "" })
+                          }}
+                          className={passwordErrors.currentPassword ? "border-red-500" : ""}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showCurrentPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {passwordErrors.currentPassword && (
+                        <p className="text-sm text-red-500">{passwordErrors.currentPassword}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showNewPassword ? "text" : "password"}
+                          value={passwordData.newPassword}
+                          onChange={(e) => {
+                            setPasswordData({ ...passwordData, newPassword: e.target.value })
+                            setPasswordErrors({ ...passwordErrors, newPassword: "" })
+                          }}
+                          className={passwordErrors.newPassword ? "border-red-500" : ""}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showNewPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {passwordErrors.newPassword && (
+                        <p className="text-sm text-red-500">{passwordErrors.newPassword}</p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        Password must be at least 8 characters and include uppercase, lowercase, number, and special character (@$!%*?&#)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => {
+                            setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                            setPasswordErrors({ ...passwordErrors, confirmPassword: "" })
+                          }}
+                          className={passwordErrors.confirmPassword ? "border-red-500" : ""}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {passwordErrors.confirmPassword && (
+                        <p className="text-sm text-red-500">{passwordErrors.confirmPassword}</p>
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={handlePasswordChange}
+                      disabled={isLoading}
+                      className="bg-teal-500 hover:bg-teal-600"
+                    >
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Change Password
+                    </Button>
+                  </CardContent>
+                </Card>
 
                 <TwoFactorSettings user={user} twoFactorEnabled={twoFactorEnabled} />
               </div>

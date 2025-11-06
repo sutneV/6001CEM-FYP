@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm'
 // POST /api/ai-chat/[id]/messages - Save a message to a conversation
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userHeader = request.headers.get('x-user-data')
@@ -15,8 +15,8 @@ export async function POST(
     }
 
     const user = JSON.parse(userHeader)
-    const conversationId = params.id
-    const { sender, content } = await request.json()
+    const { id: conversationId } = await params
+    const { sender, content, images } = await request.json()
 
     // Verify conversation belongs to user
     const [conversation] = await db
@@ -33,13 +33,28 @@ export async function POST(
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
     }
 
-    // Save the message
+    // Ensure images is a proper array
+    let imageArray = []
+    if (images !== undefined && images !== null) {
+      if (Array.isArray(images)) {
+        imageArray = images
+      } else if (typeof images === 'string') {
+        try {
+          imageArray = JSON.parse(images)
+        } catch {
+          imageArray = []
+        }
+      }
+    }
+
+    // Save the message - explicitly set images to the array or undefined
     const [newMessage] = await db
       .insert(aiChatMessages)
       .values({
         conversationId,
         sender,
-        content
+        content,
+        ...(imageArray.length > 0 ? { images: imageArray } : {})
       })
       .returning()
 

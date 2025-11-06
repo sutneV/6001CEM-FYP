@@ -14,7 +14,7 @@ export interface AuthenticatedUser {
 
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthenticatedUser | null> {
   try {
-    // Get user ID from headers (you'll need to set this from the client)
+    // Get user ID from headers
     const userId = request.headers.get('x-user-id')
     
     if (!userId) {

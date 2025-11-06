@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm'
 // DELETE /api/ai-chat/[id] - Delete a conversation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userHeader = request.headers.get('x-user-data')
@@ -15,7 +15,7 @@ export async function DELETE(
     }
 
     const user = JSON.parse(userHeader)
-    const conversationId = params.id
+    const { id: conversationId } = await params
 
     const deleted = await db
       .delete(aiChatConversations)
@@ -41,7 +41,7 @@ export async function DELETE(
 // PATCH /api/ai-chat/[id] - Update conversation title
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userHeader = request.headers.get('x-user-data')
@@ -50,7 +50,7 @@ export async function PATCH(
     }
 
     const user = JSON.parse(userHeader)
-    const conversationId = params.id
+    const { id: conversationId } = await params
     const { title } = await request.json()
 
     const [updated] = await db

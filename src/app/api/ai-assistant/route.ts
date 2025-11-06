@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@supabase/supabase-js'
+import { CohereClient } from 'cohere-ai'
 
 // Create server-side Supabase client
 const supabase = createClient(
@@ -12,13 +13,18 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
+// Initialize Cohere for re-ranking (optional - only if API key is provided)
+const cohere = process.env.COHERE_API_KEY ? new CohereClient({
+  token: process.env.COHERE_API_KEY
+}) : null
+
 export async function POST(request: NextRequest) {
   try {
-    const { message, userRole, conversationHistory = [] } = await request.json()
+    const { message, images, pdfs, userRole, conversationHistory = [] } = await request.json()
 
-    if (!message || typeof message !== 'string') {
+    if ((!message || typeof message !== 'string') && (!images || images.length === 0) && (!pdfs || pdfs.length === 0)) {
       return NextResponse.json(
-        { error: 'Message is required' },
+        { error: 'Message, images, or PDFs are required' },
         { status: 400 }
       )
     }
@@ -30,23 +36,127 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate embedding for the user's question directly with OpenAI
-    const embeddingResponse = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: message.replace(/\n/g, ' ').substring(0, 8000),
-    })
-    const questionEmbedding = embeddingResponse.data[0].embedding
+    // Parse PDFs if present
+    let pdfContent = ''
+    if (pdfs && pdfs.length > 0) {
+      for (const pdf of pdfs) {
+        try {
+          // Convert base64 to blob
+          const base64Data = pdf.data.split(',')[1]
+          const binaryData = Buffer.from(base64Data, 'base64')
+          const blob = new Blob([binaryData], { type: 'application/pdf' })
+          const file = new File([blob], pdf.name, { type: 'application/pdf' })
 
-    // Search for relevant document chunks using vector similarity
-    const { data: relevantChunks, error: searchError } = await supabase
-      .rpc('search_similar_chunks', {
-        query_embedding: questionEmbedding,
-        match_threshold: 0.15, // Balanced threshold allowing semantic matches
-        match_count: 5 
+          // Use the existing parse-document API
+          const formData = new FormData()
+          formData.append('file', file)
+
+          const parseResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/parse-document`, {
+            method: 'POST',
+            body: formData
+          })
+
+          if (parseResponse.ok) {
+            const result = await parseResponse.json()
+            if (result.success && result.content) {
+              pdfContent += `\n\n[PDF: ${pdf.name}]\n${result.content}\n`
+            }
+          }
+        } catch (error) {
+          console.error(`Error parsing PDF ${pdf.name}:`, error)
+        }
+      }
+    }
+
+    // Decide when to use RAG (knowledge-base retrieval)
+    // If the user attaches images and asks a short/vision-style question
+    // like "what breed is this?", prefer pure vision without RAG.
+    // Reserve RAG for policy/process/KB-style questions.
+    const isImageFocusedQuery = (text: unknown, hasImagesFlag: boolean) => {
+      if (!hasImagesFlag) return false
+      if (!text || typeof text !== 'string') return true
+      const q = text.trim()
+      if (!q) return true
+      // Heuristics for vision-style prompts
+      const patterns = [
+        /\b(what|which)\s+(breed|color|colour)\b/i,
+        /\bwhat\s+is\s+(this|in\s+the\s+(image|photo|picture))\b/i,
+        /\bdescribe(\s+the\s+(image|photo|picture))?\b/i,
+        /\bidentify\b/i,
+        /\bhow\s+many\b/i,
+      ]
+      if (patterns.some((re) => re.test(q))) return true
+      // Very short questions with images are usually vision-oriented
+      return hasImagesFlag && q.length <= 40
+    }
+
+    // Skip RAG for image-focused questions
+    let relevantChunks = null
+    const shouldUseRAG = Boolean(message && message.trim().length > 0) &&
+                         !isImageFocusedQuery(message, Boolean(images?.length))
+
+    if (shouldUseRAG) {
+      // Generate embedding for the user's question directly with OpenAI
+      const searchQuery = message || 'analyzing attached files'
+      const embeddingResponse = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: searchQuery.replace(/\n/g, ' ').substring(0, 8000),
       })
+      const questionEmbedding = embeddingResponse.data[0].embedding
 
-    if (searchError) {
-      console.error('Vector search error:', searchError)
+      // STAGE 1: Retrieve candidates using vector similarity
+      // Retrieve more candidates (20-30) for re-ranking
+      const candidateCount = cohere ? 25 : 5 // Get more if we're re-ranking
+      const { data: candidateChunks, error: searchError } = await supabase
+        .rpc('search_similar_chunks', {
+          query_embedding: questionEmbedding,
+          match_threshold: 0.1, // Lower threshold for first stage to get more candidates
+          match_count: candidateCount
+        })
+
+      if (searchError) {
+        console.error('Vector search error:', searchError)
+      }
+
+      // STAGE 2: Re-rank with Cohere (if available)
+      relevantChunks = candidateChunks
+      if (cohere && candidateChunks && candidateChunks.length > 0) {
+        try {
+          console.log(`Re-ranking ${candidateChunks.length} candidates with Cohere...`)
+
+          // Prepare documents for re-ranking
+          const documents = candidateChunks.map((chunk: any) => chunk.chunk_text)
+
+          // Call Cohere re-rank API
+          const reranked = await cohere.rerank({
+            model: 'rerank-english-v3.0', // or 'rerank-multilingual-v3.0' for multilingual
+            query: searchQuery,
+            documents: documents,
+            topN: 5, // Return top 5 after re-ranking
+            returnDocuments: false // We already have the documents
+          })
+
+          // Map re-ranked results back to original chunks
+          relevantChunks = reranked.results.map((result: any) => {
+            const chunk = candidateChunks[result.index]
+            return {
+              ...chunk,
+              // Add re-ranking score for debugging
+              rerank_score: result.relevanceScore,
+              // Keep original similarity for comparison
+              original_similarity: chunk.similarity
+            }
+          })
+
+          console.log(`Re-ranking improved results. Top score: ${reranked.results[0]?.relevanceScore}`)
+        } catch (rerankError) {
+          console.error('Re-ranking failed, falling back to vector search only:', rerankError)
+          // Fall back to top 5 from vector search
+          relevantChunks = candidateChunks?.slice(0, 5)
+        }
+      }
+    } else {
+      console.log('Skipping RAG - image-focused or no text context')
     }
 
     // Get document details for the relevant chunkswh
@@ -100,10 +210,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare messages for OpenAI with conversation history
-    const systemMessage = {
-      role: 'system' as const,
-      content: contextText
-        ? `${getSystemPrompt(userRole || 'adopter')}
+    const hasImages = images && images.length > 0
+    const imageQuery = isImageFocusedQuery(message, Boolean(hasImages))
+    const hasPDFs = pdfContent && pdfContent.trim().length > 0
+    const hasRAGContext = contextText && contextText.trim().length > 0
+
+    let systemPrompt = getSystemPrompt(userRole || 'adopter')
+
+    // Add appropriate instructions based on what's available
+    if (hasImages && !hasRAGContext && (imageQuery || !message?.trim())) {
+      // Image-only query
+      systemPrompt += `
+
+IMPORTANT INSTRUCTIONS:
+1. Analyze the provided image(s) carefully
+2. Describe what you see in detail (animals, environment, conditions, etc.)
+3. Provide relevant advice or information based on the image content
+4. If it's a pet image, comment on breed, health, behavior cues, or care needs
+5. Be helpful and informative based purely on visual analysis
+6. Do NOT cite knowledge base sources - focus on image analysis`
+    } else if (hasRAGContext) {
+      // Has RAG context
+      systemPrompt += `
 
 IMPORTANT INSTRUCTIONS:
 1. Use the provided context documents to answer the user's question accurately
@@ -113,16 +241,26 @@ IMPORTANT INSTRUCTIONS:
 5. Cite your sources when using information from the knowledge base
 6. Keep responses concise but comprehensive
 7. Remember the conversation history and maintain context throughout the chat
+${hasImages ? '8. If images are provided, analyze them in conjunction with the context documents' : ''}
 
 Context from Knowledge Base:
-${contextText}`
-        : `${getSystemPrompt(userRole || 'adopter')}
+${contextText}
+${pdfContent ? `\nPDF Content:\n${pdfContent}` : ''}`
+    } else {
+      // No RAG context available
+      systemPrompt += `
 
-IMPORTANT: The knowledge base search didn't return any relevant documents for this query. Please provide helpful general information about pet adoption and animal care, but clearly indicate that you don't have access to specific organizational policies or procedures. Encourage the user to contact the shelter directly for specific information. Remember the conversation history and maintain context throughout the chat.`
+IMPORTANT: ${hasPDFs ? 'Using PDF content provided.' : 'The knowledge base search didn\'t return any relevant documents for this query.'} Please provide helpful general information about pet adoption and animal care${hasPDFs ? ' combined with the PDF content' : ', but clearly indicate that you don\'t have access to specific organizational policies or procedures'}. Remember the conversation history and maintain context throughout the chat.
+${pdfContent ? `\nPDF Content:\n${pdfContent}` : ''}`
+    }
+
+    const systemMessage = {
+      role: 'system' as const,
+      content: systemPrompt
     }
 
     // Build messages array with conversation history
-    const messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [systemMessage]
+    const messages: Array<{role: 'system' | 'user' | 'assistant', content: string | Array<any>}> = [systemMessage]
 
     // Add conversation history (excluding the initial AI greeting to avoid confusion)
     if (conversationHistory && Array.isArray(conversationHistory)) {
@@ -133,11 +271,39 @@ IMPORTANT: The knowledge base search didn't return any relevant documents for th
       messages.push(...filteredHistory)
     }
 
-    // Add the current message
-    messages.push({
-      role: 'user' as const,
-      content: message
-    })
+    // Add the current message with images if present
+    if (images && images.length > 0) {
+      // Use vision model for image analysis
+      const contentParts: Array<any> = []
+
+      if (message && message.trim()) {
+        contentParts.push({
+          type: 'text',
+          text: message
+        })
+      }
+
+      // Add all images
+      images.forEach((image: string) => {
+        contentParts.push({
+          type: 'image_url',
+          image_url: {
+            url: image
+          }
+        })
+      })
+
+      messages.push({
+        role: 'user' as const,
+        content: contentParts
+      })
+    } else {
+      // Text-only message
+      messages.push({
+        role: 'user' as const,
+        content: message || 'Please analyze the attached PDFs'
+      })
+    }
 
     // Generate streaming response using OpenAI
     const stream = await openai.chat.completions.create({

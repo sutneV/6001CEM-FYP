@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Bot, User, Paperclip, Smile, MoreVertical, Plus, MessageSquare, Trash2, PanelLeftOpen, PanelLeftClose } from "lucide-react"
+import { Send, Bot, User, Smile, MoreVertical, Plus, MessageSquare, Trash2, PanelLeftOpen, PanelLeftClose, X, Image as ImageIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { motion } from "framer-motion"
 import ReactMarkdown from 'react-markdown'
@@ -17,6 +17,7 @@ interface Message {
   content: string
   sender: 'user' | 'ai'
   timestamp: Date
+  images?: string[]
 }
 
 interface ChatHistory {
@@ -35,6 +36,8 @@ export default function AIAssistantPage() {
   const [newMessage, setNewMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [selectedImages, setSelectedImages] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const currentChat = chatHistories.find(chat => chat.id === currentChatId)
@@ -74,7 +77,8 @@ export default function AIAssistantPage() {
           id: msg.id,
           content: msg.content,
           sender: msg.sender,
-          timestamp: new Date(msg.createdAt)
+          timestamp: new Date(msg.createdAt),
+          images: msg.images
         })),
         createdAt: new Date(conv.createdAt),
         updatedAt: new Date(conv.updatedAt)
@@ -229,16 +233,19 @@ export default function AIAssistantPage() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !currentChat || !user) return
+    if ((!newMessage.trim() && selectedImages.length === 0) || !currentChat || !user) return
 
     const messageContent = newMessage
+    const messageImages = [...selectedImages]
     setNewMessage("")
+    setSelectedImages([])
 
     const userMessage: Message = {
       id: Date.now().toString(),
       content: messageContent,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      images: messageImages.length > 0 ? messageImages : undefined
     }
 
     // Update the current chat with the new message (optimistic update)
@@ -267,7 +274,8 @@ export default function AIAssistantPage() {
         },
         body: JSON.stringify({
           sender: 'user',
-          content: messageContent
+          content: messageContent,
+          images: messageImages.length > 0 ? messageImages : undefined
         }),
       })
     } catch (error) {
@@ -298,7 +306,8 @@ export default function AIAssistantPage() {
       // Prepare conversation history for context
       const conversationHistory = messages.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.content
+        content: msg.content,
+        images: msg.images
       }))
 
       // Call the streaming AI assistant API
@@ -309,6 +318,7 @@ export default function AIAssistantPage() {
         },
         body: JSON.stringify({
           message: messageContent,
+          images: messageImages.length > 0 ? messageImages : undefined,
           userRole: 'adopter',
           conversationHistory
         }),
@@ -387,6 +397,61 @@ export default function AIAssistantPage() {
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || !user) return
+
+    const fileArray = Array.from(files)
+
+    // Limit to 4 images total
+    const remainingSlots = 4 - selectedImages.length
+    const filesToProcess = fileArray.slice(0, remainingSlots)
+
+    // Upload images to Supabase Storage
+    for (const file of filesToProcess) {
+      if (file.type.startsWith('image/')) {
+        try {
+          // Upload to Supabase Storage
+          const fileExt = file.name.split('.').pop()
+          const fileName = `chat-${user.id}-${Date.now()}.${fileExt}`
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('fileName', fileName)
+          formData.append('bucket', 'ai-chat-images')
+
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              'x-user-data': JSON.stringify(user),
+            },
+            body: formData,
+          })
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json()
+            console.error('Failed to upload image:', errorData)
+            alert(`Failed to upload image: ${errorData.error || 'Unknown error'}`)
+            continue
+          }
+
+          const { url } = await uploadResponse.json()
+          setSelectedImages(prev => [...prev, url])
+        } catch (error) {
+          console.error('Error uploading image:', error)
+        }
+      }
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index))
   }
 
   if (loading) {
@@ -532,6 +597,21 @@ export default function AIAssistantPage() {
                       : "bg-white border border-gray-200 rounded-bl-md"
                   }`}
                 >
+                  {/* Display images if present */}
+                  {message.images && message.images.length > 0 && (
+                    <div className="mb-2 flex gap-2 flex-wrap">
+                      {message.images.map((image, imgIndex) => (
+                        <img
+                          key={imgIndex}
+                          src={image}
+                          alt={`Attachment ${imgIndex + 1}`}
+                          className="max-w-xs rounded-lg border-2 border-white/20 cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(image, '_blank')}
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {message.sender === 'ai' ? (
                     <div className="text-sm prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-teal-600 prose-code:text-teal-600 prose-pre:bg-gray-100">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -539,7 +619,11 @@ export default function AIAssistantPage() {
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <>
+                      {message.content && (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </>
                   )}
                   <p
                     className={`text-xs mt-1 ${
@@ -560,9 +644,45 @@ export default function AIAssistantPage() {
 
         {/* Message Input */}
         <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+          {/* Image Preview */}
+          {selectedImages.length > 0 && (
+            <div className="mb-3 flex gap-2 flex-wrap">
+              {selectedImages.map((image, index) => (
+                <div key={`img-${index}`} className="relative group">
+                  <img
+                    src={image}
+                    alt={`Preview ${index + 1}`}
+                    className="h-20 w-20 object-cover rounded-lg border-2 border-gray-200"
+                  />
+                  <button
+                    onClick={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
         <div className="flex items-end space-x-3">
-          <Button variant="ghost" size="sm" className="mb-1">
-            <Paperclip className="h-4 w-4" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageSelect}
+            className="hidden"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-1"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={selectedImages.length >= 4}
+            title="Upload images"
+          >
+            <ImageIcon className="h-4 w-4" />
           </Button>
           <div className="flex-1">
             <div className="flex items-end bg-gray-50 rounded-lg border border-gray-200 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
@@ -587,7 +707,7 @@ export default function AIAssistantPage() {
           </div>
           <Button
             onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && selectedImages.length === 0}
             className="bg-teal-500 hover:bg-teal-600 text-white"
             size="sm"
           >
