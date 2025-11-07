@@ -109,6 +109,44 @@ export async function updateFolder(
 }
 
 export async function deleteFolder(id: string): Promise<void> {
+  // First, get all documents in this folder
+  const { data: documents, error: docFetchError } = await supabase
+    .from('documents')
+    .select('id')
+    .eq('folder_id', id)
+
+  if (docFetchError) {
+    console.error('Error fetching documents in folder:', docFetchError)
+    throw new Error(`Failed to fetch documents: ${docFetchError.message}`)
+  }
+
+  // Delete all document chunks for each document
+  if (documents && documents.length > 0) {
+    const documentIds = documents.map(doc => doc.id)
+
+    const { error: chunksDeleteError } = await supabase
+      .from('document_chunks')
+      .delete()
+      .in('document_id', documentIds)
+
+    if (chunksDeleteError) {
+      console.error('Error deleting document chunks:', chunksDeleteError)
+      throw new Error(`Failed to delete document chunks: ${chunksDeleteError.message}`)
+    }
+
+    // Delete all documents in the folder
+    const { error: docsDeleteError } = await supabase
+      .from('documents')
+      .delete()
+      .eq('folder_id', id)
+
+    if (docsDeleteError) {
+      console.error('Error deleting documents:', docsDeleteError)
+      throw new Error(`Failed to delete documents: ${docsDeleteError.message}`)
+    }
+  }
+
+  // Finally, delete the folder itself
   const { error } = await supabase
     .from('document_folders')
     .delete()

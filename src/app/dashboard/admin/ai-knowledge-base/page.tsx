@@ -58,6 +58,7 @@ import {
   createDocument,
   updateDocument,
   deleteDocument,
+  deleteFolder,
   updateFolder,
   reindexDocument,
   getKnowledgeStats,
@@ -218,6 +219,45 @@ export default function AIKnowledgeBasePage() {
     } catch (err) {
       console.error('Error deleting document:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete document')
+    }
+  }
+
+  const handleDeleteFolder = async (id: string) => {
+    const folder = folders.find(f => f.id === id)
+    const docCount = getDocumentsForFolder(id).length
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${folder?.name}"?\n\n` +
+      `This will permanently delete:\n` +
+      `- The folder\n` +
+      `- ${docCount} document(s)\n` +
+      `- All associated chunks and embeddings\n\n` +
+      `This action cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setLoading(true)
+      await deleteFolder(id)
+
+      // Update state
+      setFolders(prev => prev.filter(f => f.id !== id))
+      setDocuments(prev => prev.filter(doc => doc.folder_id !== id))
+
+      // If selected document was in this folder, deselect it
+      if (selectedDocument && selectedDocument.folder_id === id) {
+        setSelectedDocument(null)
+      }
+
+      // Refresh stats
+      const newStats = await getKnowledgeStats()
+      setStats(newStats)
+    } catch (err) {
+      console.error('Error deleting folder:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete folder')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -611,30 +651,42 @@ export default function AIKnowledgeBasePage() {
             {folders.map((folder) => (
               <div key={folder.id} className="mb-2">
                 <div
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                  className="group flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
                   onClick={() => toggleFolder(folder.id)}
                 >
                   {openFolders.has(folder.id) ? (
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                    <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                    <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   )}
                   {openFolders.has(folder.id) ? (
-                    <FolderOpen className="h-4 w-4 text-teal-500" />
+                    <FolderOpen className="h-4 w-4 text-teal-500 flex-shrink-0" />
                   ) : (
-                    <FolderClosed className="h-4 w-4 text-gray-400" />
+                    <FolderClosed className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                  <div className="flex-1 min-w-0 max-w-[140px]">
+                    <p className="text-sm font-medium text-gray-900 truncate" title={folder.name}>
                       {folder.name}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-gray-500 truncate" title={folder.description || undefined}>
                       {folder.description}
                     </p>
                     <p className="text-xs text-gray-400 truncate">
                       {getDocumentsForFolder(folder.id).length} documents
                     </p>
                   </div>
+                  <div className="flex-1"></div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteFolder(folder.id)
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 text-red-600" />
+                  </Button>
                 </div>
 
                 {openFolders.has(folder.id) && (
@@ -652,8 +704,8 @@ export default function AIKnowledgeBasePage() {
                         onClick={() => selectDocument(doc)}
                       >
                         <File className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                        <div className="min-w-0 max-w-[180px]">
+                          <p className="text-sm font-medium text-gray-900 truncate" title={doc.title}>
                             {doc.title}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
@@ -662,19 +714,18 @@ export default function AIKnowledgeBasePage() {
                             </Badge>
                           </div>
                         </div>
-                        <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteDocument(doc.id)
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <div className="flex-1"></div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteDocument(doc.id)
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </motion.div>
                     ))}
                   </div>

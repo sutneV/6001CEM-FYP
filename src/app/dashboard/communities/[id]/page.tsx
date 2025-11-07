@@ -44,6 +44,8 @@ export default function CommunityPostsPage() {
   const [userEventParticipation, setUserEventParticipation] = useState<{[eventId: string]: boolean}>({})
   const [isNewPostOpen, setIsNewPostOpen] = useState(false)
   const [isNewEventOpen, setIsNewEventOpen] = useState(false)
+  const [creatingPost, setCreatingPost] = useState(false)
+  const [creatingEvent, setCreatingEvent] = useState(false)
   const [newPost, setNewPost] = useState({
     title: "",
     content: "",
@@ -304,9 +306,27 @@ export default function CommunityPostsPage() {
   }
 
   const handleCreatePost = async () => {
-    if (!newPost.title.trim() || !newPost.content.trim()) return
+    // Validation
+    if (!newPost.title.trim()) {
+      toast.error('Please enter a post title')
+      return
+    }
+    if (!newPost.content.trim()) {
+      toast.error('Please enter post content')
+      return
+    }
+    if (newPost.title.trim().length < 3) {
+      toast.error('Post title must be at least 3 characters long')
+      return
+    }
+    if (newPost.content.trim().length < 10) {
+      toast.error('Post content must be at least 10 characters long')
+      return
+    }
 
     try {
+      setCreatingPost(true)
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       }
@@ -319,18 +339,23 @@ export default function CommunityPostsPage() {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          title: newPost.title,
-          content: newPost.content,
+          title: newPost.title.trim(),
+          content: newPost.content.trim(),
           type: mapTypeToDbType(newPost.type),
         }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.data) {
         // Add the new post to the beginning of the posts array
         setPosts([data.data, ...posts])
-        
+
         // Initialize like state for the new post
         setPostLikeStates(prev => ({
           ...prev,
@@ -339,23 +364,62 @@ export default function CommunityPostsPage() {
             count: 0
           }
         }))
-        
+
         setNewPost({ title: "", content: "", type: "general" })
         setIsNewPostOpen(false)
         toast.success('Post created successfully!')
       } else {
-        throw new Error(data.error || 'Failed to create post')
+        throw new Error(data.error || 'Failed to create post - no data returned')
       }
     } catch (error) {
       console.error('Error creating post:', error)
-      toast.error('Failed to create post')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create post'
+      toast.error(errorMessage)
+    } finally {
+      setCreatingPost(false)
     }
   }
 
   const handleCreateEvent = async () => {
-    if (!newEvent.title.trim() || !newEvent.content.trim() || !newEvent.date.trim() || !newEvent.location.trim()) return
+    // Validation
+    if (!newEvent.title.trim()) {
+      toast.error('Please enter an event title')
+      return
+    }
+    if (!newEvent.content.trim()) {
+      toast.error('Please enter event description')
+      return
+    }
+    if (!newEvent.date.trim()) {
+      toast.error('Please select an event date')
+      return
+    }
+    if (!newEvent.location.trim()) {
+      toast.error('Please enter or select an event location')
+      return
+    }
+    if (newEvent.title.trim().length < 3) {
+      toast.error('Event title must be at least 3 characters long')
+      return
+    }
+    if (newEvent.content.trim().length < 10) {
+      toast.error('Event description must be at least 10 characters long')
+      return
+    }
+
+    // Validate date is not in the past
+    const selectedDate = new Date(newEvent.date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (selectedDate < today) {
+      toast.error('Event date cannot be in the past')
+      return
+    }
 
     try {
+      setCreatingEvent(true)
+
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       }
@@ -368,31 +432,46 @@ export default function CommunityPostsPage() {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          title: newEvent.title,
-          description: newEvent.content,
+          title: newEvent.title.trim(),
+          description: newEvent.content.trim(),
           eventDate: newEvent.date,
-          eventTime: newEvent.time,
-          location: newEvent.location,
+          eventTime: newEvent.time || null,
+          location: newEvent.location.trim(),
           latitude: newEvent.latitude,
           longitude: newEvent.longitude,
-          fee: newEvent.fee || 'Free',
+          fee: newEvent.fee?.trim() || 'Free',
         }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.data) {
         // Add the new event to the events list
         setEvents([data.data, ...events])
+
+        // Initialize participation status for the new event
+        setUserEventParticipation(prev => ({
+          ...prev,
+          [data.data.id]: false
+        }))
+
         setNewEvent({ title: "", content: "", date: "", time: "", location: "", latitude: null, longitude: null, fee: "" })
         setIsNewEventOpen(false)
         toast.success('Event created successfully!')
       } else {
-        throw new Error(data.error || 'Failed to create event')
+        throw new Error(data.error || 'Failed to create event - no data returned')
       }
     } catch (error) {
       console.error('Error creating event:', error)
-      toast.error('Failed to create event')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create event'
+      toast.error(errorMessage)
+    } finally {
+      setCreatingEvent(false)
     }
   }
 
@@ -1004,11 +1083,27 @@ export default function CommunityPostsPage() {
                       />
                     </div>
                     <div className="flex gap-3 pt-4">
-                      <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewPostOpen(false)}>
+                      <Button
+                        variant="outline"
+                        className="flex-1 bg-transparent"
+                        onClick={() => setIsNewPostOpen(false)}
+                        disabled={creatingPost}
+                      >
                         Cancel
                       </Button>
-                      <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreatePost}>
-                        Create Post
+                      <Button
+                        className="flex-1 bg-teal-500 hover:bg-teal-600"
+                        onClick={handleCreatePost}
+                        disabled={creatingPost || !newPost.title.trim() || !newPost.content.trim()}
+                      >
+                        {creatingPost ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          'Create Post'
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -1099,11 +1194,27 @@ export default function CommunityPostsPage() {
                 />
               </div>
               <div className="flex gap-3 pt-4">
-                <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setIsNewEventOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="flex-1 bg-transparent"
+                  onClick={() => setIsNewEventOpen(false)}
+                  disabled={creatingEvent}
+                >
                   Cancel
                 </Button>
-                <Button className="flex-1 bg-teal-500 hover:bg-teal-600" onClick={handleCreateEvent}>
-                  Create Event
+                <Button
+                  className="flex-1 bg-teal-500 hover:bg-teal-600"
+                  onClick={handleCreateEvent}
+                  disabled={creatingEvent || !newEvent.title.trim() || !newEvent.content.trim() || !newEvent.date.trim() || !newEvent.location.trim()}
+                >
+                  {creatingEvent ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Event'
+                  )}
                 </Button>
               </div>
             </div>
