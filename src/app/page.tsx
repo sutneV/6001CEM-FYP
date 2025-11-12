@@ -5,10 +5,11 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Heart, PawPrint, Clock, MapPin, Info, ArrowRight, Search, Mail, Phone } from "lucide-react"
+import { Heart, PawPrint, Clock, MapPin, Info, ArrowRight, Search, Mail, Phone, Dog, Cat, Loader2 } from "lucide-react"
 import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
+import { petsService, PetWithShelter } from "@/lib/services/pets"
 
 // Animation variants
 const fadeIn = {
@@ -67,7 +68,35 @@ const AnimatedSection = ({ children, className, id }: AnimatedSectionProps) => {
   )
 }
 
+const typeIcons = {
+  dog: Dog,
+  cat: Cat,
+  rabbit: PawPrint,
+  bird: PawPrint,
+  other: PawPrint,
+}
+
 export default function Home() {
+  const [pets, setPets] = useState<PetWithShelter[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchPets()
+  }, [])
+
+  const fetchPets = async () => {
+    try {
+      setLoading(true)
+      const data = await petsService.getAllPets({ status: 'available' })
+      // Get first 6 pets for the landing page
+      setPets(data.slice(0, 6))
+    } catch (error) {
+      console.error('Error fetching pets:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <motion.header
@@ -315,43 +344,63 @@ export default function Home() {
               initial="hidden"
               animate="visible"
             >
-              {[1, 2, 3, 4, 5, 6].map((pet) => (
-                <motion.div key={pet} variants={popIn} whileHover={{ y: -10 }}>
-                  <Card className="overflow-hidden">
-                    <div className="aspect-square relative">
-                      <Image
-                        src={`/placeholder.svg?height=300&width=300&text=Pet+${pet}`}
-                        alt={`Adoptable pet ${pet}`}
-                        fill
-                        className="object-cover"
-                      />
-                      <Badge className="absolute top-2 right-2 bg-teal-500">{pet % 2 === 0 ? "Dog" : "Cat"}</Badge>
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold text-lg">
-                          {pet % 2 === 0 ? "Buddy" : "Whiskers"} {pet}
-                        </h3>
-                        <Badge variant="outline" className="text-teal-700 border-teal-200 bg-teal-100">
-                          {pet % 3 === 0 ? "Senior" : pet % 2 === 0 ? "Adult" : "Kitten/Puppy"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500 mb-3">
-                        <MapPin className="mr-1 h-3 w-3" />
-                        {pet % 3 === 0 ? "George Town" : pet % 2 === 0 ? "Batu Ferringhi" : "Tanjung Bungah"}
-                      </div>
-                      <p className="text-sm text-gray-500 mb-4">
-                        {pet % 2 === 0
-                          ? "Friendly and energetic, loves long walks and playing fetch."
-                          : "Gentle and affectionate, enjoys cuddles and window watching."}
-                      </p>
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                        <Button className="w-full bg-teal-500 hover:bg-teal-600">View Profile</Button>
-                      </motion.div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+              {loading ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mb-4 text-teal-500" />
+                  <p className="text-muted-foreground">Loading available pets...</p>
+                </div>
+              ) : pets.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-12">
+                  <PawPrint className="h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-gray-500">No pets available at the moment</p>
+                </div>
+              ) : (
+                pets.map((pet) => {
+                  const TypeIcon = typeIcons[pet.type as keyof typeof typeIcons] || PawPrint
+                  return (
+                    <motion.div key={pet.id} variants={popIn} whileHover={{ y: -10 }}>
+                      <Card className="overflow-hidden">
+                        <div className="aspect-square relative">
+                          <Image
+                            src={pet.images && pet.images.length > 0 ? pet.images[0] : `/placeholder.svg?height=300&width=300&text=${pet.name}`}
+                            alt={pet.name}
+                            fill
+                            className="object-cover"
+                          />
+                          <Badge className="absolute top-2 right-2 bg-teal-500 flex items-center gap-1">
+                            <TypeIcon className="h-3 w-3" />
+                            <span className="capitalize">{pet.type}</span>
+                          </Badge>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="font-bold text-lg">{pet.name}</h3>
+                            <Badge variant="outline" className="text-teal-700 border-teal-200 bg-teal-100 capitalize">
+                              {pet.age}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center text-sm text-gray-500 mb-3">
+                            <MapPin className="mr-1 h-3 w-3" />
+                            {pet.shelter.name}
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2">
+                            {pet.breed || 'Mixed Breed'} • {pet.gender.charAt(0).toUpperCase() + pet.gender.slice(1)}
+                            {pet.size && ` • ${pet.size.charAt(0).toUpperCase() + pet.size.slice(1)}`}
+                          </p>
+                          <p className="text-sm text-gray-500 mb-4 line-clamp-2">
+                            {pet.description || 'A wonderful pet looking for a loving home.'}
+                          </p>
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Link href={`/dashboard/pets/${pet.id}`}>
+                              <Button className="w-full bg-teal-500 hover:bg-teal-600">View Profile</Button>
+                            </Link>
+                          </motion.div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )
+                })
+              )}
             </motion.div>
             <motion.div
               className="flex justify-center"
@@ -361,10 +410,12 @@ export default function Home() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Button variant="outline" className="gap-1">
-                View All Pets
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              <Link href="/dashboard/pets">
+                <Button variant="outline" className="gap-1">
+                  View All Pets
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
             </motion.div>
           </div>
         </AnimatedSection>
