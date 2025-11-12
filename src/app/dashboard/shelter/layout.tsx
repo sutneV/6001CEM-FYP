@@ -73,8 +73,6 @@ export default function ShelterLayout({
     { name: "Communities", icon: Users, href: "/dashboard/shelter/communities" },
     { name: "Event Map", icon: MapPin, href: "/dashboard/shelter/event-map" },
     { name: "Calendar", icon: Calendar, href: "/dashboard/shelter/calendar" },
-    { name: "Events", icon: Calendar, href: "/dashboard/shelter/events" },
-    { name: "Reports", icon: FileText, href: "/dashboard/shelter/reports" },
     { name: "AI Assistant", icon: Bot, href: "/dashboard/shelter/ai-assistant" },
   ]
 

@@ -70,7 +70,6 @@ export default function DashboardLayout({
     { name: "Communities", icon: Users, href: "/dashboard/communities" },
     { name: "Event Map", icon: MapPin, href: "/dashboard/event-map" },
     { name: "Calendar", icon: Calendar, href: "/dashboard/calendar" },
-    { name: "Resources", icon: FileText, href: "/dashboard/resources" },
     { name: "AI Assistant", icon: Bot, href: "/dashboard/ai-assistant" },
   ]
 
@@ -246,7 +245,6 @@ export default function DashboardLayout({
                pathname === "/dashboard/communities" ? "Communities" :
                pathname === "/dashboard/event-map" ? "Event Map" :
                pathname === "/dashboard/calendar" ? "Calendar" :
-               pathname === "/dashboard/resources" ? "Resources" :
                pathname === "/dashboard/ai-assistant" ? "AI Assistant" :
                pathname === "/dashboard/profile" ? "Profile" :
                "Dashboard"}

@@ -32,12 +32,9 @@ import {
   Search,
   Plus,
   Trash2,
-  Edit,
   Eye,
-  Download,
   RefreshCw,
   BarChart3,
-  Brain,
   Zap,
   CheckCircle,
   Clock,
@@ -60,7 +57,6 @@ import {
   deleteDocument,
   deleteFolder,
   updateFolder,
-  reindexDocument,
   getKnowledgeStats,
   getDocumentChunks,
   createDocumentChunks,
@@ -258,22 +254,6 @@ export default function AIKnowledgeBasePage() {
       setError(err instanceof Error ? err.message : 'Failed to delete folder')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleReindexDocument = async (id: string) => {
-    try {
-      const updatedDoc = await reindexDocument(id)
-      setDocuments(prev => prev.map(doc =>
-        doc.id === id ? updatedDoc : doc
-      ))
-
-      if (selectedDocument?.id === id) {
-        setSelectedDocument(updatedDoc)
-      }
-    } catch (err) {
-      console.error('Error reindexing document:', err)
-      setError(err instanceof Error ? err.message : 'Failed to reindex document')
     }
   }
 
@@ -751,24 +731,6 @@ export default function AIKnowledgeBasePage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleReindexDocument(selectedDocument.id)}
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Reindex
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-1" />
-                  Export
-                </Button>
-              </div>
             </div>
           </div>
 
@@ -1069,28 +1031,6 @@ export default function AIKnowledgeBasePage() {
                     <div>
                       <div className="font-medium text-sm">Refresh Data</div>
                       <div className="text-xs text-gray-500">Reload from database</div>
-                    </div>
-                  </div>
-                </Card>
-                <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Brain className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-sm">RAG Settings</div>
-                      <div className="text-xs text-gray-500">Configure AI</div>
-                    </div>
-                  </div>
-                </Card>
-                <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <BarChart3 className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-sm">Analytics</div>
-                      <div className="text-xs text-gray-500">View statistics</div>
                     </div>
                   </div>
                 </Card>

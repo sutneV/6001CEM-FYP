@@ -5,20 +5,15 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import {
-  Bell,
   ChevronRight,
   ChevronLeft,
   Home,
   LogOut,
   PawPrint,
-  Settings,
-  FileText,
   ClipboardList,
   Users,
   Building,
   BarChart3,
-  Shield,
-  Activity,
   Menu,
   Database,
 } from "lucide-react"
@@ -53,17 +48,11 @@ export default function AdminLayout({
     { name: "Shelter Management", icon: Building, href: "/dashboard/admin/shelters" },
     { name: "Shelter Applications", icon: ClipboardList, href: "/dashboard/admin/shelter-applications" },
     { name: "Pet Management", icon: PawPrint, href: "/dashboard/admin/pets" },
-    { name: "Applications", icon: ClipboardList, href: "/dashboard/admin/applications" },
     { name: "Analytics", icon: BarChart3, href: "/dashboard/admin/analytics" },
-    { name: "Reports", icon: FileText, href: "/dashboard/admin/reports" },
-    { name: "System Health", icon: Activity, href: "/dashboard/admin/system" },
     { name: "AI Knowledge Base", icon: Database, href: "/dashboard/admin/ai-knowledge-base" },
   ]
 
-  const secondaryNavItems = [
-    { name: "Security", icon: Shield, href: "/dashboard/admin/security" },
-    { name: "Settings", icon: Settings, href: "/dashboard/admin/settings" },
-  ]
+  const secondaryNavItems: any[] = []
 
   return (
     <AuthGuard allowedRoles={['admin']}>
@@ -128,28 +117,11 @@ export default function AdminLayout({
               )
             })}
           </nav>
-          
+
           <div className="mt-6">
-            {!sidebarCollapsed && (
-              <div className="px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Admin Tools</div>
-            )}
             <nav className={`grid gap-1 px-2 ${sidebarCollapsed ? "mt-2" : "mt-2"}`}>
-              {secondaryNavItems.map((item) => (
-                <motion.div key={item.name} whileHover={{ x: 5 }} whileTap={{ scale: 0.95 }}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-900 ${
-                      sidebarCollapsed ? "justify-center" : ""
-                    }`}
-                    title={sidebarCollapsed ? item.name : undefined}
-                  >
-                    <item.icon className="h-4 w-4 text-gray-400" />
-                    {!sidebarCollapsed && <span>{item.name}</span>}
-                  </Link>
-                </motion.div>
-              ))}
               <motion.div whileHover={{ x: 5 }} whileTap={{ scale: 0.95 }}>
-                <button 
+                <button
                   onClick={logout}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-900 ${
                     sidebarCollapsed ? "justify-center" : ""
@@ -186,9 +158,6 @@ export default function AdminLayout({
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Profile</DropdownMenuItem>
-                    <DropdownMenuItem>Settings</DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -221,26 +190,10 @@ export default function AdminLayout({
                pathname === "/dashboard/admin/shelters" ? "Shelter Management" :
                pathname === "/dashboard/admin/shelter-applications" ? "Shelter Applications" :
                pathname === "/dashboard/admin/pets" ? "Pet Management" :
-               pathname === "/dashboard/admin/applications" ? "Applications" :
                pathname === "/dashboard/admin/analytics" ? "Analytics" :
-               pathname === "/dashboard/admin/reports" ? "Reports" :
-               pathname === "/dashboard/admin/system" ? "System Health" :
                pathname === "/dashboard/admin/ai-knowledge-base" ? "AI Knowledge Base" :
                "Admin Panel"}
             </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="outline" size="icon" className="relative h-8 w-8">
-                  <Bell className="h-4 w-4" />
-                  <span className="sr-only">Notifications</span>
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-                    5
-                  </span>
-                </Button>
-              </motion.div>
-            </div>
           </div>
         </motion.header>
 

@@ -651,55 +651,6 @@ export default function PetProfilePage() {
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <h3 className="font-medium">Foster Information</h3>
-                        <div className="mt-2 flex items-center gap-3 rounded-lg border p-4">
-                          <Avatar>
-                            <AvatarImage
-                              src={petData.fosterParent.image || "/placeholder.svg"}
-                              alt={petData.fosterParent.name}
-                            />
-                            <AvatarFallback>
-                              {petData.fosterParent.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{petData.fosterParent.name}</p>
-                            <p className="text-sm text-gray-500">
-                              Foster parent for {petData.name} for {petData.fosterParent.since}
-                            </p>
-                          </div>
-                          <Button variant="outline" size="sm" className="ml-auto">
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Contact
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="font-medium">Location</h3>
-                        <div className="mt-2 overflow-hidden rounded-lg border">
-                          <div className="aspect-video relative bg-gray-100">
-                            <Image
-                              src="/placeholder.svg?height=300&width=600&text=Map+of+George+Town,+Penang"
-                              alt="Map showing pet location"
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="p-4">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-teal-500" />
-                              <span className="font-medium">{petData.location}</span>
-                            </div>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {petData.name} is currently in foster care at this location
-                            </p>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </TabsContent>
                   <TabsContent value="health" className="p-6">
@@ -921,14 +872,8 @@ export default function PetProfilePage() {
                       </Link>
                     )}
                   </motion.div>
-                  <div className="flex gap-2">
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">
-                      <Button variant="outline" className="w-full">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Schedule Meet & Greet
-                      </Button>
-                    </motion.div>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1">
+                  <div>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                       <Button variant="outline" className="w-full" onClick={handleAskQuestion}>
                         <MessageSquare className="mr-2 h-4 w-4" />
                         Ask a Question
@@ -972,43 +917,6 @@ export default function PetProfilePage() {
                       </Link>
                     </motion.div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Adoption Support */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold">Need Help?</h2>
-                <p className="text-sm text-gray-500">Our adoption counselors are here to assist you</p>
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center gap-3 rounded-lg border p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100">
-                      <MessageSquare className="h-5 w-5 text-teal-700" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Chat with an Adoption Counselor</h3>
-                      <p className="text-xs text-gray-500">Get answers to your questions about {petData.name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-lg border p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100">
-                      <Calendar className="h-5 w-5 text-teal-700" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Book a Video Call</h3>
-                      <p className="text-xs text-gray-500">See {petData.name} virtually before visiting</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 rounded-lg border p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-100">
-                      <Info className="h-5 w-5 text-teal-700" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Adoption Resources</h3>
-                      <p className="text-xs text-gray-500">Helpful guides for new pet parents</p>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>

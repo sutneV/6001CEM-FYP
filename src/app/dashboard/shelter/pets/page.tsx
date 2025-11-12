@@ -428,17 +428,6 @@ export default function ShelterPetsPage() {
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className="p-4">
-          <Button variant="outline" className="w-full gap-2 mb-2">
-            <Download className="h-4 w-4" />
-            Export Data
-          </Button>
-          <Button variant="outline" className="w-full gap-2">
-            <TrendingUp className="h-4 w-4" />
-            View Analytics
-          </Button>
-        </div>
       </div>
 
       {/* Right Content Area */}

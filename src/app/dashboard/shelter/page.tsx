@@ -663,44 +663,6 @@ export default function ShelterDashboardPage() {
           </CardContent>
         </Card>
       </motion.section>
-
-      {/* Quick Actions */}
-      <motion.section variants={fadeIn}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks for shelter management</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <Link href="/dashboard/shelter/pets/add">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add New Pet
-                </Button>
-              </Link>
-              <Link href="/dashboard/shelter/applications">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  Review Applications
-                </Button>
-              </Link>
-              <Link href="/dashboard/shelter/pets">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <PawPrint className="h-4 w-4" />
-                  Manage Pets
-                </Button>
-              </Link>
-              <Link href="/dashboard/shelter/reports">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <FileText className="h-4 w-4" />
-                  View Reports
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.section>
     </motion.div>
   )
 }

@@ -458,19 +458,6 @@ export default function UsersPage() {
                           Activate User
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        onClick={() => handleUserAction(selectedUserData.id, 'reset-password')}
-                      >
-                        Reset Password
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleUserAction(selectedUserData.id, 'send-email')}
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Send Email
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

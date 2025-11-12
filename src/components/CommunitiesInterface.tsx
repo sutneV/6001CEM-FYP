@@ -436,10 +436,6 @@ export default function CommunitiesInterface() {
                     <span className="text-sm text-gray-500">Category</span>
                     <Badge variant="secondary" className="text-xs">{capitalizeCategory(selectedCommunity.category)}</Badge>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Visibility</span>
-                    <span className="text-sm font-medium">{selectedCommunity.isPublic ? 'Public' : 'Private'}</span>
-                  </div>
                 </CardContent>
               </Card>
 

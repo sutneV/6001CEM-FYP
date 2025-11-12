@@ -682,69 +682,6 @@ export default function DashboardPage() {
           </CardFooter>
         </Card>
       </motion.section>
-
-      {/* Resources and Tips */}
-      <motion.section variants={fadeIn}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Resources for New Pet Parents</CardTitle>
-            <CardDescription>Helpful guides and tips for your adoption journey</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              animate="visible"
-              className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {[
-                {
-                  title: "Preparing Your Home",
-                  description: "Essential tips for pet-proofing your home before adoption.",
-                  icon: Home,
-                  color: "bg-blue-100 text-blue-700",
-                },
-                {
-                  title: "First 30 Days Guide",
-                  description: "What to expect during the first month with your new pet.",
-                  icon: Calendar,
-                  color: "bg-purple-100 text-purple-700",
-                },
-                {
-                  title: "Local Vet Recommendations",
-                  description: "Top-rated veterinarians in Penang for your new companion.",
-                  icon: MapPin,
-                  color: "bg-green-100 text-green-700",
-                },
-              ].map((resource, index) => (
-                <motion.div key={index} variants={popIn} whileHover={{ y: -5 }} className="rounded-lg border">
-                  <div className="flex items-start gap-4 p-4">
-                    <div
-                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md ${resource.color}`}
-                    >
-                      <resource.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{resource.title}</h3>
-                      <p className="mt-1 text-sm text-gray-500">{resource.description}</p>
-                    </div>
-                  </div>
-                  <div className="border-t p-3">
-                    <Link href="#" className="text-sm font-medium text-teal-600 hover:text-teal-700">
-                      Read more
-                    </Link>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </CardContent>
-          <CardFooter className="border-t bg-gray-50 px-6 py-3">
-            <Link href="/dashboard/resources" className="text-sm font-medium text-teal-600 hover:text-teal-700">
-              View all resources
-            </Link>
-          </CardFooter>
-        </Card>
-      </motion.section>
     </motion.div>
   )
 }
