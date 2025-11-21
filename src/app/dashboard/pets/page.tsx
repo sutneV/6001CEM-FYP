@@ -16,7 +16,6 @@ import {
   AlertCircle,
   Dog,
   Cat,
-  Star,
   Calendar,
   Users,
   TrendingUp,
@@ -79,19 +78,6 @@ const cardVariant = {
       ease: "easeOut",
     },
   },
-}
-
-// Compatibility calculation (mock for now)
-const calculateCompatibility = (pet: PetWithShelter) => {
-  // Simple compatibility calculation based on pet attributes
-  let score = 70; // Base score
-  if (pet.vaccinated) score += 5
-  if (pet.neutered) score += 5
-  if (pet.houseTrained) score += 10
-  if (pet.goodWithKids) score += 5
-  if (pet.goodWithDogs) score += 3
-  if (pet.goodWithCats) score += 2
-  return Math.min(score, 99) // Cap at 99%
 }
 
 const typeIcons = {
@@ -248,8 +234,6 @@ export default function PetsPage() {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       case "oldest":
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      case "compatibility":
-        return calculateCompatibility(b) - calculateCompatibility(a)
       case "alphabetical":
         return a.name.localeCompare(b.name)
       default:
@@ -305,7 +289,6 @@ export default function PetsPage() {
   }
 
   const renderPetCard = React.useCallback((pet: PetWithShelter) => {
-    const compatibility = calculateCompatibility(pet)
     const TypeIcon = typeIcons[pet.type as keyof typeof typeIcons] || PawPrint
 
     return (
@@ -328,9 +311,6 @@ export default function PetsPage() {
             loading="lazy"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
-          <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium">
-            {compatibility}% Match
-          </div>
           <div className="absolute bottom-2 left-2">
             <Badge variant="outline" className="bg-white/90">
               <TypeIcon className="h-3 w-3 mr-1" />
@@ -514,10 +494,6 @@ export default function PetsPage() {
                   <DropdownMenuItem onClick={() => setSortBy("oldest")}>
                     <Calendar className="mr-2 h-4 w-4" />
                     Oldest First
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("compatibility")}>
-                    <Star className="mr-2 h-4 w-4" />
-                    Highest Compatibility
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSortBy("alphabetical")}>
                     <PawPrint className="mr-2 h-4 w-4" />

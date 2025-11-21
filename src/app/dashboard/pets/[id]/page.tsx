@@ -27,7 +27,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { toast } from "sonner"
@@ -852,13 +851,6 @@ export default function PetProfilePage() {
                       <p className="text-xs text-gray-500">Status</p>
                       <p className="font-medium">{petData.status}</p>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Adoption Compatibility</span>
-                      <span className="font-medium">95% Match</span>
-                    </div>
-                    <Progress value={95} className="h-2 bg-gray-100" indicatorClassName="bg-teal-500" />
                   </div>
                   <motion.div whileHover={{ scale: hasActiveApplication ? 1 : 1.03 }} whileTap={{ scale: hasActiveApplication ? 1 : 0.97 }}>
                     {hasActiveApplication ? (
