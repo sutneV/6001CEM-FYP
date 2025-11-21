@@ -44,6 +44,7 @@ export class PetsService {
   }
 
   // For shelters - get their own pets
+  
   async getShelterPets(): Promise<PetWithShelter[]> {
     const response = await fetch('/api/shelter/pets', {
       headers: {

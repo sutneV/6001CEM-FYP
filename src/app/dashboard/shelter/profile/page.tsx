@@ -11,8 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   User,
-  Bell,
-  Eye,
   Building2,
   Save,
   Upload,
@@ -164,23 +162,6 @@ export default function ShelterProfilePage() {
 
     fetchProfile()
   }, [user])
-
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    sms: false,
-    newApplications: true,
-    applicationUpdates: true,
-    events: true,
-    messages: true,
-  })
-
-  const [privacy, setPrivacy] = useState({
-    profileVisible: true,
-    shareData: false,
-    marketing: true,
-    analytics: true,
-  })
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -374,8 +355,6 @@ export default function ShelterProfilePage() {
 
   const sections = [
     { id: "profile", label: "Profile", icon: Building2 },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "privacy", label: "Privacy", icon: Eye },
     { id: "security", label: "Security", icon: Shield },
   ]
 
@@ -623,187 +602,6 @@ export default function ShelterProfilePage() {
                   <Button onClick={handleSave} disabled={isLoading} className="flex items-center gap-2">
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     {isLoading ? "Saving..." : "Save Changes"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Notifications Section */}
-            {activeSection === "notifications" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Notification Settings</h2>
-                  <p className="text-gray-600 mt-1">Choose how you want to be notified about updates</p>
-                </div>
-
-                <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-                  {/* Notification Methods */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Notification Methods</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Email Notifications</Label>
-                          <p className="text-sm text-gray-500">Receive updates via email</p>
-                        </div>
-                        <Switch
-                          checked={notifications.email}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Push Notifications</Label>
-                          <p className="text-sm text-gray-500">Browser and mobile notifications</p>
-                        </div>
-                        <Switch
-                          checked={notifications.push}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, push: checked })}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>SMS Notifications</Label>
-                          <p className="text-sm text-gray-500">Text message alerts</p>
-                        </div>
-                        <Switch
-                          checked={notifications.sms}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, sms: checked })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Notification Types */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium">What to notify me about</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>New Applications</Label>
-                          <p className="text-sm text-gray-500">When someone submits an adoption application</p>
-                        </div>
-                        <Switch
-                          checked={notifications.newApplications}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, newApplications: checked })}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Application Updates</Label>
-                          <p className="text-sm text-gray-500">When adopters update their applications</p>
-                        </div>
-                        <Switch
-                          checked={notifications.applicationUpdates}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, applicationUpdates: checked })}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Community Events</Label>
-                          <p className="text-sm text-gray-500">Upcoming events and meetups</p>
-                        </div>
-                        <Switch
-                          checked={notifications.events}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, events: checked })}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Messages</Label>
-                          <p className="text-sm text-gray-500">New messages from adopters</p>
-                        </div>
-                        <Switch
-                          checked={notifications.messages}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, messages: checked })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button onClick={handleSave} disabled={isLoading} className="flex items-center gap-2">
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    {isLoading ? "Saving..." : "Save Notifications"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Privacy Section */}
-            {activeSection === "privacy" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Privacy Settings</h2>
-                  <p className="text-gray-600 mt-1">Control your privacy and data sharing preferences</p>
-                </div>
-
-                <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Public Profile</Label>
-                        <p className="text-sm text-gray-500">Allow your shelter to be discovered by adopters</p>
-                      </div>
-                      <Switch
-                        checked={privacy.profileVisible}
-                        onCheckedChange={(checked) => setPrivacy({ ...privacy, profileVisible: checked })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Data Sharing</Label>
-                        <p className="text-sm text-gray-500">Share anonymized data to improve our services</p>
-                      </div>
-                      <Switch
-                        checked={privacy.shareData}
-                        onCheckedChange={(checked) => setPrivacy({ ...privacy, shareData: checked })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Marketing Communications</Label>
-                        <p className="text-sm text-gray-500">Receive promotional emails and updates</p>
-                      </div>
-                      <Switch
-                        checked={privacy.marketing}
-                        onCheckedChange={(checked) => setPrivacy({ ...privacy, marketing: checked })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label>Analytics</Label>
-                        <p className="text-sm text-gray-500">Help us improve by sharing usage analytics</p>
-                      </div>
-                      <Switch
-                        checked={privacy.analytics}
-                        onCheckedChange={(checked) => setPrivacy({ ...privacy, analytics: checked })}
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-red-600 flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      Danger Zone
-                    </h4>
-                    <div className="border border-red-200 rounded-lg p-4 space-y-3">
-                      <div>
-                        <Label className="text-red-600">Delete Shelter Account</Label>
-                        <p className="text-sm text-gray-500">Permanently delete your shelter account and all associated data</p>
-                      </div>
-                      <Button variant="destructive" size="sm">
-                        Delete Account
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Button onClick={handleSave} disabled={isLoading} className="flex items-center gap-2">
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    {isLoading ? "Saving..." : "Save Privacy Settings"}
                   </Button>
                 </div>
               </div>

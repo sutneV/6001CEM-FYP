@@ -63,7 +63,6 @@ export default function ShelterLayout({
       href: "/dashboard/shelter/applications",
       badge: !loadingPending && pendingCount > 0 ? pendingCount.toString() : undefined
     },
-    { name: "Adopters", icon: Users, href: "/dashboard/shelter/adopters" },
     {
       name: "Messages",
       icon: MessageSquare,

@@ -321,14 +321,6 @@ export default function EventMap() {
                     )}
                   </div>
                 </div>
-
-                {/* Action Button */}
-                <div className="pt-4">
-                  <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Register for Event
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
